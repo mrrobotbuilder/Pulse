@@ -1,17 +1,15 @@
 import type { Tile, TileData, TileEnvelope, ReportKind } from './types'
 import { tileSkin, type Skin } from './tileSkin'
-import { supa } from './tileSupabase'
 
 /**
- * tileStore is the ONLY module that touches persistence for user tiles.
- *
- * v1 is localStorage, scoped per user. Swapping this one module to Supabase
- * later never touches a tile or the host. Every key is namespaced by userId so
- * one user can never read another's tiles (multi-user from the ground up).
- * Note: localStorage has no cross-user isolation on a shared device, so v1 is
- * single-device. The Supabase swap adds RLS:
- *   tiles(id, user_id, name, html, created_at, updated_at)
- *   tile_data(tile_id, user_id, data jsonb)
+ * tileStore is the device-local half of tile persistence — ALWAYS the source
+ * of truth for the tile index and ALWAYS written on every save, so the app
+ * works fully offline. Optional cross-device cloud backup is a separate
+ * mirror layered on top by lib/sync.ts (Supabase, RLS-scoped to the signed-in
+ * user); this module never talks to Supabase itself. Every key is namespaced
+ * by userId so one user can never read another's tiles on a shared device
+ * (though localStorage itself has no cross-user isolation on a shared
+ * browser profile — that's what the cloud + auth layer is for).
  *
  * Keys:
  *   vitality:<userId>:tiles            -> Tile[]  (the index, source order)
@@ -234,22 +232,12 @@ function deleteTile(userId: string, id: string) {
 
 const MAX_TILE_DATA = 512 * 1024 // ~512KB per tile, protects the shared localStorage budget
 
-/** Persist a tile's data. Returns whether the write actually landed so callers
- *  never tell the user "Saved" for a payload that was silently dropped (oversized
- *  or quota-blocked). When a Supabase project is configured (env vars present) the
- *  write goes there so it syncs across devices; otherwise it stays in localStorage. */
+/** Persist a tile's data to this device. Returns whether the write actually
+ *  landed so callers never tell the user "Saved" for a payload that was
+ *  silently dropped (oversized or quota-blocked). Always localStorage — the
+ *  cloud mirror (when signed in) is a separate fire-and-forget call the host
+ *  makes via lib/sync.ts, so this write never blocks on the network. */
 async function saveData(userId: string, id: string, data: TileData): Promise<boolean> {
-  const db = supa()
-  if (db) {
-    try {
-      const { error } = await db
-        .from('tile_data')
-        .upsert({ tile_id: `${userId}:${id}`, data, updated_at: new Date().toISOString() })
-      return !error
-    } catch {
-      return false
-    }
-  }
   if (!hasStorage()) return false
   try {
     const json = JSON.stringify(data)
@@ -263,20 +251,6 @@ async function saveData(userId: string, id: string, data: TileData): Promise<boo
 }
 
 async function loadData(userId: string, id: string): Promise<TileData> {
-  const db = supa()
-  if (db) {
-    try {
-      const { data, error } = await db
-        .from('tile_data')
-        .select('data')
-        .eq('tile_id', `${userId}:${id}`)
-        .maybeSingle()
-      if (error || !data) return []
-      return (data.data as TileData) ?? []
-    } catch {
-      return []
-    }
-  }
   if (!hasStorage()) return []
   try {
     const raw = window.localStorage.getItem(dataKey(userId, id))
@@ -289,8 +263,7 @@ async function loadData(userId: string, id: string): Promise<TileData> {
 /**
  * Which tiles currently HAVE saved data (localStorage scan). Powers the gear
  * panel's "wipe the demo data" list: every id here still keeps its card — only
- * what's inside can be detonated. Supabase-synced data won't appear in this
- * scan (v1), but clearData still clears both stores.
+ * what's inside can be detonated.
  */
 function listDataIds(userId: string): string[] {
   if (!hasStorage()) return []
@@ -311,18 +284,10 @@ function listDataIds(userId: string): string[] {
 
 /**
  * Detonate what's INSIDE a tile — the card survives, its data goes black.
- * Clears both stores (Supabase row if configured, localStorage always) so the
- * tile renders its empty state on next load.
+ * Clears the device copy; the caller clears the cloud copy separately (see
+ * lib/sync.ts's syncWipe) so the cloud mirror stays consistent with local.
  */
 async function clearData(userId: string, id: string): Promise<void> {
-  const db = supa()
-  if (db) {
-    try {
-      await db.from('tile_data').delete().eq('tile_id', `${userId}:${id}`)
-    } catch {
-      /* network fail — still clear local below */
-    }
-  }
   if (!hasStorage()) return
   try {
     window.localStorage.removeItem(dataKey(userId, id))

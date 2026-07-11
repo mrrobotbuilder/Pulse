@@ -39,23 +39,27 @@ greeting:
 export const site = { name: 'Your Name' }
 ```
 
-### Level up: real saving (optional)
+### Level up: cloud backup (optional)
 
 By default your data saves in the browser, per device. To sync across your phone and
 laptop, add your own free Supabase project:
 
 1. Create a project at https://supabase.com
-2. In the SQL editor, run [`supabase/sync.sql`](supabase/sync.sql)
-3. Add two env vars (in Vercel, and `.env.local` for local dev):
+2. In the SQL editor, run [`supabase/sync.sql`](supabase/sync.sql) — one table, locked
+   down with Row Level Security so only your own signed-in account can ever read or
+   write your rows
+3. Authentication → Providers → Email: ON. Turn off "Confirm email" so signing up
+   signs you straight in
+4. Add two env vars (in Vercel, and `.env.local` for local dev):
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Redeploy and your tiles save for real across devices. This is a single-user personal
-setup with no login, so the anon key is public in the browser: treat the data as
-not-secret, or add auth later.
+Redeploy, then click the "sync" pill next to the settings gear to create an account.
+Data still always saves to this device first — the cloud copy is a mirror, so the
+dashboard keeps working offline or signed out exactly as before.
 
 ## Run it locally
 

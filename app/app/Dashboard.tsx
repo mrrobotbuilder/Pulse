@@ -6,10 +6,12 @@ import DashboardHeader from './DashboardHeader'
 import WelcomeBackdrop from '@/components/WelcomeBackdrop'
 import DashboardHeaderGem from './DashboardHeaderGem'
 import DashboardGrid from './DashboardGrid'
+import AuthPanel from './AuthPanel'
 import '@/components/veeTiles.css'
 import { dashboardChrome, backgroundAccent, DEFAULT_CHROME, type DashboardChrome } from '@/lib/tiles/dashboardChrome'
 import { activeGoal } from '@/lib/tiles/weights'
 import { tileStore } from '@/lib/tiles/tileStore'
+import { syncClearTile, syncWipe } from '@/lib/sync'
 import { site } from '@/content/site'
 
 interface DashboardProps {
@@ -52,7 +54,7 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
   }
 
   const wipeOne = async (id: string) => {
-    await tileStore.clearData(userId, id)
+    await Promise.all([tileStore.clearData(userId, id), syncClearTile(id)])
     window.location.reload() // tiles load their data on mount — a clean reload shows the black card
   }
   const wipeAll = async () => {
@@ -60,7 +62,7 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
       setArmed(true)
       return
     }
-    await Promise.all(dataIds.map((id) => tileStore.clearData(userId, id)))
+    await Promise.all([...dataIds.map((id) => tileStore.clearData(userId, id)), syncWipe()])
     window.location.reload()
   }
 
@@ -496,6 +498,7 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </div>
+          <AuthPanel />
         </div>
 
         <DashboardGrid userId={userId} chrome={chrome ?? DEFAULT_CHROME} />

@@ -1,26 +1,23 @@
--- Vitality Base — optional cross-device sync
+-- Pulse — cloud backup for tile data
 --
--- Run this ONCE in your own Supabase project (Dashboard → SQL Editor → paste → Run).
--- It creates the single table that holds each tile's saved data, so opening your
--- dashboard on another device (your phone) shows the same data.
---
--- This is a PERSONAL deployment with no login, so the policy below is open: the
--- table only ever holds YOUR data, reached with your project's public anon key.
--- (If you want it locked down later, add Supabase Auth and scope the policy to
--- auth.uid() — a topic for a future build.)
+-- Run this ONCE in your Supabase project (Dashboard → SQL Editor → paste → Run).
+-- It creates the single table that holds each tile's saved data, scoped to your
+-- own signed-in account: Row Level Security means no other account can ever
+-- read or write your rows, even though the anon key is public in the browser.
 
 create table if not exists public.tile_data (
-  tile_id    text primary key,
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  tile_id    text not null,
   data       jsonb,
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (user_id, tile_id)
 );
 
 alter table public.tile_data enable row level security;
 
--- Open access for the anon key (personal instance). Raw SQL doesn't auto-grant,
--- so the grant is explicit.
-drop policy if exists "tile_data open" on public.tile_data;
-create policy "tile_data open" on public.tile_data
-  for all using (true) with check (true);
+drop policy if exists "own rows only" on public.tile_data;
+create policy "own rows only" on public.tile_data
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-grant select, insert, update, delete on table public.tile_data to anon, authenticated;
+-- Only signed-in requests may touch the table at all — no grant to "anon".
+grant select, insert, update, delete on table public.tile_data to authenticated;
