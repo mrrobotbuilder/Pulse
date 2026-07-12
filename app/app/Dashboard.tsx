@@ -10,9 +10,12 @@ import AuthPanel from './AuthPanel'
 import '@/components/veeTiles.css'
 import { dashboardChrome, backgroundAccent, DEFAULT_CHROME, type DashboardChrome } from '@/lib/tiles/dashboardChrome'
 import { activeGoal } from '@/lib/tiles/weights'
+import { profile } from '@/lib/tiles/profile'
 import { tileStore } from '@/lib/tiles/tileStore'
 import { syncClearTile, syncWipe } from '@/lib/sync'
 import { site } from '@/content/site'
+import Onboarding from './Onboarding'
+import { onboardingState, hydratePersonalizationFromCloud, resetOnboarding } from '@/lib/onboarding'
 
 interface DashboardProps {
   firstName: string | null
@@ -182,8 +185,32 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
 
         {tab === 'yours' && (
           <div style={{ padding: '22px 24px' }}>
+            <p style={{ color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 14px', fontSize: 14 }}>
+              Goals, dream, and priorities changed? <strong style={{ color: 'var(--fg)' }}>Redo the interview</strong>{' '}
+              — the same questions that built this board the first time, answer them again to re-personalize it.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                resetOnboarding()
+                window.location.reload()
+              }}
+              style={{
+                width: '100%',
+                marginBottom: 20,
+                padding: '0.65rem 1rem',
+                borderRadius: 999,
+                background: 'transparent',
+                color: 'var(--fg)',
+                border: '1px solid var(--border)',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Redo the interview
+            </button>
             <p style={{ color: 'var(--muted)', lineHeight: 1.6, margin: 0, fontSize: 14 }}>
-              Want your own design? This is a <strong style={{ color: 'var(--fg)' }}>conversation, not a switch</strong>.
+              Want your own visual design too? This is a <strong style={{ color: 'var(--fg)' }}>conversation, not a switch</strong>.
               Paste this into Claude Code and the mentor talks it through with you first — what do you keep (the avatar,
               the tile art, the mentor tile, the background), and how do you want it to feel — before it strips a single
               pixel of Vitality style.
@@ -389,12 +416,16 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   const [scratchOpen, setScratchOpen] = useState(false)
   const [scratched, setScratched] = useState(false)
   const [goalAccent, setGoalAccent] = useState<string | undefined>(undefined)
+  const [resolvedFirstName, setResolvedFirstName] = useState<string | null>(firstName)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     setChrome(dashboardChrome.get(userId))
     try {
       setScratched(window.localStorage.getItem('vitality:scratched') === '1')
       setGoalAccent(activeGoal()?.accent)
+      const p = profile()
+      if (p.name) setResolvedFirstName(p.name)
     } catch {
       /* ignore */
     }
@@ -403,6 +434,27 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
     window.addEventListener('vitality:goal', onGoal)
     return () => window.removeEventListener('vitality:goal', onGoal)
   }, [userId])
+
+  // First visit (and not the detonated/black scratch mode): personalize before
+  // showing the demo board. If signed in with cloud data already saved from
+  // another device, hydrate silently instead of asking again.
+  useEffect(() => {
+    if (site.detonated) return
+    if (onboardingState() !== 'none') return
+    let cancelled = false
+    ;(async () => {
+      const hydrated = await hydratePersonalizationFromCloud()
+      if (cancelled) return
+      if (hydrated) {
+        window.location.reload()
+      } else {
+        setShowOnboarding(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // The active goal tints the whole room — the main goal turns it gold.
   const wallAccent = goalAccent ?? (chrome ? backgroundAccent(chrome.background) : '#6EE7B7')
@@ -475,7 +527,7 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
         <div className={styles.headerRow}>
           {showGem && <DashboardHeaderGem className={styles.headerGem} />}
           {showGreeting && (
-            <DashboardHeader firstName={firstName} greeting={chrome?.greeting} date={chrome?.date} />
+            <DashboardHeader firstName={resolvedFirstName} greeting={chrome?.greeting} date={chrome?.date} />
           )}
           {/* Settings gear (top-right): opens the scratch panel — the way in, and back. */}
           <div
@@ -505,6 +557,9 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
       </div>
 
       {scratchOpen && <ScratchPanel userId={userId} onClose={() => setScratchOpen(false)} />}
+      {showOnboarding && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />
+      )}
     </main>
   )
 }

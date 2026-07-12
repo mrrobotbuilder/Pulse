@@ -76,9 +76,35 @@ export const OVERALL_GOAL: Goal = {
   progress: 34,
 }
 
+/** The gold overall goal: localStorage override ('vitality:goal:overall') if
+ *  valid, else the seeded example. The onboarding interview writes this so
+ *  the gold goal reflects the visitor's own dream instead of the template. */
+export function overallGoal(): Goal {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem('vitality:goal:overall')
+      if (raw) {
+        const o = JSON.parse(raw)
+        if (o && typeof o.id === 'string' && o.weights) return o as Goal
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return OVERALL_GOAL
+}
+
+export function saveOverallGoal(goal: Goal): void {
+  try {
+    window.localStorage.setItem('vitality:goal:overall', JSON.stringify(goal))
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Overall first, then the individual goals. */
 export function allGoals(): Goal[] {
-  return [OVERALL_GOAL, ...goals()]
+  return [overallGoal(), ...goals()]
 }
 
 /** The full active Goal (incl. overall), for accent + title. */

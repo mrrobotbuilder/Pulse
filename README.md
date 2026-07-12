@@ -39,6 +39,30 @@ greeting:
 export const site = { name: 'Your Name' }
 ```
 
+### Personalize (built in)
+
+The first time anyone opens your deployed dashboard, it runs a short interview —
+name, the big dream, 2–4 goal areas with a real target, a priority, and a look — and
+builds the whole board around their answers instead of a template. Goals, the gold
+overall goal, the mentor's welcome notice, and suggested tiles are all generated from
+what they typed. Nothing is deleted: the Train logger, kilograms, personal records,
+and the mentor all work exactly the same — only the identity behind them changes. Any
+visitor can skip it to explore the demo board first, and redo it later from the
+settings gear.
+
+This works with **zero setup** — a built-in rule-based mapper turns answers into a
+personalized board for free, instantly. Add an `ANTHROPIC_API_KEY` (in Vercel, and
+`.env.local` for local dev) to have Claude polish the wording — goal titles, the
+overall dream, and the mentor's welcome note — for something closer to what a person
+would actually write:
+
+```bash
+ANTHROPIC_API_KEY=your-anthropic-api-key
+```
+
+Without a key the site is fully personalized either way; the key only upgrades the
+wording. Get one at https://console.anthropic.com.
+
 ### Level up: cloud backup (optional)
 
 By default your data saves in the browser, per device. To sync across your phone and
