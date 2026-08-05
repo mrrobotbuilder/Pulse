@@ -174,3 +174,28 @@ don't reference the beats.
   Windows `start`, Linux `xdg-open`).
 
 Rowan and Luke made the vision possible. You make it theirs.
+
+---
+
+## The Walks tile (STEGA integration)
+
+Walks are planned and logged in a separate app — STEGA (https://stega-oriad.vercel.app,
+repo `C:\Users\User\Projects\stega`) — not on this board.
+
+- `app/api/walks/route.ts` — POST appends a walk to a Vercel Blob JSON log
+  (`stega/walks.json`, private store `stega-walks`), guarded by a `WALKS_TOKEN`
+  bearer compared in constant time. GET returns the log for the board.
+- Sealed tiles have **no network**, so `public/tiles/walks.html` never fetches.
+  `Dashboard.tsx` fetches `/api/walks` on mount and writes it into the tile-data
+  lane (`tileStore.saveData(userId, 'walks', …)`); the tile reads it back through
+  the normal `window.Pulse.load()` bridge. Keep that split if you touch either side.
+- Env on this project: `WALKS_TOKEN`, `BLOB_READ_WRITE_TOKEN`. STEGA holds the
+  matching `PULSE_WALKS_TOKEN` plus a Protection Bypass secret, because this
+  deployment is behind Vercel SSO.
+- Adding a slot means touching all of: `lib/tiles/coreTiles.tsx` (`CoreTileId`,
+  `CORE_TILES`, `DEFAULT_HOME_ORDER`), the `READABLE` list in
+  `lib/tiles/useTileHost.ts`, and `SLOTS`/`DATA_SLOTS` in the MCP route.
+
+Note: `npm run build` reports a pre-existing prerender error on `/icon` and
+`/apple-icon` (next/og "Invalid URL"). It predates this integration and does not
+block Vercel deploys.
