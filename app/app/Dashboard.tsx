@@ -435,6 +435,27 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
     return () => window.removeEventListener('vitality:goal', onGoal)
   }, [userId])
 
+  // Walks are logged from STEGA into a server-side blob, not the browser. The
+  // sealed tile has no network, so the board fetches the log and hands it over
+  // through the normal tile-data lane for the tile to read with Pulse.load().
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/walks')
+        if (!res.ok) return
+        const { walks } = await res.json()
+        if (cancelled || !Array.isArray(walks)) return
+        await tileStore.saveData(userId, 'walks', { walks, syncedAt: new Date().toISOString() })
+      } catch {
+        // Offline or blob unconfigured — the tile keeps its last synced copy.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
+
   // First visit (and not the detonated/black scratch mode): personalize before
   // showing the demo board. If signed in with cloud data already saved from
   // another device, hydrate silently instead of asking again.

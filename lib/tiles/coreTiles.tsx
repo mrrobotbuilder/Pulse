@@ -27,6 +27,7 @@ export type CoreTileId =
   | 'peak'
   | 'brand'
   | 'finance'
+  | 'walks'
 
 /** A single live metric to surface on a tile (Train day, Fuel kcal). */
 export interface CoreStat {
@@ -103,6 +104,29 @@ export const CORE_TILES: Record<CoreTileId, CoreTile> = {
       s.fuelKcalToday != null
         ? { value: s.fuelKcalToday.toLocaleString('en-US'), unit: 'kcal' }
         : null,
+  },
+  walks: {
+    id: 'walks',
+    href: '/app/starter',
+    index: '07',
+    label: 'Walks',
+    variant: 'live',
+    orb: { mode: 'wander' },
+    defaultSize: 's',
+    glyph: (
+      <svg viewBox="-12 -12 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
+        <path d="M-3 -9 L2 -3 L-2 2 L3 9" />
+        <path d="M-7 4 L-2 2" />
+        <path d="M3 -6 L8 -4" />
+      </svg>
+    ),
+    art: (
+      <svg className="art" viewBox="0 0 210 118">
+        <path className="mot" d="M32 88 L68 74 L96 82 L130 50 L164 38" />
+        <g className="orb"><circle className="glow" r="8" /><circle className="node" r="3.2" /></g>
+      </svg>
+    ),
+    stat: (s) => (s.walkStepsWeek != null ? { value: s.walkStepsWeek.toLocaleString('en-US'), unit: 'steps' } : null),
   },
   vitals: {
     id: 'vitals',
@@ -261,6 +285,7 @@ export const DEFAULT_HOME_ORDER: HomeTileId[] = [
   'brand',
   'peak',
   'finance',
+  'walks',
 ]
 
 /** Is this id one of the pre-installed core tiles (incl. Vee)? */

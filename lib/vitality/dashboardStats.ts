@@ -6,4 +6,6 @@
 export interface DashboardTileStats {
   trainDay: string | null
   fuelKcalToday: number | null
+  /** Steps walked this ISO week, from the STEGA walks log. */
+  walkStepsWeek: number | null
 }
