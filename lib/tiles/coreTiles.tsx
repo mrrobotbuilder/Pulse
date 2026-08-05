@@ -108,7 +108,7 @@ export const CORE_TILES: Record<CoreTileId, CoreTile> = {
   walks: {
     id: 'walks',
     href: '/app/starter',
-    index: '07',
+    index: '08',
     label: 'Walks',
     variant: 'live',
     orb: { mode: 'wander' },
