@@ -39,7 +39,8 @@ plan document; this is the checklist.
 - [x] 0b. Document WALKS_TOKEN + BLOB_READ_WRITE_TOKEN in .env.example
 - [x] 0c. This file
 - [ ] 0d. Supabase project created + sync.sql/tiles.sql run + keys set   ← box 4
-- [ ] 0e. Confirm WALKS_TOKEN is set on Vercel (walks are silent without it)
+- [x] 0e. WALKS_TOKEN confirmed set on Vercel (probed: POST returns 401, not 503;
+       GET /api/walks returns the live STEGA log)
 ```
 
 ### Stage A — WHOOP
@@ -88,7 +89,7 @@ them all with instructions.
 | Key | Status | Unlocks |
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | set locally | Walks blob storage |
-| `WALKS_TOKEN` | **unverified on Vercel** | STEGA → Pulse walk ingest |
+| `WALKS_TOKEN` | set on Vercel ✅ | STEGA → Pulse walk ingest |
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | not set | Cloud memory (box 4) |
 | `MCP_TOKEN` | not set | The Claude connector |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
