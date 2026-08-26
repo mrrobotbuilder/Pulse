@@ -173,7 +173,7 @@ export default function MentorPage({
             ← board
           </button>
         ) : (
-          <a href="/" style={{ float: 'left', color: 'var(--muted, #8a8f98)', fontSize: 13, textDecoration: 'none' }}>
+          <a href="/app" style={{ float: 'left', color: 'var(--muted, #8a8f98)', fontSize: 13, textDecoration: 'none' }}>
             ← Dashboard
           </a>
         )}

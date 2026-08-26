@@ -1,0 +1,423 @@
+/* The front door. Everything here leans on the tokens already defined in
+   globals.css (--mint, --serif, --mono, the spacing scale) so the landing page
+   and the board read as one product, not a marketing site bolted onto an app. */
+
+.page {
+  min-height: 100%;
+  /* Same near-black editorial atmosphere the board sits in, with a single mint
+     bloom behind the hero so the first screen has depth. */
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(110, 231, 183, 0.13), transparent 60%),
+    radial-gradient(90% 60% at 85% 10%, rgba(245, 158, 11, 0.05), transparent 55%),
+    #04060a;
+  overflow-x: hidden;
+}
+
+.inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+/* ───────── nav ───────── */
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: var(--text-xl);
+  letter-spacing: 0.01em;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.mark {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(110, 231, 183, 0.35);
+  background: rgba(110, 231, 183, 0.08);
+  box-shadow: 0 0 18px rgba(110, 231, 183, 0.18);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 15px;
+  color: var(--mint);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.navLink {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-decoration: none;
+  transition: color var(--duration) var(--ease);
+}
+
+.navLink:hover { color: var(--fg); }
+
+/* ───────── hero ───────── */
+
+.hero {
+  padding: clamp(3rem, 9vw, 7rem) 0 clamp(2.5rem, 6vw, 4.5rem);
+  text-align: center;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mint);
+  opacity: 0.85;
+}
+
+.headline {
+  margin: var(--space-5) auto var(--space-5);
+  max-width: 16ch;
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(2.6rem, 8.5vw, 5.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+.headline em {
+  font-style: italic;
+  color: var(--mint);
+}
+
+.sub {
+  margin: 0 auto;
+  max-width: 54ch;
+  font-family: var(--font-hanken), var(--font-inter), sans-serif;
+  font-weight: 300;
+  font-size: clamp(1rem, 2.4vw, 1.2rem);
+  line-height: 1.6;
+  color: var(--muted-strong);
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+
+.ctaPrimary,
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: transform var(--duration) var(--ease-premium),
+              background var(--duration) var(--ease),
+              border-color var(--duration) var(--ease);
+}
+
+.ctaPrimary {
+  background: var(--mint);
+  color: var(--mint-ink);
+  border: 1px solid var(--mint);
+  box-shadow: 0 0 34px rgba(110, 231, 183, 0.28);
+}
+
+.ctaPrimary:hover { background: var(--mint-hover); transform: translateY(-1px); }
+
+.ctaSecondary {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border-strong);
+}
+
+.ctaSecondary:hover { border-color: rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
+
+.ctaNote {
+  margin-top: var(--space-4);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* ───────── sections ───────── */
+
+.section {
+  padding: clamp(3rem, 8vw, 6rem) 0;
+  border-top: 1px solid var(--border);
+}
+
+.sectionLabel {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--space-4);
+}
+
+.sectionTitle {
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(1.9rem, 5vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  max-width: 20ch;
+}
+
+.sectionBody {
+  margin-top: var(--space-5);
+  max-width: 60ch;
+  font-family: var(--font-hanken), var(--font-inter), sans-serif;
+  font-weight: 300;
+  font-size: var(--text-lg);
+  line-height: 1.65;
+  color: var(--muted-strong);
+}
+
+/* ───────── the equation ───────── */
+
+.formula {
+  margin: var(--space-10) 0 var(--space-8);
+  text-align: center;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  letter-spacing: 0.02em;
+  color: var(--fg);
+}
+
+.formula .y { font-style: italic; color: var(--amber); }
+.formula .x { font-style: italic; color: var(--mint); }
+.formula .op { color: var(--muted); padding: 0 0.25em; }
+
+.terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-6);
+}
+
+.term {
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.termSymbol {
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-size: var(--text-2xl);
+  color: var(--mint);
+}
+
+/* y is the answer, and the board paints the goal gold — keep the card symbol
+   the same colour it has in the formula above, or the two read as different
+   variables. */
+.termSymbolY { color: var(--amber); }
+
+.termTitle {
+  margin-top: var(--space-2);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.termBody {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ───────── tiles ───────── */
+
+.tileGrid {
+  margin-top: var(--space-10);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-4);
+}
+
+.tile {
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  transition: border-color var(--duration) var(--ease),
+              background var(--duration) var(--ease);
+}
+
+.tile:hover {
+  border-color: rgba(110, 231, 183, 0.28);
+  background: var(--card-elevated);
+}
+
+.tileIndex {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.tileName {
+  margin-top: var(--space-3);
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-size: var(--text-lg);
+  letter-spacing: 0.02em;
+}
+
+.tileBody {
+  margin-top: 6px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* ───────── split rows ───────── */
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 6vw, 4rem);
+  align-items: start;
+}
+
+.pointList {
+  list-style: none;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.point {
+  padding-left: var(--space-5);
+  border-left: 2px solid rgba(110, 231, 183, 0.35);
+}
+
+.pointTitle {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.pointBody {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ───────── pricing ───────── */
+
+.priceCard {
+  margin-top: var(--space-8);
+  max-width: 460px;
+  padding: var(--space-8);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(110, 231, 183, 0.09), transparent 70%),
+    var(--card);
+}
+
+.priceAmount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(2.4rem, 7vw, 3.4rem);
+  line-height: 1;
+}
+
+.pricePeriod {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.priceList {
+  margin: var(--space-6) 0 var(--space-8);
+  list-style: none;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.priceItem {
+  display: flex;
+  gap: 10px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--muted-strong);
+}
+
+.check { color: var(--mint); flex: none; }
+
+.soon {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+/* ───────── footer ───────── */
+
+.footer {
+  padding: var(--space-10) 0 var(--space-12);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.footerLinks { display: flex; gap: var(--space-5); }
+.footerLinks a { color: var(--muted); text-decoration: none; }
+.footerLinks a:hover { color: var(--fg); }
+
+/* ───────── narrow ───────── */
+
+@media (max-width: 720px) {
+  .split { grid-template-columns: 1fr; }
+  .navLinks { gap: var(--space-4); }
+  .navLink { font-size: var(--text-xs); }
+  .ctaPrimary, .ctaSecondary { width: 100%; justify-content: center; }
+  /* The in-page anchors wrap onto two lines each at phone width and turn the
+     header into a cramped block. On a phone you scroll instead — so keep only
+     the wordmark and the one link that leaves the page. */
+  .navSection { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctaPrimary, .ctaSecondary, .tile { transition: none; }
+  .ctaPrimary:hover, .ctaSecondary:hover { transform: none; }
+}
