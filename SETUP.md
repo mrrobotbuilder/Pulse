@@ -38,7 +38,10 @@ plan document; this is the checklist.
 - [x] 0a. Self-host the four fonts (no more Google Fonts build failures)
 - [x] 0b. Document WALKS_TOKEN + BLOB_READ_WRITE_TOKEN in .env.example
 - [x] 0c. This file
-- [ ] 0d. Supabase project created + sync.sql/tiles.sql run + keys set   ← box 4
+- [~] 0d. Supabase: project "pulse" created (North EU/Stockholm, ref
+       gomyudnemankqlcmwhlk), sync.sql run, keys in .env.local.
+       STILL OPEN: tiles.sql (see note below), "Confirm email" toggle,
+       and the keys on Vercel (needs vercel login).             ← box 4
 - [x] 0e. WALKS_TOKEN confirmed set on Vercel (probed: POST returns 401, not 503;
        GET /api/walks returns the live STEGA log)
 ```
@@ -90,12 +93,27 @@ them all with instructions.
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | set locally | Walks blob storage |
 | `WALKS_TOKEN` | set on Vercel ✅ | STEGA → Pulse walk ingest |
-| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | not set | Cloud memory (box 4) |
+| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | local ✅ / Vercel ❌ | Cloud memory (box 4) |
+| `SUPABASE_SERVICE_ROLE_KEY` | local ✅ | Server-only; WHOOP tokens + Stripe webhook |
+| `SUPABASE_DB_PASSWORD` | local ✅ | Running migrations from the CLI |
 | `MCP_TOKEN` | not set | The Claude connector |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
 | `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | not set | Live subs / stock prices |
 | `WHOOP_CLIENT_ID` / `_SECRET` | not yet | Stage A |
 | `STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` | not yet | Stage B4 |
+
+## Open decision: `supabase/tiles.sql`
+
+`sync.sql` is run and verified. `tiles.sql` is **not** run yet, deliberately:
+its policy is `using (true) with check (true)` granted to **anon**, which means
+anyone with the public anon key — it ships in the browser — could read and write
+that table. That was fine for a single-user personal board; it is not fine for
+a product with paying accounts.
+
+It is only needed for the Claude connector (box 6), which isn't set up, so
+nothing is blocked by leaving it out. The fix is stage B3 (add `user_id`, make
+the primary key `(user_id, slot)`, own-rows RLS, revoke anon) — cheap to do now
+on an empty database, expensive later with data in it.
 
 ## Known issues
 
