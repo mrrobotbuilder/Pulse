@@ -67,7 +67,7 @@ score over its manual estimate — the wiring behind it is what's missing.
 
 ### Stage C — make it good for users
 ```
-- [ ] C1. A landing page (right now the site opens straight into the board)
+- [x] C1. A landing page at / (the board moved to /app; PWA opens the board)
 - [ ] C2. Finish the peak and fuel tiles (still template demo content)
 - [ ] C3. Phone / PWA polish (box 5)
 - [ ] C4. Empty states — what a brand-new account sees on day one
