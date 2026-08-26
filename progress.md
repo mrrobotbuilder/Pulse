@@ -91,7 +91,7 @@ Vercel, so production may differ.
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | ✅ set | Walks blob storage |
 | `VERCEL_OIDC_TOKEN` | ✅ set | Vercel-managed |
-| `WALKS_TOKEN` | ❌ not local | STEGA → Pulse walk ingest (must be on Vercel) |
+| `WALKS_TOKEN` | ❌ not local / ✅ **on Vercel** | STEGA → Pulse walk ingest |
 | `NEXT_PUBLIC_SUPABASE_URL` | ❌ | Cloud backup |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ❌ | Cloud backup |
 | `ANTHROPIC_API_KEY` | ❌ | AI-polished onboarding wording (optional) |
@@ -102,7 +102,10 @@ Vercel, so production may differ.
 
 ## Known issues
 
-**1. `next/font/google` is a build-time single point of failure.**
+**1. ~~`next/font/google` is a build-time single point of failure.~~ FIXED
+(commit `a356d76`)** — all four faces are now self-hosted from `app/fonts/*.woff2`
+via `next/font/local`; the live CSS contains zero references to Google. The
+original problem, for the record:
 `app/layout.tsx` fetches four Google fonts at build time (Inter, Instrument
 Serif, Hanken Grotesk, JetBrains Mono). If any one fetch fails, the whole
 Vercel build dies:
@@ -122,8 +125,8 @@ This already happened once — the deploy at `4727000` failed on it. A retry wit
 `next/og` "Invalid URL". Windows-only, pre-existing, does **not** block Vercel
 deploys. Ignore it locally.
 
-**3. `SETUP.md` doesn't exist** even though CLAUDE.md calls for it as the
-running road checklist. This file covers the same ground for now.
+**3. ~~`SETUP.md` doesn't exist~~ FIXED (commit `09d9b9e`)** — `SETUP.md` is now
+the living road checklist, and carries the staged plan to a paid service.
 
 **4. One empty commit in history** (`e672a06`) — the deploy retry. Harmless.
 
@@ -136,13 +139,13 @@ running road checklist. This file covers the same ground for now.
    `supabase/tiles.sql`, turn Email auth on with "Confirm email" OFF, add the two
    `NEXT_PUBLIC_` keys to Vercel and `.env.local`. This gives data that follows
    you across devices and unlocks the connector and sweeps.
-2. **Confirm `WALKS_TOKEN` is set on Vercel** — Walks silently shows nothing in
-   production without it, and I only checked local env.
+2. ~~Confirm `WALKS_TOKEN` on Vercel~~ **DONE** — probed in production: POST with
+   a bad bearer returns 401 (not the 503 the route emits when the env is
+   missing), and GET returns the real STEGA log.
 
 **Worth doing soon:**
-3. **Self-host the fonts** if the build fails on Google Fonts again — it's a
-   known, recurring risk with a clean fix.
-4. **Create `SETUP.md`** as the living checklist CLAUDE.md expects.
+3. ~~Self-host the fonts~~ **DONE** — verified on the live site.
+4. ~~Create `SETUP.md`~~ **DONE** — see `SETUP.md` for the current road.
 
 **Optional / later:**
 5. Add `ANTHROPIC_API_KEY` on Vercel to upgrade onboarding wording.
