@@ -38,10 +38,12 @@ plan document; this is the checklist.
 - [x] 0a. Self-host the four fonts (no more Google Fonts build failures)
 - [x] 0b. Document WALKS_TOKEN + BLOB_READ_WRITE_TOKEN in .env.example
 - [x] 0c. This file
-- [~] 0d. Supabase: project "pulse" created (North EU/Stockholm, ref
-       gomyudnemankqlcmwhlk), sync.sql run, keys in .env.local.
-       STILL OPEN: tiles.sql (see note below), "Confirm email" toggle,
-       and the keys on Vercel (needs vercel login).             ← box 4
+- [x] 0d. Supabase LIVE. Project "pulse" (North EU/Stockholm, ref
+       gomyudnemankqlcmwhlk). tile_data + tiles both created, both scoped
+       per account with RLS, anon revoked on both. Security advisor: clean.
+       Keys set locally and on Vercel (prod + preview + dev).      <- box 4
+- [ ] 0f. Turn "Confirm email" OFF in Supabase auth settings (optional,
+       makes signup instant while testing; turn back ON before launch - B6)
 - [x] 0e. WALKS_TOKEN confirmed set on Vercel (probed: POST returns 401, not 503;
        GET /api/walks returns the live STEGA log)
 ```
@@ -93,8 +95,8 @@ them all with instructions.
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | set locally | Walks blob storage |
 | `WALKS_TOKEN` | set on Vercel ✅ | STEGA → Pulse walk ingest |
-| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | local ✅ / Vercel ❌ | Cloud memory (box 4) |
-| `SUPABASE_SERVICE_ROLE_KEY` | local ✅ | Server-only; WHOOP tokens + Stripe webhook |
+| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | local ✅ / Vercel ✅ | Cloud memory (box 4) |
+| `SUPABASE_SERVICE_ROLE_KEY` | local ✅ / Vercel ✅ | Server-only; WHOOP tokens + Stripe webhook |
 | `SUPABASE_DB_PASSWORD` | local ✅ | Running migrations from the CLI |
 | `MCP_TOKEN` | not set | The Claude connector |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
@@ -102,18 +104,22 @@ them all with instructions.
 | `WHOOP_CLIENT_ID` / `_SECRET` | not yet | Stage A |
 | `STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` | not yet | Stage B4 |
 
-## Open decision: `supabase/tiles.sql`
+## The `tiles` table (decision made 2026-08-26)
 
-`sync.sql` is run and verified. `tiles.sql` is **not** run yet, deliberately:
-its policy is `using (true) with check (true)` granted to **anon**, which means
-anyone with the public anon key — it ships in the browser — could read and write
-that table. That was fine for a single-user personal board; it is not fine for
-a product with paying accounts.
+Created in the SECURE shape rather than the original one. The old
+`supabase/tiles.sql` used `slot text primary key` with a policy of
+`using (true) with check (true)` granted to **anon** - meaning anyone holding
+the public anon key (it ships in the browser by design) could read and
+overwrite any user's tiles, and a tile is raw HTML the dashboard renders.
 
-It is only needed for the Claude connector (box 6), which isn't set up, so
-nothing is blocked by leaving it out. The fix is stage B3 (add `user_id`, make
-the primary key `(user_id, slot)`, own-rows RLS, revoke anon) — cheap to do now
-on an empty database, expensive later with data in it.
+It is now keyed `(user_id, slot)` with own-rows RLS and anon revoked, matching
+`tile_data`. Done on an empty database, so it cost nothing; the same change
+after real data exists would have needed a migration.
+
+**Consequence:** the MCP connector route (`app/api/mcp`) can no longer write -
+it uses the anon key and conflicts on the bare `slot` / `tile_id`. It is inert
+today (no `MCP_TOKEN` set, so it returns 503) and needs the stage B3 rework
+before box 6 can work. Flagged in a comment at the top of that route.
 
 ## Known issues
 

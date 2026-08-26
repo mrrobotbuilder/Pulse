@@ -103,7 +103,11 @@ export async function syncSaveTile(slot: string, html: string, name?: string): P
   try {
     const { error } = await c
       .from('tiles')
-      .upsert({ slot, html, name: name ?? null, updated_at: new Date().toISOString() }, { onConflict: 'slot' })
+      // The `tiles` primary key is (user_id, slot) — the table is scoped per
+      // account, like tile_data. user_id fills itself from auth.uid(), so it is
+      // never sent from the browser, but the conflict target must name both
+      // columns or the upsert has no matching unique index to resolve against.
+      .upsert({ slot, html, name: name ?? null, updated_at: new Date().toISOString() }, { onConflict: 'user_id,slot' })
     return !error
   } catch {
     return false

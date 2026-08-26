@@ -29,6 +29,21 @@ import { MCP_SCOPE, mcpResourceUrl, oauthSecret, originOf, resourceMetadataUrl }
  *     a signed access-token JWT here instead. See CONNECTOR.md.
  * A request with no/invalid auth gets a 401 carrying `WWW-Authenticate` with the
  * protected-resource-metadata URL, which is how claude.ai discovers the OAuth AS.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * OUT OF DATE — this route cannot write to the database as written.
+ *
+ * `tile_data` and `tiles` are now both scoped per account: keyed by
+ * (user_id, tile_id) / (user_id, slot), row-level security on, and `anon`
+ * revoked. This route still uses the ANON key with `onConflict: 'tile_id'` /
+ * `'slot'`, and it has no user identity at all (its OAuth subject is the
+ * hardcoded OWNER_SUBJECT), so every write here now fails.
+ *
+ * Nothing is broken in practice today: without MCP_TOKEN the route returns 503,
+ * and MCP_TOKEN is not set. Before the connector (SETUP.md box 6) can work it
+ * needs the stage B3 rework — talk to Supabase with the SERVICE ROLE key, write
+ * rows as an explicit OWNER_USER_ID, and drop the `me:<slot>` dual-write below.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 export const runtime = 'nodejs'
