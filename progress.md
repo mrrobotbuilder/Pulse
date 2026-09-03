@@ -1,6 +1,12 @@
 # Pulse — progress
 
-_Last updated: 2026-08-26 · commit `e672a06` · `main` in sync with `origin/main`_
+_Last updated: 2026-09-03 · commit `ca42145`_
+
+> **[`SETUP.md`](SETUP.md) is the source of truth for where the project stands.**
+> This file is the narrative of what was built and why. It fell a week out of
+> date once (it still claimed box 4 was pending after Supabase had gone live) —
+> if the two ever disagree again, believe SETUP.md.
+> The approved plan behind it all is [`docs/PLAN.md`](docs/PLAN.md).
 
 ---
 
@@ -71,32 +77,30 @@ Train bridge still fires, no console errors, no horizontal overflow at 375px.
 - [x] 1. The board, locally — npm install + npm run dev            REQUIRED
 - [x] 2. GitHub — repo live at mrrobotbuilder/Pulse                RECOMMENDED
 - [x] 3. Vercel — deployed, auto-deploys on push                   RECOMMENDED
-- [ ] 4. Supabase — sync.sql + tiles.sql + the two NEXT_PUBLIC keys OPTIONAL
+- [x] 4. Supabase — sync.sql + tiles.sql + the two NEXT_PUBLIC keys OPTIONAL
 - [ ] 5. Phone — open the live URL, Share → Add to Home Screen      OPTIONAL
 - [ ] 6. The connector — set MCP_TOKEN, `claude mcp add …`          OPTIONAL
 - [ ] 7. Live-data keys — your own free YouTube / Finnhub keys      OPTIONAL
 ```
 
-Boxes 1–3 are done. **Box 4 (Supabase) is the one that matters next** — until
-it's ticked, data lives in one browser and the connector and sweeps stay locked.
+Boxes 1–4 are done — "EVERYTHING completed" on the original road. 5–7 are
+bonuses. Box 6 (the connector) additionally needs the stage B3 rework before it
+can work: the MCP route still writes with the anon key, which `tiles` no longer
+accepts. See SETUP.md → "The `tiles` table".
+
+The live road now continues in [`SETUP.md`](SETUP.md) Part 2 — the staged plan
+to a paid product.
 
 ---
 
 ## Environment keys
 
-Checked in local `.env.local` only — I have **not** verified what's set on
-Vercel, so production may differ.
+**The key table lives in [`SETUP.md`](SETUP.md) → "The keys, and where they go".**
 
-| Key | Local | What it unlocks |
-|---|---|---|
-| `BLOB_READ_WRITE_TOKEN` | ✅ set | Walks blob storage |
-| `VERCEL_OIDC_TOKEN` | ✅ set | Vercel-managed |
-| `WALKS_TOKEN` | ❌ not local / ✅ **on Vercel** | STEGA → Pulse walk ingest |
-| `NEXT_PUBLIC_SUPABASE_URL` | ❌ | Cloud backup |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ❌ | Cloud backup |
-| `ANTHROPIC_API_KEY` | ❌ | AI-polished onboarding wording (optional) |
-| `MCP_TOKEN` | ❌ | The Claude connector |
-| `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | ❌ | Live subs / stock prices |
+It used to be duplicated here, and the copy went stale — this file spent a week
+claiming the Supabase keys were unset after they had been live in production.
+One table, one place. Short version: everything the board needs today is set,
+and `WHOOP_CLIENT_ID` / `WHOOP_CLIENT_SECRET` are the only things missing.
 
 ---
 
@@ -135,11 +139,15 @@ the living road checklist, and carries the staged plan to a paid service.
 ## Next steps
 
 **Do next (unblocks the most):**
-1. **Supabase — box 4.** Create the free project, run `supabase/sync.sql` and
-   `supabase/tiles.sql`, turn Email auth on with "Confirm email" OFF, add the two
-   `NEXT_PUBLIC_` keys to Vercel and `.env.local`. This gives data that follows
-   you across devices and unlocks the connector and sweeps.
-2. ~~Confirm `WALKS_TOKEN` on Vercel~~ **DONE** — probed in production: POST with
+1. **Register the WHOOP app — stage A0.** `developer.whoop.com`, client id +
+   secret, redirect URIs for production and localhost. This is the single thing
+   blocking Stage A: the routes, the token table and the signed `state` round
+   trip are all written and tested, and cannot be proven end to end without it.
+   Production also still needs `WHOOP_REDIRECT_URI` and `WHOOP_STATE_SECRET`
+   pushed to Vercel — both exist locally, neither is set on production.
+2. ~~**Supabase — box 4**~~ **DONE** — project live, both tables scoped per
+   account with RLS, anon revoked, keys set locally and on Vercel.
+3. ~~Confirm `WALKS_TOKEN` on Vercel~~ **DONE** — probed in production: POST with
    a bad bearer returns 401 (not the 503 the route emits when the env is
    missing), and GET returns the real STEGA log.
 
@@ -150,7 +158,10 @@ the living road checklist, and carries the staged plan to a paid service.
 **Optional / later:**
 5. Add `ANTHROPIC_API_KEY` on Vercel to upgrade onboarding wording.
 6. Add the board to a phone home screen (box 5).
-7. The connector — `MCP_TOKEN` + `claude mcp add` (box 6); needs Supabase first.
+7. The connector — `MCP_TOKEN` + `claude mcp add` (box 6). Supabase is no longer
+   the blocker; the **stage B3 rework is**. Setting `MCP_TOKEN` today would take
+   the route from "inert 503" to "authenticates, then fails every write on RLS".
+   Do B3 first.
 8. Live-data keys — YouTube and Finnhub (box 7). TikTok already needs none.
 
 **Known scope not yet touched:** the peak and fuel tiles still render their

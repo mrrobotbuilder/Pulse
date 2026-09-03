@@ -2,7 +2,7 @@
 
 _Living checklist. A box gets ticked the moment the step is finished — nothing
 is ticked on prediction. `[x]` means proven; `[~]` means written and building
-but not yet provable, with the reason next to it. Last updated: 2026-09-02._
+but not yet provable, with the reason next to it. Last updated: 2026-09-03._
 
 ## Part 1 — the board (the original road)
 
@@ -31,8 +31,8 @@ the original road. 5–7 are bonuses. Part 2 is the road to a paid product.
 ## Part 2 — the road to a paid product
 
 Turning the board from a personal dashboard into a hosted service: anyone signs
-up, gets a free trial, then subscribes. Full plan and rationale in the approved
-plan document; this is the checklist.
+up, gets a free trial, then subscribes. Full plan and rationale in
+[`docs/PLAN.md`](docs/PLAN.md) (approved 2026-08-26); this is the checklist.
 
 ### Stage 0 — foundations
 ```
@@ -150,3 +150,11 @@ before box 6 can work. Flagged in a comment at the top of that route.
    Verify builds on Vercel, not locally.
 2. The **peak** and **fuel** tiles still render template demo contents. The
    onboarding interview personalizes the board *around* them.
+3. **`vercel env pull` prints `[SENSITIVE]` as the *value* of any variable
+   marked Sensitive** — it is a redaction marker, not what is stored. This
+   already cost one session: `SUPABASE_SERVICE_ROLE_KEY` was read back as the
+   literal 11-character string `[SENSITIVE]` and written up as a broken
+   placeholder key in production. It was never broken. To check a sensitive
+   variable is really set, probe a route that reports its own missing env
+   instead — e.g. `curl -X POST .../api/whoop/start` returns 503 listing
+   exactly what is absent, and the service-role key is not in that list.
