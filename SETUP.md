@@ -2,7 +2,7 @@
 
 _Living checklist. A box gets ticked the moment the step is finished — nothing
 is ticked on prediction. `[x]` means proven; `[~]` means written and building
-but not yet provable, with the reason next to it. Last updated: 2026-09-03._
+but not yet provable, with the reason next to it. Last updated: 2026-09-04._
 
 ## Part 1 — the board (the original road)
 
@@ -19,18 +19,21 @@ but not yet provable, with the reason next to it. Last updated: 2026-09-03._
          unlocks the connector + sweeps.  ← BLOCKS EVERYTHING IN PART 2
 - [ ] 5. Phone — open your live URL, Share → Add to Home Screen    OPTIONAL
        → the dashboard as an app in your pocket
-- [~] 6. The connector — set MCP_TOKEN, `claude mcp add …`         OPTIONAL
+- [x] 6. The connector — set MCP_TOKEN, `claude mcp add …`         OPTIONAL
        → I can file data and build tiles from anywhere; /sweep runs nightly
-       MCP_TOKEN + OWNER_USER_ID set on Vercel 2026-09-04; the endpoint is live
-       (401 without a bearer, not 503) and every tool was driven successfully
-       against the real database — see B3. Remaining: `claude mcp add` on the
-       client you want to reach it from.
+       PROVEN AGAINST PRODUCTION 2026-09-04, not just against a dev server.
+       Registered at USER scope as `pulse` → /api/mcp/mcp, so it is reachable
+       from any folder; `claude mcp list` reports ✔ Connected. Through the
+       deployed route: tools/list returns all 7, and list_slots + read_data ran
+       against the live database (8 slots, all empty — clean). See B3 for the
+       write side, and known issue 4 for what nearly went wrong here.
 - [ ] 7. Live-data keys — your OWN free YouTube / Finnhub keys     OPTIONAL
        → YouTube subs + live stock prices pull automatically (TikTok needs none)
 ```
 
 **Where we actually are:** boxes 1–4 done — that is "EVERYTHING completed" on
-the original road. 5–7 are bonuses. Part 2 is the road to a paid product.
+the original road — plus box 6. 5 and 7 are the remaining bonuses.
+Part 2 is the road to a paid product.
 
 ## Part 2 — the road to a paid product
 
@@ -190,3 +193,12 @@ one row per `(user_id, tile_id)`, matching `lib/sync.ts`.
    variable is really set, probe a route that reports its own missing env
    instead — e.g. `curl -X POST .../api/whoop/start` returns 503 listing
    exactly what is absent, and the service-role key is not in that list.
+4. **A 401 from a protected route proves it is deployed — not that your token
+   works.** Box 6 sat on that mistake: `/api/mcp/mcp` answered 401 without a
+   bearer (rather than 503), which was read as "the connector is live and
+   configured". It was live — but the `MCP_TOKEN` on Vercel and the one in
+   `.env.local` were **different values**, so a correct-looking client would
+   have been refused with exactly the same 401. Nobody had tested the passing
+   case. Fixed 2026-09-04: both ends now hold the production token. Always
+   probe with a *good* credential and require a 200, not merely a rejection of
+   the empty case.
