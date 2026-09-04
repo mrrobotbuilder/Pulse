@@ -142,7 +142,33 @@ personal board, not on a board people pay for. Tracked as C5.
        /api/whoop/start 503). Vercel green; same seven checks pass in
        production. The test account was deleted — one user in the project,
        the owner.
-- [ ] B2. Real user ids replace the hardcoded "me"
+- [x] B2. Real user ids replace the hardcoded "me"
+       /app and /mentor now resolve the uid from the cookie session on the
+       SERVER, so who you are is settled before the first byte of HTML — no
+       flash of one account's board before another's. Signed out still gets
+       `me`, the anonymous/demo namespace, because the board is meant to work
+       with no account at all. Both routes are dynamic now, necessarily: a
+       cached copy of either would serve one person's board to everyone.
+       The part worth knowing: `claimDemoBoard()` hands this browser's `me`
+       board to the account that signs in, so nobody watches their goals,
+       tiles, skins and layout vanish the moment they make an account. Done
+       naively that REOPENS the B0 leak — `me` is copied, not deleted, so A
+       claims it, signs out, and B signs in on the same browser and inherits
+       A's board. A claim marker (`vitality:me:claimed-by`) stops that: the
+       first account to sign in owns it, and the copy is refused for anyone
+       else. B gets a clean account, which is correct — the anonymous board
+       was A's work, not a shared asset.
+       PROVEN 2026-09-04 two ways. (1) A 22-check harness: A inherits goals,
+       profile, tiles, skins and chrome; `me` survives; B is REFUSED and sees
+       defaults (75kg, not A's 91kg); repeat claims no-op; nothing is
+       overwritten; markers are never copied as board data; a pre-accounts
+       board still reaches a signed-in account in one call. (2) A real browser
+       with TWO throwaway accounts against the live Supabase: anonymous board
+       seeded → signed in as A, six keys copied under A's real uid, `me`
+       intact, board unchanged → signed out, signed in as B, and B saw NEITHER
+       A's goal NOR A's name → signed out, anonymous board back. Both
+       throwaway accounts deleted; one user in the project, the owner.
+       Vercel green; production smoke test unchanged.
 - [x] B3. Per-user tiles table + close the open anon policy          SECURITY
        Database half done 2026-08-26 (both tables keyed per account, RLS on,
        anon revoked). Connector half done 2026-09-03: the MCP route now uses
