@@ -90,7 +90,30 @@ button with no handler** (`public/tiles/vitals.html:138`) — acceptable on a
 personal board, not on a board people pay for. Tracked as C5.
 ### Stage B — the service
 ```
-- [ ] B0. Namespace all local data per user
+- [x] B0. Namespace all local data per user
+       Half the board was already keyed per user (tileStore, tileSkin,
+       dashboardChrome); goals, weights, overall/active goal, ideas, the
+       noticed feed, the profile, the onboarding flag, scratched and the
+       equation layout were bare, so a second account on one browser read
+       the first account's board. All of it now goes through the new
+       `lib/localScope.ts`, whose one rule is that the bare-key fallback
+       read belongs to the `me` namespace ALONE — a bare key predates
+       accounts, so it is the owner's own board, and serving it to any other
+       userId would be the bleed this exists to stop.
+       `lib/migrateLocal.ts` copies the bare keys into `me` once per
+       browser: non-destructive (copies, never deletes), never overwrites an
+       existing scoped value, refuses to run for a non-`me` namespace.
+       PROVEN 2026-09-04 three ways. (1) tsc clean — every one of the 21 call
+       sites was found as a type error, not by eye. (2) A harness ran the
+       PRE-B0 modules from git HEAD and the POST-B0 modules against
+       identically seeded storage: 12 board reads byte-identical on a
+       populated legacy board and on an empty one, bare keys intact, a
+       different userId gets defaults instead of the owner's board, no
+       overwrite, idempotent, survives a throwing localStorage — 16/16.
+       (3) A real browser on a dev server: 9 legacy keys planted, reloaded,
+       all 9 copied with identical values, all 9 originals still present, and
+       the board and /mentor rendered the seeded goal titles and name.
+       Vercel build green; / /app /mentor all 200 in production.
 - [ ] B1. Server-side auth (@supabase/ssr + middleware)
 - [ ] B2. Real user ids replace the hardcoded "me"
 - [x] B3. Per-user tiles table + close the open anon policy          SECURITY
