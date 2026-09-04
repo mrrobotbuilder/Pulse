@@ -77,23 +77,22 @@ score over its manual estimate — the wiring behind it is what's missing.
 - [ ] B0. Namespace all local data per user
 - [ ] B1. Server-side auth (@supabase/ssr + middleware)
 - [ ] B2. Real user ids replace the hardcoded "me"
-- [~] B3. Per-user tiles table + close the open anon policy          SECURITY
+- [x] B3. Per-user tiles table + close the open anon policy          SECURITY
        Database half done 2026-08-26 (both tables keyed per account, RLS on,
        anon revoked). Connector half done 2026-09-03: the MCP route now uses
        the SERVICE ROLE key, scopes every read and write to OWNER_USER_ID, and
        the phantom `me:<slot>` dual-write is gone.
        PROVEN 2026-09-04 against the live Supabase, driven through the real
-       route in a running dev server: tools/list, list_slots, create_tile,
-       read_tile, delete_tile and read_data all succeed. The write that used to
-       be dead now lands and reads back; the test tile was deleted after, and
-       `tiles` is empty again. A filtered read found the row it wrote, which is
-       also proof the row carries the right user_id.
-       ONE TOOL UNEXERCISED — save_data. Every slot's cloud data is currently
-       empty, useTileHost prefers cloud over localStorage
-       (useTileHost.ts:153 `if (remote != null) data = remote`), and the
-       connector has no delete_data. So a test row would persist and shadow the
-       real localStorage data for that tile — the train logger's history being
-       the obvious casualty. Not worth proving a write at that price.
+       route in a running dev server. All seven tools exercised end to end:
+       list_slots, read_tile, create_tile, delete_tile, read_data, save_data,
+       delete_data. The writes that used to be dead now land and read back.
+       A filtered read finding the row it had just written is also proof the
+       row carries the right user_id — the scoping works, not just the write.
+       save_data's merge was checked too: a second save under a different date
+       kept the first, rather than replacing the store.
+       Every test was reversible and reversed. Both tables were verified empty
+       before and after — 8 slots empty / 0 filled in `tiles`, all 7 data slots
+       clear. Nothing of the owner's was touched.
 - [ ] B4. Stripe: checkout, customer portal, webhook → subscriptions table
 - [ ] B5. 14-day trial, then the paywall; upgrade screen
 - [ ] B6. Multi-user WHOOP sync + hardening

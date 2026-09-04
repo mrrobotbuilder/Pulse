@@ -160,8 +160,15 @@ one-time steps switch it on:
 
 Now, in Claude Code: *"build a discipline-scoreboard tile in the vitals slot."* It uses
 the connector and the tile shows up on your dashboard. The tools it exposes:
-`list_slots`, `read_tile`, `create_tile` (also edits — it replaces a slot), and
-`delete_tile`.
+
+- **Tiles** — `list_slots`, `read_tile`, `create_tile` (also edits — it replaces
+  a slot), `delete_tile`.
+- **Data** — `read_data`, `save_data` (shallow-merges by default, so a sweep
+  can't clobber history it didn't read first), `delete_data`.
+
+The connector also needs `OWNER_USER_ID` alongside `MCP_TOKEN`: both tables are
+scoped per account, and the connector has no browser session to take an identity
+from, so it says which account it is writing for.
 
 ### Connect from claude.ai, Claude Desktop, or a scheduled task (OAuth)
 

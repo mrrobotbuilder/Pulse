@@ -348,8 +348,33 @@ const mcpHandler = createMcpHandler(
         )
       },
     )
+
+    server.registerTool(
+      'delete_data',
+      {
+        title: "Clear a tile's saved data",
+        description:
+          "WRITE — DESTRUCTIVE. Delete a slot's saved cloud data row outright. There is no undo and no merge: everything the tile had saved in the cloud is gone. The tile then falls back to whatever this device still holds in localStorage. ASK before calling this on a slot that holds real data — read_data first and say what is there. Its honest uses are undoing a save you just made, and clearing a slot deliberately.",
+        inputSchema: { slot: z.enum(DATA_SLOTS) },
+      },
+      async ({ slot }): Promise<ToolResult> => {
+        const o = open()
+        if ('err' in o) return o.err
+        // Both filters are load-bearing — same rule as delete_tile. Without the
+        // user_id one this wipes that slot's data for EVERY account.
+        const { error } = await o.conn.client
+          .from('tile_data')
+          .delete()
+          .eq('user_id', o.conn.ownerId)
+          .eq('tile_id', slot)
+        if (error) return fail('Could not clear that slot’s data. Did you run supabase/sync.sql?')
+        return text(
+          `Cleared the saved cloud data for "${slot}". This device's local copy, if any, is untouched.`,
+        )
+      },
+    )
   },
-  { serverInfo: { name: 'vitality-base', version: '0.2.0' } },
+  { serverInfo: { name: 'vitality-base', version: '0.3.0' } },
   { basePath: '/api/mcp', sessionIdGenerator: undefined, disableSse: true },
 )
 
