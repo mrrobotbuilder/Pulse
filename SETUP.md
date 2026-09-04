@@ -114,7 +114,34 @@ personal board, not on a board people pay for. Tracked as C5.
        all 9 copied with identical values, all 9 originals still present, and
        the board and /mentor rendered the seeded goal titles and name.
        Vercel build green; / /app /mentor all 200 in production.
-- [ ] B1. Server-side auth (@supabase/ssr + middleware)
+- [x] B1. Server-side auth (@supabase/ssr + middleware)
+       The session moved from localStorage to COOKIES, so the server can
+       finally tell who is asking. Before this, nothing server-side knew you
+       at all — fine for a board, fatal for a paywall, since a gate that only
+       exists in the browser is one anybody can walk around with JavaScript
+       off. `lib/supabaseClient.ts` now uses `createBrowserClient` (same
+       exported API, so no call site changed), `middleware.ts` refreshes the
+       session on every matched request, and `lib/server/auth.ts` adds
+       `getServerUser()` — whose one rule is always `getUser()`, never
+       `getSession()`: getSession trusts the cookie, and a cookie is
+       client-controlled. `/api/auth/whoami` reports your own id back.
+       The matcher skips static files and the token-authed routes (/api/mcp,
+       /api/walks, /api/whoop/sync, /api/stripe — the Stripe webhook verifies
+       a signature over the RAW body, so session middleware there is a hazard,
+       not just waste).
+       ONE-TIME COST, expected: a session saved before this was localStorage,
+       not a cookie, so IT DOES NOT CARRY OVER. Sign in once more on each
+       device. Board data is untouched — only the session moved.
+       PROVEN 2026-09-04 against the live Supabase with a throwaway account
+       created and then deleted: signed out -> whoami false, no session
+       cookie; signed in through the real form -> session cookie set, ZERO
+       sb-* keys left in localStorage, and the SERVER independently resolved
+       that account's exact uid and email; /app -> /mentor kept the session
+       server-side; sign out -> cookie gone, whoami false, board still fine
+       signed out. Excluded routes unaffected (/api/mcp 401, /api/walks 200,
+       /api/whoop/start 503). Vercel green; same seven checks pass in
+       production. The test account was deleted — one user in the project,
+       the owner.
 - [ ] B2. Real user ids replace the hardcoded "me"
 - [x] B3. Per-user tiles table + close the open anon policy          SECURITY
        Database half done 2026-08-26 (both tables keyed per account, RLS on,
