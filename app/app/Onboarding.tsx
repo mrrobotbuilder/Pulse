@@ -49,6 +49,8 @@ type Step = 'basics' | 'dream' | 'areas' | 'priority' | 'look' | 'review'
 const STEPS: Step[] = ['basics', 'dream', 'areas', 'priority', 'look', 'review']
 
 interface OnboardingProps {
+  /** Whose board this personalizes — see lib/localScope.ts */
+  userId: string
   /** Called once personalization is applied and the page is about to reload. */
   onComplete: () => void
   /** Called when the visitor skips — no data changes, just hide the overlay. */
@@ -66,7 +68,7 @@ interface OnboardingProps {
  * guaranteed-available fallback — the interview never blocks on a network
  * call or a missing API key.
  */
-export default function Onboarding({ onComplete, onSkip }: OnboardingProps) {
+export default function Onboarding({ userId, onComplete, onSkip }: OnboardingProps) {
   const [stepIdx, setStepIdx] = useState(0)
   const step = STEPS[stepIdx]
 
@@ -176,14 +178,14 @@ export default function Onboarding({ onComplete, onSkip }: OnboardingProps) {
       /* offline / timeout — deterministic draft already stands in */
     }
 
-    applyPersonalization(result)
+    applyPersonalization(userId, result)
     mirrorPersonalization(answers, result)
     onComplete()
     window.location.reload()
   }
 
   const skip = () => {
-    skipOnboarding()
+    skipOnboarding(userId)
     onSkip()
   }
 

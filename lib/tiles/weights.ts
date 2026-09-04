@@ -18,9 +18,14 @@
  * Claude reasons, edits DEFAULT_GOALS, you reload. Later it can also
  * cross-reference your real tile data (video published vs workouts, water,
  * caffeine) and retune from evidence. A localStorage override
- * ('vitality:goals') wins over these defaults, so the connector or a goals
- * UI can retune without a code change.
+ * ('vitality:<userId>:goals') wins over these defaults, so the connector or a
+ * goals UI can retune without a code change.
+ *
+ * Every reader here takes a userId: on a shared browser two accounts must not
+ * see each other's goals. See lib/localScope.ts.
  */
+
+import { readScoped, writeScoped } from '../localScope'
 
 export interface Goal {
   id: string
@@ -79,14 +84,12 @@ export const OVERALL_GOAL: Goal = {
 /** The gold overall goal: localStorage override ('vitality:goal:overall') if
  *  valid, else the seeded example. The onboarding interview writes this so
  *  the gold goal reflects the visitor's own dream instead of the template. */
-export function overallGoal(): Goal {
-  if (typeof window !== 'undefined') {
+export function overallGoal(userId: string): Goal {
+  const raw = readScoped(userId, 'goal:overall')
+  if (raw) {
     try {
-      const raw = window.localStorage.getItem('vitality:goal:overall')
-      if (raw) {
-        const o = JSON.parse(raw)
-        if (o && typeof o.id === 'string' && o.weights) return o as Goal
-      }
+      const o = JSON.parse(raw)
+      if (o && typeof o.id === 'string' && o.weights) return o as Goal
     } catch {
       /* fall through */
     }
@@ -94,23 +97,19 @@ export function overallGoal(): Goal {
   return OVERALL_GOAL
 }
 
-export function saveOverallGoal(goal: Goal): void {
-  try {
-    window.localStorage.setItem('vitality:goal:overall', JSON.stringify(goal))
-  } catch {
-    /* ignore */
-  }
+export function saveOverallGoal(userId: string, goal: Goal): void {
+  writeScoped(userId, 'goal:overall', JSON.stringify(goal))
 }
 
 /** Overall first, then the individual goals. */
-export function allGoals(): Goal[] {
-  return [overallGoal(), ...goals()]
+export function allGoals(userId: string): Goal[] {
+  return [overallGoal(userId), ...goals(userId)]
 }
 
 /** The full active Goal (incl. overall), for accent + title. */
-export function activeGoal(): Goal | undefined {
-  const id = activeGoalId()
-  return allGoals().find((g) => g.id === id) ?? goals()[0]
+export function activeGoal(userId: string): Goal | undefined {
+  const id = activeGoalId(userId)
+  return allGoals(userId).find((g) => g.id === id) ?? goals(userId)[0]
 }
 
 export const DEFAULT_NOTICED: Notice[] = [
@@ -198,14 +197,12 @@ export const DEFAULT_IDEAS: Record<string, TileIdea[]> = {
 }
 
 /** The mentor's tile recommendations for a goal (localStorage override wins). */
-export function tileIdeas(goalId: string): TileIdea[] {
-  if (typeof window !== 'undefined') {
+export function tileIdeas(userId: string, goalId: string): TileIdea[] {
+  const raw = readScoped(userId, 'ideas')
+  if (raw) {
     try {
-      const raw = window.localStorage.getItem('vitality:ideas')
-      if (raw) {
-        const o = JSON.parse(raw)
-        if (o && typeof o === 'object' && Array.isArray(o[goalId])) return o[goalId] as TileIdea[]
-      }
+      const o = JSON.parse(raw)
+      if (o && typeof o === 'object' && Array.isArray(o[goalId])) return o[goalId] as TileIdea[]
     } catch {
       /* fall through */
     }
@@ -215,14 +212,12 @@ export function tileIdeas(goalId: string): TileIdea[] {
 
 /** The mentor's noticed feed: localStorage override, else the seeded example.
  *  Claude Code (or the connector) writes 'vitality:noticed' after a scan. */
-export function noticedFeed(): Notice[] {
-  if (typeof window !== 'undefined') {
+export function noticedFeed(userId: string): Notice[] {
+  const raw = readScoped(userId, 'noticed')
+  if (raw) {
     try {
-      const raw = window.localStorage.getItem('vitality:noticed')
-      if (raw) {
-        const o = JSON.parse(raw)
-        if (Array.isArray(o)) return o as Notice[]
-      }
+      const o = JSON.parse(raw)
+      if (Array.isArray(o)) return o as Notice[]
     } catch {
       /* fall through */
     }
@@ -231,23 +226,17 @@ export function noticedFeed(): Notice[] {
 }
 
 /** Save the goals list (used by the mentor page's goal input). */
-export function saveGoals(list: Goal[]): void {
-  try {
-    window.localStorage.setItem('vitality:goals', JSON.stringify(list))
-  } catch {
-    /* ignore */
-  }
+export function saveGoals(userId: string, list: Goal[]): void {
+  writeScoped(userId, 'goals', JSON.stringify(list))
 }
 
 /** All goals: localStorage override ('vitality:goals') if valid, else defaults. */
-export function goals(): Goal[] {
-  if (typeof window !== 'undefined') {
+export function goals(userId: string): Goal[] {
+  const raw = readScoped(userId, 'goals')
+  if (raw) {
     try {
-      const raw = window.localStorage.getItem('vitality:goals')
-      if (raw) {
-        const o = JSON.parse(raw)
-        if (Array.isArray(o) && o.every((g) => g && typeof g.id === 'string' && g.weights)) return o as Goal[]
-      }
+      const o = JSON.parse(raw)
+      if (Array.isArray(o) && o.every((g) => g && typeof g.id === 'string' && g.weights)) return o as Goal[]
     } catch {
       /* fall through */
     }
@@ -256,27 +245,17 @@ export function goals(): Goal[] {
 }
 
 /** The active goal id (persisted). Defaults to the first goal. */
-export function activeGoalId(): string {
-  if (typeof window !== 'undefined') {
-    try {
-      const v = window.localStorage.getItem('vitality:goal:active')
-      if (v) return v
-    } catch {
-      /* fall through */
-    }
-  }
-  return goals()[0]?.id ?? ''
+export function activeGoalId(userId: string): string {
+  const v = readScoped(userId, 'goal:active')
+  if (v) return v
+  return goals(userId)[0]?.id ?? ''
 }
 
-export function setActiveGoalId(id: string): void {
-  try {
-    window.localStorage.setItem('vitality:goal:active', id)
-  } catch {
-    /* ignore */
-  }
+export function setActiveGoalId(userId: string, id: string): void {
+  writeScoped(userId, 'goal:active', id)
 }
 
 /** The active goal's weights (the badges on the row read these). */
-export function tileWeights(): Record<string, number> {
-  return activeGoal()?.weights ?? {}
+export function tileWeights(userId: string): Record<string, number> {
+  return activeGoal(userId)?.weights ?? {}
 }

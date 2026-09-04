@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import { CORE_TILES, VEE_TILE, DEFAULT_HOME_ORDER, coreDefaultSize, type CoreTile } from '@/lib/tiles/coreTiles'
 import dynamic from 'next/dynamic'
 import { activeGoal as readActiveGoal, allGoals, setActiveGoalId, tileWeights, type Goal } from '@/lib/tiles/weights'
+import { readScoped, writeScoped } from '@/lib/localScope'
 
 // Lazy: the board never pays for the mentor (Three.js gem included) until it
 // comes alive. Keeps first load fast.
@@ -560,16 +561,16 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   useEffect(() => {
     setMounted(true)
     try {
-      setScratched(window.localStorage.getItem('vitality:scratched') === '1')
-      const o = JSON.parse(window.localStorage.getItem('vitality:eq:order') || 'null')
+      setScratched(readScoped(userId, 'scratched') === '1')
+      const o = JSON.parse(readScoped(userId, 'eq:order') || 'null')
       if (Array.isArray(o)) setOrder(o.filter((x) => typeof x === 'string'))
-      const r = JSON.parse(window.localStorage.getItem('vitality:eq:removed') || 'null')
+      const r = JSON.parse(readScoped(userId, 'eq:removed') || 'null')
       if (Array.isArray(r)) setRemoved(r.filter((x) => typeof x === 'string'))
-      setGoal(readActiveGoal())
+      setGoal(readActiveGoal(userId))
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [userId])
 
   // While the mentor is alive over the board, the board must not scroll —
   // only the overlay does (it has its own overflowY). Blur stays.
@@ -636,7 +637,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
   // Each input's estimated share of the goal (plain numbers — Claude retunes them
   // at build time for YOUR goal; localStorage override wins. See lib/tiles/weights).
-  const weights = useMemo(() => (mounted ? tileWeights() : {}), [mounted, goal])
+  const weights = useMemo(() => (mounted ? tileWeights(userId) : {}), [mounted, goal, userId])
 
   // The equation row (the x's): every filled slot except the mentor, in the user's
   // saved order, minus anything they removed in edit mode. New tiles append.
@@ -661,20 +662,12 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
   const saveOrder = (next: string[]) => {
     setOrder(next)
-    try {
-      window.localStorage.setItem('vitality:eq:order', JSON.stringify(next))
-    } catch {
-      /* ignore */
-    }
+    writeScoped(userId, 'eq:order', JSON.stringify(next))
   }
 
   const saveRemoved = (next: string[]) => {
     setRemoved(next)
-    try {
-      window.localStorage.setItem('vitality:eq:removed', JSON.stringify(next))
-    } catch {
-      /* ignore */
-    }
+    writeScoped(userId, 'eq:removed', JSON.stringify(next))
   }
 
   // Drag-reorder: while dragging over a sibling, move the dragged tile there live.
@@ -759,11 +752,11 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
             {/* main (★) goal stands alone; the standalone goals share ONE border */}
             {(() => {
-              const gs = mounted ? allGoals() : []
+              const gs = mounted ? allGoals(userId) : []
               const mainG = gs.find((g) => g.id === 'overall')
               const others = gs.filter((g) => g.id !== 'overall')
               const pick = (g: Goal) => {
-                setActiveGoalId(g.id)
+                setActiveGoalId(userId, g.id)
                 setGoal(g)
                 try {
                   window.dispatchEvent(new CustomEvent('vitality:goal'))
@@ -1028,11 +1021,12 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
           }}
         >
           <MentorPage
+            userId={userId}
             overlay
             onClose={() => {
               setMentorAlive(false)
               // whatever goal they picked in there, the board follows it
-              setGoal(readActiveGoal())
+              setGoal(readActiveGoal(userId))
               try {
                 window.dispatchEvent(new CustomEvent('vitality:goal'))
               } catch {

@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 // The Mentor is a full page, not a popup: y — the overseer. Your goals, the
 // weight of every tile on them, and what the mentor noticed in your data.
 export default function Page() {
-  return <MentorPage />
+  return <MentorPage userId="me" />
 }

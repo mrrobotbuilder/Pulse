@@ -68,9 +68,12 @@ function Roll({ value, color, size }: { value: number; color: string; size: numb
 }
 
 export default function MentorPage({
+  userId,
   overlay = false,
   onClose,
 }: {
+  /** whose goals to read — see lib/localScope.ts */
+  userId: string
   /** true when the mentor "comes alive" over the board (no page load) */
   overlay?: boolean
   onClose?: () => void
@@ -84,8 +87,8 @@ export default function MentorPage({
 
   useEffect(() => {
     setMounted(true)
-    setList(allGoals())
-    setActive(activeGoalId())
+    setList(allGoals(userId))
+    setActive(activeGoalId(userId))
   }, [])
 
   // Pulse the gem when the goal changes — WAAPI on the wrapper, NO remount.
@@ -109,10 +112,10 @@ export default function MentorPage({
   const act = list.find((g) => g.id === active) ?? list[0]
   const accent = act?.accent ?? '#6EE7B7'
   const entries = Object.entries(act?.weights ?? {}).sort((a, b) => b[1] - a[1])
-  const advice = noticedFeed()[0]
+  const advice = noticedFeed(userId)[0]
 
   const switchGoal = (id: string) => {
-    setActiveGoalId(id)
+    setActiveGoalId(userId, id)
     setActive(id)
   }
 
@@ -120,8 +123,8 @@ export default function MentorPage({
     const raw = draft.trim()
     if (!raw) return
     const id = 'g-' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)
-    saveGoals([...goals(), { id, title: raw, weights: {}, pending: true } as Goal])
-    setList(allGoals())
+    saveGoals(userId, [...goals(userId), { id, title: raw, weights: {}, pending: true } as Goal])
+    setList(allGoals(userId))
     setDraft('')
   }
 
@@ -325,7 +328,7 @@ export default function MentorPage({
               </span>
 
               <div style={{ margin: '30px 0 6px' }}>
-                {tileIdeas(act?.id ?? 'overall').map((idea, i) => (
+                {tileIdeas(userId, act?.id ?? 'overall').map((idea, i) => (
                   <div
                     key={idea.title}
                     style={{ padding: '18px 0', animation: `bpRow .6s cubic-bezier(.22,1,.36,1) ${0.12 + i * 0.09}s both` }}

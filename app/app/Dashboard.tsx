@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './dashboard.module.css'
 import DashboardHeader from './DashboardHeader'
 import WelcomeBackdrop from '@/components/WelcomeBackdrop'
@@ -11,6 +11,8 @@ import '@/components/veeTiles.css'
 import { dashboardChrome, backgroundAccent, DEFAULT_CHROME, type DashboardChrome } from '@/lib/tiles/dashboardChrome'
 import { activeGoal } from '@/lib/tiles/weights'
 import { profile } from '@/lib/tiles/profile'
+import { readScoped } from '@/lib/localScope'
+import { migrateLocalData } from '@/lib/migrateLocal'
 import { tileStore } from '@/lib/tiles/tileStore'
 import { syncClearTile, syncWipe } from '@/lib/sync'
 import { site } from '@/content/site'
@@ -192,7 +194,7 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
             <button
               type="button"
               onClick={() => {
-                resetOnboarding()
+                resetOnboarding(userId)
                 window.location.reload()
               }}
               style={{
@@ -412,6 +414,20 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
  * localStorage namespaces (chrome, tile skins, layout) stay stable per browser.
  */
 export default function Dashboard({ firstName, userId }: DashboardProps) {
+  // Pre-accounts boards stored goals/profile/layout under bare keys. Copy them
+  // into this user's namespace before anything reads.
+  //
+  // This sits in the render body ON PURPOSE, not in an effect: React runs a
+  // CHILD's effects before its parent's, so a migration in Dashboard's effect
+  // would land after DashboardGrid had already read (and shown) the defaults.
+  // A parent's render always precedes its children's, so here it is in time.
+  // migrateLocalData is idempotent and no-ops on the server.
+  const migrated = useRef(false)
+  if (!migrated.current) {
+    migrated.current = true
+    migrateLocalData(userId)
+  }
+
   const [chrome, setChrome] = useState<DashboardChrome | undefined>(undefined)
   const [scratchOpen, setScratchOpen] = useState(false)
   const [scratched, setScratched] = useState(false)
@@ -422,15 +438,15 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   useEffect(() => {
     setChrome(dashboardChrome.get(userId))
     try {
-      setScratched(window.localStorage.getItem('vitality:scratched') === '1')
-      setGoalAccent(activeGoal()?.accent)
-      const p = profile()
+      setScratched(readScoped(userId, 'scratched') === '1')
+      setGoalAccent(activeGoal(userId)?.accent)
+      const p = profile(userId)
       if (p.name) setResolvedFirstName(p.name)
     } catch {
       /* ignore */
     }
     // picking a goal on the board re-tints the whole room, live
-    const onGoal = () => setGoalAccent(activeGoal()?.accent)
+    const onGoal = () => setGoalAccent(activeGoal(userId)?.accent)
     window.addEventListener('vitality:goal', onGoal)
     return () => window.removeEventListener('vitality:goal', onGoal)
   }, [userId])
@@ -461,10 +477,10 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   // another device, hydrate silently instead of asking again.
   useEffect(() => {
     if (site.detonated) return
-    if (onboardingState() !== 'none') return
+    if (onboardingState(userId) !== 'none') return
     let cancelled = false
     ;(async () => {
-      const hydrated = await hydratePersonalizationFromCloud()
+      const hydrated = await hydratePersonalizationFromCloud(userId)
       if (cancelled) return
       if (hydrated) {
         window.location.reload()
@@ -579,7 +595,7 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
 
       {scratchOpen && <ScratchPanel userId={userId} onClose={() => setScratchOpen(false)} />}
       {showOnboarding && (
-        <Onboarding onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />
+        <Onboarding userId={userId} onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />
       )}
     </main>
   )

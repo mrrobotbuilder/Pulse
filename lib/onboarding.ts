@@ -22,8 +22,10 @@ import { saveGoals, saveOverallGoal, setActiveGoalId } from '@/lib/tiles/weights
 import { saveProfile, type Profile } from '@/lib/tiles/profile'
 import { dashboardChrome, WALLPAPER_ACCENTS } from '@/lib/tiles/dashboardChrome'
 import { syncEnabled, syncSave, syncLoad } from '@/lib/sync'
+import { writeScoped, readScoped, removeScoped } from '@/lib/localScope'
 
-export const ONBOARDED_KEY = 'vitality:onboarded'
+/** Scoped-key name, not a full key: reads/writes go through lib/localScope. */
+export const ONBOARDED_NAME = 'onboarded'
 const CONFIG_TILE_ID = '_config' // cloud mirror slot (RLS-scoped like any tile)
 
 /** The six input tiles a goal can lean on. */
@@ -215,16 +217,16 @@ export function mapAnswersDeterministic(a: InterviewAnswers): PersonalizationRes
  * reads. Does NOT reload — the caller decides (the interview reloads; the
  * cloud-hydrate path re-renders instead).
  */
-export function applyPersonalization(result: PersonalizationResult): void {
+export function applyPersonalization(userId: string, result: PersonalizationResult): void {
   try {
-    saveGoals(result.goals)
-    saveOverallGoal(result.overall)
-    setActiveGoalId(result.activeId)
-    saveProfile(result.profile)
-    window.localStorage.setItem('vitality:noticed', JSON.stringify(result.notices))
-    window.localStorage.setItem('vitality:ideas', JSON.stringify(result.ideas))
+    saveGoals(userId, result.goals)
+    saveOverallGoal(userId, result.overall)
+    setActiveGoalId(userId, result.activeId)
+    saveProfile(userId, result.profile)
+    writeScoped(userId, 'noticed', JSON.stringify(result.notices))
+    writeScoped(userId, 'ideas', JSON.stringify(result.ideas))
 
-    dashboardChrome.update('me', {
+    dashboardChrome.update(userId, {
       background: { mode: 'world', accent: result.chromeAccent, particles: 24, mountains: true, speed: 1 },
       greeting: {
         mode: result.greeting && result.greeting.trim() ? 'custom' : 'auto',
@@ -235,7 +237,7 @@ export function applyPersonalization(result: PersonalizationResult): void {
       },
     })
 
-    window.localStorage.setItem(ONBOARDED_KEY, '1')
+    writeScoped(userId, ONBOARDED_NAME, '1')
     // re-tint the room live (Dashboard listens for this)
     window.dispatchEvent(new CustomEvent('vitality:goal'))
   } catch {
@@ -250,12 +252,12 @@ export function mirrorPersonalization(answers: InterviewAnswers, result: Persona
 }
 
 /** Restore personalization from the cloud on a fresh device. Returns whether it applied. */
-export async function hydratePersonalizationFromCloud(): Promise<boolean> {
+export async function hydratePersonalizationFromCloud(userId: string): Promise<boolean> {
   if (!syncEnabled()) return false
   try {
     const blob = (await syncLoad(CONFIG_TILE_ID)) as { result?: PersonalizationResult } | null
     if (blob && blob.result && Array.isArray(blob.result.goals)) {
-      applyPersonalization(blob.result)
+      applyPersonalization(userId, blob.result)
       return true
     }
   } catch {
@@ -265,31 +267,19 @@ export async function hydratePersonalizationFromCloud(): Promise<boolean> {
 }
 
 /** Mark onboarding skipped (explore the demo board first). */
-export function skipOnboarding(): void {
-  try {
-    window.localStorage.setItem(ONBOARDED_KEY, 'skip')
-  } catch {
-    /* ignore */
-  }
+export function skipOnboarding(userId: string): void {
+  writeScoped(userId, ONBOARDED_NAME, 'skip')
 }
 
 /** Clear onboarding state so the interview shows again ("Redo the interview"). */
-export function resetOnboarding(): void {
-  try {
-    window.localStorage.removeItem(ONBOARDED_KEY)
-  } catch {
-    /* ignore */
-  }
+export function resetOnboarding(userId: string): void {
+  removeScoped(userId, ONBOARDED_NAME)
 }
 
 /** Current onboarding state, read synchronously. */
-export function onboardingState(): 'done' | 'skip' | 'none' {
-  try {
-    const v = window.localStorage.getItem(ONBOARDED_KEY)
-    if (v === '1') return 'done'
-    if (v === 'skip') return 'skip'
-  } catch {
-    /* ignore */
-  }
+export function onboardingState(userId: string): 'done' | 'skip' | 'none' {
+  const v = readScoped(userId, ONBOARDED_NAME)
+  if (v === '1') return 'done'
+  if (v === 'skip') return 'skip'
   return 'none'
 }
