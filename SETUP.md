@@ -3,7 +3,8 @@
 _Living checklist. A box gets ticked the moment the step is finished — nothing
 is ticked on prediction. `[x]` means proven; `[~]` means written and building
 but not yet provable, with the reason next to it; `[⏸]` means deliberately
-parked, with the reason and the condition to resume. Last updated: 2026-09-04._
+parked, with the reason and the condition to resume; `[?]` means the item
+itself turned out to be wrong or undecided, with the finding written next to it. Last updated: 2026-09-04._
 
 ## Part 1 — the board (the original road)
 
@@ -197,10 +198,47 @@ personal board, not on a board people pay for. Tracked as C5.
 ### Stage C — make it good for users
 ```
 - [x] C1. A landing page at / (the board moved to /app; PWA opens the board)
-- [ ] C2. Finish the peak and fuel tiles (still template demo content)
+- [?] C2. "Finish the peak and fuel tiles (still template demo content)"
+       THE PARENTHETICAL IS WRONG — checked 2026-09-04 by rendering both with
+       an empty store. Neither shows template demo content:
+       · `fuel` is deliberately minimal. Its own header says "almost nothing,
+         on purpose… everything else this tile could become (macros, meals,
+         caffeine) gets built WITH the mentor, on top of this." It saves real
+         data through the bridge and draws its week from it. With no data it
+         reads "0 of 8 today" with a "+ Log a glass" button — a working empty
+         state, not a placeholder.
+       · `peak` has an EMPTY demo object (weightKg 75, everything else blank)
+         and real math. It was never showing fake numbers.
+       So there is nothing to un-fake. What is left is a PRODUCT decision, not
+       a bug, and it is yours: does `fuel` stay a one-number starter (macros
+       and meals arrive per-episode, built with the mentor as designed), or
+       does a paid product ship it fuller on day one? Left unticked and
+       deliberately undecided rather than silently rewriting a tile whose
+       comment says minimal is the point.
 - [ ] C3. Phone / PWA polish (box 5)
-- [ ] C4. Empty states — what a brand-new account sees on day one
-- [ ] C5. Hide the dead "Connect WHOOP" button while Stage A is parked
+- [x] C4. Empty states — what a brand-new account sees on day one
+       Audited all 8 tiles with an empty store 2026-09-04. Seven already told
+       you the one thing to do next — train "Today is unwritten — add an
+       exercise to begin", vee "The void is empty. Drop your first thought",
+       walks "No walks logged yet. Plan one in STEGA…", finance "add accounts
+       or stocks and the net-worth line draws itself", fuel "+ Log a glass",
+       brand a per-account message, vitals its input card.
+       `peak` was the one dead end: "NOT ENOUGH DATA TO BUILD" at 55% opacity
+       named the problem and hid the fix. Its refusal to draw is RIGHT — a
+       curve with no personal data is a generic baseline dressed as insight —
+       so the honesty stayed and the next step was added: "NOTHING TO PLOT YET
+       / Log sleep and how you feel in Vitals — this curve builds itself from
+       that. Caffeine logs and plans sharpen it." Vitals is named because it
+       is the hardwired input: sleep + feel reshape the curve on the next
+       refresh, with no sweep and no connector.
+       Verified by rendering, not by reading the diff.
+- [x] C5. Hide the dead "Connect WHOOP" button while Stage A is parked
+       `public/tiles/vitals.html` gated it behind `const WHOOP_ENABLED=false`
+       rather than deleting it: everything behind that button still exists and
+       Stage A resumes by flipping one line. The tile still prefers a real
+       `whoopRecovery` over its manual estimate — that path is untouched and
+       works the moment data arrives. Verified in a browser: button gone, the
+       sleep and feel inputs still work.
 ```
 
 ### Before charging real money
@@ -277,8 +315,13 @@ one row per `(user_id, tile_id)`, matching `lib/sync.ts`.
 1. **Local `npm run build` fails on `/icon` and `/apple-icon`** (`next/og`,
    "Invalid URL"). Windows-only, pre-existing, does **not** block Vercel.
    Verify builds on Vercel, not locally.
-2. The **peak** and **fuel** tiles still render template demo contents. The
-   onboarding interview personalizes the board *around* them.
+2. ~~The **peak** and **fuel** tiles still render template demo contents.~~
+   **NOT TRUE — checked 2026-09-04 by rendering both with an empty store.**
+   `fuel` is minimal by deliberate design (its own header: "almost nothing,
+   on purpose") and saves real data; `peak`'s demo object is empty and its
+   math is real. Neither ever showed fake numbers. This line had been repeated
+   into C2 as if it were a defect — see C2 for the product decision that is
+   actually left.
 3. **`vercel env pull` prints `[SENSITIVE]` as the *value* of any variable
    marked Sensitive** — it is a redaction marker, not what is stored. This
    already cost one session: `SUPABASE_SERVICE_ROLE_KEY` was read back as the

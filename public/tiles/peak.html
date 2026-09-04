@@ -319,7 +319,17 @@ function smoothPath(vals){
 }
 
 function render(){
-  if(!hasSignal()){ wrap.innerHTML='<div style="height:'+HEIGHT+'px;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted,#84848c);opacity:.55">not enough data to build</div>'; return; }
+  /* The honesty above is right — a curve with no personal data would be a
+     generic baseline dressed up as insight. But "not enough data to build" is
+     a dead end: it names the problem and hides the fix. Every other tile on
+     this board tells you the one thing to do next ("Today is unwritten — add
+     an exercise to begin"), so this one does too. Vitals is named specifically
+     because it is the HARDWIRED input: sleep + feel there reshape this curve
+     on the next refresh, with no sweep and no connector. */
+  if(!hasSignal()){ wrap.innerHTML='<div style="height:'+HEIGHT+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 24px">'
+    +'<div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted,#84848c);opacity:.55">nothing to plot yet</div>'
+    +'<div style="font-size:12.5px;line-height:1.65;color:var(--muted,#84848c);max-width:36ch">Log sleep and how you feel in <b style="color:var(--mint,#6EE7B7);font-weight:600">Vitals</b> — this curve builds itself from that. Caffeine logs and plans sharpen it.</div>'
+    +'</div>'; return; }
   width=Math.max(320,Math.round(wrap.clientWidth||stage.clientWidth||960));
   const det=curveDetailed(),sc=det.map(c=>c.score),base=baselineCurve();
   const windows=findPeakWindows(sc,Math.floor(nowHour));

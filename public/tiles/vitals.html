@@ -94,6 +94,15 @@
 </div>
 <script>
 const FEEL=[['Wrecked',25],['Rough',45],['OK',65],['Good',82],['Great',95]];
+/* WHOOP is PARKED (SETUP.md Stage A) — registering an app needs a WHOOP
+   membership, so the credentials are behind a purchase, not a form. The button
+   below never had a handler: on a personal board a dead button is a curiosity,
+   on a board people PAY for it is a broken promise. Hiding it rather than
+   deleting it, because everything behind it still exists and Stage A resumes
+   by flipping this one line back to true.
+   This tile still prefers a real whoopRecovery over its manual estimate — that
+   path is untouched and works the moment data arrives. */
+const WHOOP_ENABLED=false;
 let store={};
 let draft={sleepHours:7.5,feel:null};
 function persist(){window.Vitality.save(store)}
@@ -135,7 +144,7 @@ function render(){
   const line=trend();
   document.getElementById('app').innerHTML=
     '<div class="hero"><div class="rec '+tn+'">'+(rec!=null?rec+'%':'—')+'</div></div>'
-    +'<div class="whoop"><button class="whoopBtn" data-whoop><span class="dot"></span>Connect WHOOP</button></div>'
+    +(WHOOP_ENABLED?'<div class="whoop"><button class="whoopBtn" data-whoop><span class="dot"></span>Connect WHOOP</button></div>':'')
     +'<div class="card">'
       +'<div class="sleepRow"><button class="step" data-sleep="-0.5">−</button><span class="sleepVal">'+fmtSleep(draft.sleepHours)+'</span><button class="step" data-sleep="0.5">+</button></div>'
       +'<div class="feelRow" style="margin-top:20px">'+FEEL.map((f)=>'<button class="feel'+(draft.feel===f[1]?' on':'')+'" data-feel="'+f[1]+'">'+f[0]+'</button>').join('')+'</div>'
