@@ -19,8 +19,12 @@ but not yet provable, with the reason next to it. Last updated: 2026-09-03._
          unlocks the connector + sweeps.  ← BLOCKS EVERYTHING IN PART 2
 - [ ] 5. Phone — open your live URL, Share → Add to Home Screen    OPTIONAL
        → the dashboard as an app in your pocket
-- [ ] 6. The connector — set MCP_TOKEN, `claude mcp add …`         OPTIONAL
+- [~] 6. The connector — set MCP_TOKEN, `claude mcp add …`         OPTIONAL
        → I can file data and build tiles from anywhere; /sweep runs nightly
+       MCP_TOKEN + OWNER_USER_ID set on Vercel 2026-09-04; the endpoint is live
+       (401 without a bearer, not 503) and every tool was driven successfully
+       against the real database — see B3. Remaining: `claude mcp add` on the
+       client you want to reach it from.
 - [ ] 7. Live-data keys — your OWN free YouTube / Finnhub keys     OPTIONAL
        → YouTube subs + live stock prices pull automatically (TikTok needs none)
 ```
@@ -77,9 +81,19 @@ score over its manual estimate — the wiring behind it is what's missing.
        Database half done 2026-08-26 (both tables keyed per account, RLS on,
        anon revoked). Connector half done 2026-09-03: the MCP route now uses
        the SERVICE ROLE key, scopes every read and write to OWNER_USER_ID, and
-       the phantom `me:<slot>` dual-write is gone. Typecheck + build clean.
-       NOT yet proven against the live database — that needs MCP_TOKEN and
-       OWNER_USER_ID set on Vercel (box 6).
+       the phantom `me:<slot>` dual-write is gone.
+       PROVEN 2026-09-04 against the live Supabase, driven through the real
+       route in a running dev server: tools/list, list_slots, create_tile,
+       read_tile, delete_tile and read_data all succeed. The write that used to
+       be dead now lands and reads back; the test tile was deleted after, and
+       `tiles` is empty again. A filtered read found the row it wrote, which is
+       also proof the row carries the right user_id.
+       ONE TOOL UNEXERCISED — save_data. Every slot's cloud data is currently
+       empty, useTileHost prefers cloud over localStorage
+       (useTileHost.ts:153 `if (remote != null) data = remote`), and the
+       connector has no delete_data. So a test row would persist and shadow the
+       real localStorage data for that tile — the train logger's history being
+       the obvious casualty. Not worth proving a write at that price.
 - [ ] B4. Stripe: checkout, customer portal, webhook → subscriptions table
 - [ ] B5. 14-day trial, then the paywall; upgrade screen
 - [ ] B6. Multi-user WHOOP sync + hardening
@@ -113,8 +127,8 @@ them all with instructions.
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | local ✅ / Vercel ✅ | Cloud memory (box 4) |
 | `SUPABASE_SERVICE_ROLE_KEY` | local ✅ / Vercel ✅ | Server-only; WHOOP tokens + Stripe webhook |
 | `SUPABASE_DB_PASSWORD` | local ✅ | Running migrations from the CLI |
-| `MCP_TOKEN` | not set | The Claude connector |
-| `OWNER_USER_ID` | not set | Which account the connector writes as — needed with `MCP_TOKEN` |
+| `MCP_TOKEN` | local ✅ / Vercel ✅ | The Claude connector |
+| `OWNER_USER_ID` | local ✅ / Vercel ✅ | Which account the connector writes as — needed with `MCP_TOKEN` |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
 | `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | not set | Live subs / stock prices |
 | `WHOOP_CLIENT_ID` / `_SECRET` | **the only thing missing** | Stage A |
