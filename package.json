@@ -14,6 +14,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
     "@modelcontextprotocol/sdk": "1.26.0",
+    "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.105.4",
     "@vercel/blob": "^2.6.1",
     "mcp-handler": "^1.1.0",

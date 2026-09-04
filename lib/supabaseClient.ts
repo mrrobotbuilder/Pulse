@@ -1,6 +1,7 @@
 'use client'
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * The ONE Supabase browser client, shared by auth (lib/auth.ts) and sync
@@ -10,6 +11,16 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
  *
  * Created lazily and only when both public env vars are present; otherwise the
  * app stays purely local (see lib/auth.ts / lib/sync.ts no-ops).
+ *
+ * WHY createBrowserClient AND NOT createClient (B1): supabase-js keeps the
+ * session in localStorage, which the server cannot read — so nothing rendered
+ * on the server could ever know who you are. @supabase/ssr keeps the identical
+ * session in COOKIES instead, which travel with every request, so middleware
+ * and route handlers can resolve the same user (lib/server/auth.ts).
+ *
+ * The one-off cost: a session stored in localStorage before this change is not
+ * a cookie, so it is not carried over. Everyone signed in at the time signs in
+ * once more. Local board data is untouched — only the session moves.
  */
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -23,6 +34,6 @@ export const supabaseConfigured = (): boolean => !!(url && anonKey)
 /** The shared client, or null if unconfigured. */
 export function supabase(): SupabaseClient | null {
   if (!url || !anonKey) return null
-  if (!client) client = createClient(url, anonKey)
+  if (!client) client = createBrowserClient(url, anonKey)
   return client
 }
