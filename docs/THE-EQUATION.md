@@ -40,7 +40,7 @@ Sealed tiles can't fetch (sandboxed, no network). So ALL automation flows one la
 | Manual | type in the tile → `Vitality.save()` | works |
 | Claude in VS Code | ask Claude to write data / edit the tile | works |
 | MCP fill | connector `create_tile`/`read_tile` (edit tiles by talking) | works |
-| **Scheduled sweeps + API keys** | claude.ai scheduled task holds the key (Finnhub, YouTube), fetches, pushes into the tile's data via the connector | **GAP: connector has NO `save_data`/`read_data` tools — build these next** |
+| **Scheduled sweeps + API keys** | claude.ai scheduled task holds the key (Finnhub, YouTube), fetches, pushes into the tile's data via the connector | **half done** — the connector end is built and proven (`read_data`, `save_data`, `delete_data`, all exercised against the live database 2026-09-04). The scheduled-task end has never been run: no sweep has fetched from a real API on a schedule and landed data unattended. That demo is still owed. |
 
 Canonical episode demo: *finances → Finnhub key → scheduled Claude task → stocks tile
 updates itself every morning.* Same recipe: YouTube API → brand tile. One recipe,
@@ -72,9 +72,14 @@ infinite tiles.
 
 ## Next steps (in order)
 
-1. **Connector data tools:** add `save_data(slot, data)` + `read_data(slot)` to
-   `app/api/mcp/[transport]/route.ts` (mirror the tiles-table pattern onto `tile_data`)
-   → unlocks scheduled sweeps end-to-end.
+1. ~~**Connector data tools:** add `save_data(slot, data)` + `read_data(slot)`~~
+   **DONE.** `read_data`, `save_data` and `delete_data` all live in
+   `app/api/mcp/[transport]/route.ts` and were proven against the live database
+   on 2026-09-04 — including that `save_data`'s merge preserves existing keys
+   rather than replacing the store, which is the property a sweep depends on.
+   Note the connector now needs `OWNER_USER_ID` as well as `MCP_TOKEN`: both
+   tables are per-account, and it has no browser session to borrow an identity
+   from. This unlocked sweeps but did not prove them — see step 3.
 2. **Mentor goal UI + deterministic Peak score** (goal, weights editor, Σ w·x, per-tile %).
 3. **Prove one sweep on camera:** Finnhub → finance tile, scheduled task, no key in the app.
 4. Design Lab site: all-commands gallery, some free / most blurred (Patreon), plus the
