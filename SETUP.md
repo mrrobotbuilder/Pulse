@@ -73,7 +73,13 @@ score over its manual estimate — the wiring behind it is what's missing.
 - [ ] B0. Namespace all local data per user
 - [ ] B1. Server-side auth (@supabase/ssr + middleware)
 - [ ] B2. Real user ids replace the hardcoded "me"
-- [ ] B3. Per-user tiles table + close the open anon policy          SECURITY
+- [~] B3. Per-user tiles table + close the open anon policy          SECURITY
+       Database half done 2026-08-26 (both tables keyed per account, RLS on,
+       anon revoked). Connector half done 2026-09-03: the MCP route now uses
+       the SERVICE ROLE key, scopes every read and write to OWNER_USER_ID, and
+       the phantom `me:<slot>` dual-write is gone. Typecheck + build clean.
+       NOT yet proven against the live database — that needs MCP_TOKEN and
+       OWNER_USER_ID set on Vercel (box 6).
 - [ ] B4. Stripe: checkout, customer portal, webhook → subscriptions table
 - [ ] B5. 14-day trial, then the paywall; upgrade screen
 - [ ] B6. Multi-user WHOOP sync + hardening
@@ -108,6 +114,7 @@ them all with instructions.
 | `SUPABASE_SERVICE_ROLE_KEY` | local ✅ / Vercel ✅ | Server-only; WHOOP tokens + Stripe webhook |
 | `SUPABASE_DB_PASSWORD` | local ✅ | Running migrations from the CLI |
 | `MCP_TOKEN` | not set | The Claude connector |
+| `OWNER_USER_ID` | not set | Which account the connector writes as — needed with `MCP_TOKEN` |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
 | `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | not set | Live subs / stock prices |
 | `WHOOP_CLIENT_ID` / `_SECRET` | **the only thing missing** | Stage A |
@@ -127,10 +134,22 @@ It is now keyed `(user_id, slot)` with own-rows RLS and anon revoked, matching
 `tile_data`. Done on an empty database, so it cost nothing; the same change
 after real data exists would have needed a migration.
 
-**Consequence:** the MCP connector route (`app/api/mcp`) can no longer write -
-it uses the anon key and conflicts on the bare `slot` / `tile_id`. It is inert
-today (no `MCP_TOKEN` set, so it returns 503) and needs the stage B3 rework
-before box 6 can work. Flagged in a comment at the top of that route.
+**Consequence (resolved 2026-09-03):** the MCP connector route (`app/api/mcp`)
+could no longer write — it used the anon key and conflicted on the bare `slot` /
+`tile_id`. It now authenticates with the SERVICE ROLE key and scopes every read
+and write to `OWNER_USER_ID`.
+
+Note what that trade means: the service role **bypasses RLS**, so the database is
+no longer what protects those rows in this one file — the explicit
+`.eq('user_id', …)` on every query is. A missing filter there would not error,
+it would silently reach every account. That rule is written at the top of the
+route; keep it if you add a tool.
+
+While removing it, one thing turned out to be a phantom: the route also wrote a
+second `me:<slot>` row into `tile_data`, believing `tileStore` wrote that key.
+`tileStore` is localStorage-only and keys as `vitality:<userId>:tile:<id>:data` —
+it has never touched Supabase. Those rows were orphans nothing read. Gone now;
+one row per `(user_id, tile_id)`, matching `lib/sync.ts`.
 
 ## Known issues
 
