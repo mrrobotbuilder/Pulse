@@ -12,7 +12,7 @@ import { dashboardChrome, backgroundAccent, DEFAULT_CHROME, type DashboardChrome
 import { activeGoal } from '@/lib/tiles/weights'
 import { profile } from '@/lib/tiles/profile'
 import { readScoped } from '@/lib/localScope'
-import { migrateLocalData } from '@/lib/migrateLocal'
+import { prepareLocalNamespace } from '@/lib/migrateLocal'
 import { tileStore } from '@/lib/tiles/tileStore'
 import { syncClearTile, syncWipe } from '@/lib/sync'
 import { site } from '@/content/site'
@@ -421,11 +421,11 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   // CHILD's effects before its parent's, so a migration in Dashboard's effect
   // would land after DashboardGrid had already read (and shown) the defaults.
   // A parent's render always precedes its children's, so here it is in time.
-  // migrateLocalData is idempotent and no-ops on the server.
+  // prepareLocalNamespace is idempotent and no-ops on the server.
   const migrated = useRef(false)
   if (!migrated.current) {
     migrated.current = true
-    migrateLocalData(userId)
+    prepareLocalNamespace(userId)
   }
 
   const [chrome, setChrome] = useState<DashboardChrome | undefined>(undefined)

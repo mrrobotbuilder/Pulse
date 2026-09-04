@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import WelcomeBackdrop from '@/components/WelcomeBackdrop'
 import DashboardHeaderGem from '@/app/app/DashboardHeaderGem'
 import { CORE_TILES } from '@/lib/tiles/coreTiles'
+import { prepareLocalNamespace } from '@/lib/migrateLocal'
 import {
   allGoals,
   activeGoalId,
@@ -78,6 +79,16 @@ export default function MentorPage({
   overlay?: boolean
   onClose?: () => void
 }) {
+  // /mentor is a second entry point that reads scoped storage, so it has to
+  // prepare the namespace too — otherwise landing here first, before ever
+  // opening /app, would show defaults instead of your goals. Render body, not
+  // an effect, for the same ordering reason as Dashboard. Idempotent.
+  const prepared = useRef(false)
+  if (!prepared.current) {
+    prepared.current = true
+    prepareLocalNamespace(userId)
+  }
+
   const [mounted, setMounted] = useState(false)
   const [list, setList] = useState<Goal[]>([])
   const [active, setActive] = useState('')
