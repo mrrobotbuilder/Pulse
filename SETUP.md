@@ -2,7 +2,8 @@
 
 _Living checklist. A box gets ticked the moment the step is finished — nothing
 is ticked on prediction. `[x]` means proven; `[~]` means written and building
-but not yet provable, with the reason next to it. Last updated: 2026-09-04._
+but not yet provable, with the reason next to it; `[⏸]` means deliberately
+parked, with the reason and the condition to resume. Last updated: 2026-09-04._
 
 ## Part 1 — the board (the original road)
 
@@ -51,15 +52,21 @@ up, gets a free trial, then subscribes. Full plan and rationale in
        per account with RLS, anon revoked on both. Security advisor: clean.
        Keys set locally and on Vercel (prod + preview + dev).      <- box 4
 - [ ] 0f. Turn "Confirm email" OFF in Supabase auth settings (optional,
-       makes signup instant while testing; turn back ON before launch - B6)
+       makes signup instant while testing; turn back ON before launch - B6a)
 - [x] 0e. WALKS_TOKEN confirmed set on Vercel (probed: POST returns 401, not 503;
        GET /api/walks returns the live STEGA log)
 ```
 
-### Stage A — WHOOP
+### Stage A — WHOOP — ⏸ PARKED 2026-09-04 (a decision, not a failure)
 ```
-- [ ] A0. Register the app at developer.whoop.com (client id + secret,
-       redirect URIs for production and localhost)                 YOUR HANDS
+- [⏸] A0. Register the app at developer.whoop.com                    PARKED
+       Blocked on a **WHOOP membership**: developer.whoop.com states "You must
+       have a WHOOP membership to develop an app on the Developer Platform.
+       Your WHOOP account is also your WHOOP developer login." The credentials
+       are behind a purchase, not a form — which is not what this checklist
+       said before. With the 10-member cap on unapproved apps (known issue 5),
+       WHOOP cannot pay for itself before launch. RESUME WHEN: Pulse is
+       launched and taking money from paying members.
 - [x] A1a. `whoop_tokens` table live. RLS on with ZERO policies, and anon +
        authenticated revoked — so no browser can read it, only the server's
        service-role key. Probed against the live database: the anon key gets
@@ -69,12 +76,18 @@ up, gets a free trial, then subscribes. Full plan and rationale in
        and the signed `state` round trip passes 9 checks including rejecting a
        validly-signed-but-expired state. The actual OAuth handshake CANNOT be
        tested until A0 supplies a client id and secret.
-- [ ] A2. Scheduled sync pulling recovery / sleep / strain into the vitals tile
-- [ ] A3. The "Connect WHOOP" button wired up, status + disconnect
+- [⏸] A2. Scheduled sync pulling recovery / sleep / strain into the vitals tile
+- [⏸] A3. The "Connect WHOOP" button wired up, status + disconnect
 ```
-The vitals tile already has the button and already prefers a real WHOOP recovery
-score over its manual estimate — the wiring behind it is what's missing.
+**Nothing is deleted.** The table, both routes and the state signing stay in the
+repo and stay green: with no `WHOOP_CLIENT_ID` the routes answer 503 and touch
+nothing, so parked code cannot break a deploy or a user's board. Resuming means
+buying a membership, doing A0, then finishing A2/A3 — A1 is already paid for.
 
+The vitals tile still prefers a real WHOOP recovery score over its manual
+estimate, and still works fine without one. But it renders a **"Connect WHOOP"
+button with no handler** (`public/tiles/vitals.html:138`) — acceptable on a
+personal board, not on a board people pay for. Tracked as C5.
 ### Stage B — the service
 ```
 - [ ] B0. Namespace all local data per user
@@ -98,7 +111,11 @@ score over its manual estimate — the wiring behind it is what's missing.
        clear. Nothing of the owner's was touched.
 - [ ] B4. Stripe: checkout, customer portal, webhook → subscriptions table
 - [ ] B5. 14-day trial, then the paywall; upgrade screen
-- [ ] B6. Multi-user WHOOP sync + hardening
+- [ ] B6a. Launch hardening — **NOT parked, required before charging.** Rate-
+       limit the auth routes, turn Supabase email confirmation ON for real
+       signups, auth-or-scope `GET /api/walks`, and drop the `OWNER_USER_ID`
+       fallback from request paths (the MCP connector keeps it by design).
+- [⏸] B6b. Multi-user WHOOP sync — parked with Stage A.
 ```
 
 ### Stage C — make it good for users
@@ -107,6 +124,7 @@ score over its manual estimate — the wiring behind it is what's missing.
 - [ ] C2. Finish the peak and fuel tiles (still template demo content)
 - [ ] C3. Phone / PWA polish (box 5)
 - [ ] C4. Empty states — what a brand-new account sees on day one
+- [ ] C5. Hide the dead "Connect WHOOP" button while Stage A is parked
 ```
 
 ### Before charging real money
@@ -133,7 +151,7 @@ them all with instructions.
 | `OWNER_USER_ID` | local ✅ / Vercel ✅ | Which account the connector writes as — needed with `MCP_TOKEN` |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
 | `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | not set | Live subs / stock prices |
-| `WHOOP_CLIENT_ID` / `_SECRET` | **the only thing missing** | Stage A |
+| `WHOOP_CLIENT_ID` / `_SECRET` | ⏸ parked — needs a membership | Stage A, after launch |
 | `WHOOP_REDIRECT_URI` | local ✅ | Must match the WHOOP app byte for byte |
 | `WHOOP_STATE_SECRET` | local ✅ (generated) | Signs the OAuth `state` |
 | `STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` | not yet | Stage B4 |
@@ -202,3 +220,12 @@ one row per `(user_id, tile_id)`, matching `lib/sync.ts`.
    case. Fixed 2026-09-04: both ends now hold the production token. Always
    probe with a *good* credential and require a 200, not merely a rejection of
    the empty case.
+5. **WHOOP has two gates, and the plan only knew about one.** (a) Registering
+   an app at all requires a WHOOP *membership* — your WHOOP account is the
+   developer login, so there is no free developer tier to start from. (b) An
+   unapproved app is capped at **10 WHOOP members**, not "registered test
+   users" as `docs/PLAN.md:200` puts it — so subscriber #11 could not connect
+   a band. Lifting the cap needs WHOOP approval: API Terms of Use compliance,
+   a privacy-policy URL in their dashboard, Design/Brand guideline compliance,
+   and proof of testing with at least one real member. No published timeline.
+   Together these are why Stage A is parked until after launch.
