@@ -28,7 +28,7 @@ interface DashboardProps {
  * The app can't destroy anything by itself; everything sharp is a PROMPT you
  * copy into Claude Code (deterministic — /detonate is code, not improvisation).
  * Four rooms:
- *   how      — the loop: dashboard ⇄ Claude Code, the 4 data-in lanes, Rowan's videos
+ *   how      — the loop: dashboard ⇄ Claude Code, the 4 data-in lanes
  *   yours    — "make it yours": a talk-first restyle prompt (the mentor interviews you)
  *   data     — wipe what's INSIDE tiles (all, or one) — cards stay, contents go black
  *   scratch  — the detonation prompt (black screen, context survives)
@@ -168,10 +168,6 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
               between your personal dashboard and Claude Code. The mentor reads what your tiles saved, retunes your
               weights, goals and notices, and writes them back — the board only renders. The longer the loop runs,
               the more it adjusts to <em>you</em>.
-            </p>
-            <p style={{ color: 'var(--muted)', lineHeight: 1.65, margin: '12px 0 0', fontSize: 13.5 }}>
-              <strong style={{ color: 'var(--fg)' }}>Rowan teaches every piece on YouTube</strong> — how to automate
-              it and build your own input tiles, one video at a time.
             </p>
             <p style={{ ...mono, fontSize: 10, letterSpacing: '.16em', color: 'var(--mint, #6EE7B7)', margin: '18px 0 8px', textTransform: 'uppercase' }}>
               how data gets in

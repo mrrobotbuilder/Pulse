@@ -4,7 +4,7 @@ _Living checklist. A box gets ticked the moment the step is finished — nothing
 is ticked on prediction. `[x]` means proven; `[~]` means written and building
 but not yet provable, with the reason next to it; `[⏸]` means deliberately
 parked, with the reason and the condition to resume; `[?]` means the item
-itself turned out to be wrong or undecided, with the finding written next to it. Last updated: 2026-09-04._
+itself turned out to be wrong or undecided, with the finding written next to it. Last updated: 2026-10-27._
 
 ## Part 1 — the board (the original road)
 
@@ -35,13 +35,14 @@ itself turned out to be wrong or undecided, with the finding written next to it.
 
 **Where we actually are:** boxes 1–4 done — that is "EVERYTHING completed" on
 the original road — plus box 6. 5 and 7 are the remaining bonuses.
-Part 2 is the road to a paid product.
+Part 2 is what was built on top of it.
 
-## Part 2 — the road to a paid product
+**What comes next:** [`docs/PLAN.md`](docs/PLAN.md) (Pulse v2, 2026-10-27) — a
+free personal board whose intro interview has an AI build each person's board.
+The earlier paid-product plan (Stripe, trial, paywall) was dropped on
+2026-10-27; it is still in git history at `d422c3d:docs/PLAN.md`.
 
-Turning the board from a personal dashboard into a hosted service: anyone signs
-up, gets a free trial, then subscribes. Full plan and rationale in
-[`docs/PLAN.md`](docs/PLAN.md) (approved 2026-08-26); this is the checklist.
+## Part 2 — accounts, sync and parked work
 
 ### Stage 0 — foundations
 ```
@@ -66,8 +67,8 @@ up, gets a free trial, then subscribes. Full plan and rationale in
        Your WHOOP account is also your WHOOP developer login." The credentials
        are behind a purchase, not a form — which is not what this checklist
        said before. With the 10-member cap on unapproved apps (known issue 5),
-       WHOOP cannot pay for itself before launch. RESUME WHEN: Pulse is
-       launched and taking money from paying members.
+       RESUME WHEN: the owner buys a WHOOP membership (changed 2026-10-27;
+       it used to be "once paying members exist", and nobody will pay now).
 - [x] A1a. `whoop_tokens` table live. RLS on with ZERO policies, and anon +
        authenticated revoked — so no browser can read it, only the server's
        service-role key. Probed against the live database: the anon key gets
@@ -88,8 +89,9 @@ buying a membership, doing A0, then finishing A2/A3 — A1 is already paid for.
 The vitals tile still prefers a real WHOOP recovery score over its manual
 estimate, and still works fine without one. But it renders a **"Connect WHOOP"
 button with no handler** (`public/tiles/vitals.html:138`) — acceptable on a
-personal board, not on a board people pay for. Tracked as C5.
-### Stage B — the service
+personal board, not on one strangers use. Tracked as C5 (done).
+
+### Accounts and sync (done)
 ```
 - [x] B0. Namespace all local data per user
        Half the board was already keyed per user (tileStore, tileSkin,
@@ -118,18 +120,15 @@ personal board, not on a board people pay for. Tracked as C5.
 - [x] B1. Server-side auth (@supabase/ssr + middleware)
        The session moved from localStorage to COOKIES, so the server can
        finally tell who is asking. Before this, nothing server-side knew you
-       at all — fine for a board, fatal for a paywall, since a gate that only
-       exists in the browser is one anybody can walk around with JavaScript
-       off. `lib/supabaseClient.ts` now uses `createBrowserClient` (same
+       at all, and a check that only exists in the browser is one anybody can
+       walk around with JavaScript off. `lib/supabaseClient.ts` now uses `createBrowserClient` (same
        exported API, so no call site changed), `middleware.ts` refreshes the
        session on every matched request, and `lib/server/auth.ts` adds
        `getServerUser()` — whose one rule is always `getUser()`, never
        `getSession()`: getSession trusts the cookie, and a cookie is
        client-controlled. `/api/auth/whoami` reports your own id back.
        The matcher skips static files and the token-authed routes (/api/mcp,
-       /api/walks, /api/whoop/sync, /api/stripe — the Stripe webhook verifies
-       a signature over the RAW body, so session middleware there is a hazard,
-       not just waste).
+       /api/walks, /api/whoop/sync).
        ONE-TIME COST, expected: a session saved before this was localStorage,
        not a cookie, so IT DOES NOT CARRY OVER. Sign in once more on each
        device. Board data is untouched — only the session moved.
@@ -186,10 +185,9 @@ personal board, not on a board people pay for. Tracked as C5.
        Every test was reversible and reversed. Both tables were verified empty
        before and after — 8 slots empty / 0 filled in `tiles`, all 7 data slots
        clear. Nothing of the owner's was touched.
-- [ ] B4. Stripe: checkout, customer portal, webhook → subscriptions table
-- [ ] B5. 14-day trial, then the paywall; upgrade screen
-- [ ] B6a. Launch hardening — **NOT parked, required before charging.** Rate-
-       limit the auth routes, turn Supabase email confirmation ON for real
+- [ ] B6a. Launch hardening — **NOT parked, required before strangers sign
+       up**, and now also what protects the owner's Anthropic bill (the AI
+       caps are PLAN.md Stage 5). Rate-limit the auth routes, turn Supabase email confirmation ON for real
        signups, auth-or-scope `GET /api/walks`, and drop the `OWNER_USER_ID`
        fallback from request paths (the MCP connector keeps it by design).
 - [⏸] B6b. Multi-user WHOOP sync — parked with Stage A.
@@ -212,7 +210,7 @@ personal board, not on a board people pay for. Tracked as C5.
        So there is nothing to un-fake. What is left is a PRODUCT decision, not
        a bug, and it is yours: does `fuel` stay a one-number starter (macros
        and meals arrive per-episode, built with the mentor as designed), or
-       does a paid product ship it fuller on day one? Left unticked and
+       does it ship fuller on day one? Left unticked and
        deliberately undecided rather than silently rewriting a tile whose
        comment says minimal is the point.
 - [ ] C3. Phone / PWA polish (box 5)
@@ -241,13 +239,6 @@ personal board, not on a board people pay for. Tracked as C5.
        sleep and feel inputs still work.
 ```
 
-### Before charging real money
-```
-- [ ] Stripe account activated (identity + bank details)           YOUR HANDS
-- [ ] Terms of Service + Privacy Policy pages (Stripe and WHOOP both expect them)
-- [ ] A support email address
-```
-
 ## The keys, and where they go
 
 Every key lives in `.env.local` (gitignored) for local dev **and** in
@@ -259,16 +250,15 @@ them all with instructions.
 | `BLOB_READ_WRITE_TOKEN` | set locally | Walks blob storage |
 | `WALKS_TOKEN` | set on Vercel ✅ | STEGA → Pulse walk ingest |
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | local ✅ / Vercel ✅ | Cloud memory (box 4) |
-| `SUPABASE_SERVICE_ROLE_KEY` | local ✅ / Vercel ✅ | Server-only; WHOOP tokens + Stripe webhook |
+| `SUPABASE_SERVICE_ROLE_KEY` | local ✅ / Vercel ✅ | Server-only; WHOOP tokens + the connector |
 | `SUPABASE_DB_PASSWORD` | local ✅ | Running migrations from the CLI |
 | `MCP_TOKEN` | local ✅ / Vercel ✅ | The Claude connector |
 | `OWNER_USER_ID` | local ✅ / Vercel ✅ | Which account the connector writes as — needed with `MCP_TOKEN` |
 | `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
 | `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | not set | Live subs / stock prices |
-| `WHOOP_CLIENT_ID` / `_SECRET` | ⏸ parked — needs a membership | Stage A, after launch |
+| `WHOOP_CLIENT_ID` / `_SECRET` | ⏸ parked — needs a membership | Stage A |
 | `WHOOP_REDIRECT_URI` | local ✅ | Must match the WHOOP app byte for byte |
 | `WHOOP_STATE_SECRET` | local ✅ (generated) | Signs the OAuth `state` |
-| `STRIPE_SECRET_KEY` / `_WEBHOOK_SECRET` | not yet | Stage B4 |
 
 ## The `tiles` table (decision made 2026-08-26)
 

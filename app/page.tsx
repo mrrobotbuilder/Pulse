@@ -7,16 +7,10 @@ export const metadata: Metadata = {
     'A personal dashboard that turns everything you track into one number. Every habit is an input; the board does the math.',
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SET YOUR PRICE HERE. One line, no other file involved. When Stripe goes in
-// (SETUP.md stage B4) this must match the Stripe Price object — the number
-// shown here is marketing copy, never the source of truth for what is charged.
-const PRICE = { amount: '$9', period: 'per month', trialDays: 14 }
-
-// Flip these as each capability actually ships, so the page can never promise
-// something the product doesn't do yet. `false` renders a "soon" chip.
-const SHIPPED = { accounts: false, whoop: false }
-// ─────────────────────────────────────────────────────────────────────────────
+// Flip this when the WHOOP sync actually ships (SETUP.md Stage A), so the page
+// can never promise something the board doesn't do yet. `false` renders a
+// "soon" chip.
+const SHIPPED = { whoop: false }
 
 const TILES = [
   { i: '01', name: 'Train', body: 'Every session, every PR, every kilo. The logger that started the whole board.' },
@@ -41,7 +35,6 @@ export default function Page() {
           <div className={styles.navLinks}>
             <a href="#equation" className={`${styles.navLink} ${styles.navSection}`}>The math</a>
             <a href="#inputs" className={`${styles.navLink} ${styles.navSection}`}>The board</a>
-            <a href="#price" className={`${styles.navLink} ${styles.navSection}`}>Pricing</a>
             <a href="/app" className={styles.navLink}>Open&nbsp;→</a>
           </div>
         </nav>
@@ -63,7 +56,7 @@ export default function Page() {
             <a href="#equation" className={styles.ctaSecondary}>See how it works</a>
           </div>
           <p className={styles.ctaNote}>
-            No sign-up to look around · your data stays in your browser
+            Free to use · no sign-up to look around · your data stays yours
           </p>
         </header>
 
@@ -203,48 +196,14 @@ export default function Page() {
                 </p>
               </li>
               <li className={styles.point}>
-                <div className={styles.pointTitle}>No AI in the app</div>
+                <div className={styles.pointTitle}>Free, and nothing for sale</div>
                 <p className={styles.pointBody}>
-                  The tiles render data and nothing else. There is no model
-                  reading your life in the background and no key in the page.
+                  This is one person&apos;s own board, opened up for anyone who
+                  wants one. No plan, no card, no upsell. Bring your own data;
+                  it stays yours, and it is never sold.
                 </p>
               </li>
             </ul>
-          </div>
-        </section>
-
-        {/* ───────── pricing ───────── */}
-        <section id="price" className={styles.section}>
-          <p className={styles.sectionLabel}>Pricing</p>
-          <h2 className={styles.sectionTitle}>Try the whole thing first.</h2>
-          <p className={styles.sectionBody}>
-            {PRICE.trialDays} days, everything unlocked, no card. If it has not
-            changed how your week runs by then, walk away — that is the honest
-            test and it costs you nothing.
-          </p>
-
-          <div className={styles.priceCard}>
-            <div className={styles.priceAmount}>
-              {PRICE.amount}
-              <span className={styles.pricePeriod}>{PRICE.period}</span>
-            </div>
-            <ul className={styles.priceList}>
-              <li className={styles.priceItem}><span className={styles.check}>✓</span> The full board, every tile</li>
-              <li className={styles.priceItem}><span className={styles.check}>✓</span> Memory across all your devices</li>
-              <li className={styles.priceItem}><span className={styles.check}>✓</span> Device sync, so the board fills itself</li>
-              <li className={styles.priceItem}><span className={styles.check}>✓</span> Cancel in two clicks, keep your data</li>
-            </ul>
-            {SHIPPED.accounts ? (
-              <a href="/app" className={styles.ctaPrimary}>Start your free trial →</a>
-            ) : (
-              <>
-                <a href="/app" className={styles.ctaPrimary}>Open the board free →</a>
-                <p className={styles.ctaNote}>
-                  Accounts and billing are being built. The board itself works
-                  right now, free, in your browser.
-                </p>
-              </>
-            )}
           </div>
         </section>
 

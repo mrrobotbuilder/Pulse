@@ -8,9 +8,9 @@ import type { SupabaseClient, User } from '@supabase/supabase-js'
  * Until B1 the app had no idea who you were until React had mounted in your
  * browser: the session lived in localStorage. Everything server-side —
  * middleware, route handlers, anything rendered before hydration — was
- * anonymous by construction. The board could get away with that; a paywall
- * cannot, because a gate that only exists in the browser is a gate anyone can
- * walk around by disabling JavaScript.
+ * anonymous by construction, so the server could not tell whose board to
+ * render, and any check that only exists in the browser is one anyone can walk
+ * around by disabling JavaScript.
  *
  * The session now lives in cookies (see lib/supabaseClient.ts), so it arrives
  * with the request and this module can read it.

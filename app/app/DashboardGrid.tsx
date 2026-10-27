@@ -18,7 +18,7 @@ import type { DashboardChrome } from '@/lib/tiles/dashboardChrome'
 /**
  * The base dashboard grid. Every tile is an inert SLOT: the beautiful poster is
  * fixed, and clicking a tile either opens the sealed HTML you dropped into
- * public/tiles/<slot>.html (Patreon command or your own `/tile`), or — if the slot
+ * public/tiles/<slot>.html (an episode command or your own `/tile`), or — if the slot
  * is empty — opens the "how to build this" ConnectorOverlay.
  *
  * No auth, no drag/customize, no server. Layout is a pure function of
@@ -299,7 +299,7 @@ function ConnectorOverlay({ id, label, onClose }: { id: string; label: string; o
 
           <ol style={{ color: 'var(--muted)', lineHeight: 1.7, paddingLeft: 18 }}>
             <li>
-              <strong style={{ color: 'var(--fg)' }}>From a Patreon episode:</strong> drop the
+              <strong style={{ color: 'var(--fg)' }}>From an episode:</strong> drop the
               episode's command into <code>.claude/commands/</code> and run it in Claude Code (e.g.
               <code style={{ color: 'var(--mint)' }}> /logger</code>). It writes this exact file.
             </li>
@@ -350,9 +350,6 @@ function ConnectorOverlay({ id, label, onClose }: { id: string; label: string; o
   )
 }
 
-/** Rowan & Luke's Design Lab — every episode's /command lives here. */
-const DESIGN_LAB_URL = 'https://vitality-jade.vercel.app/lab'
-
 /* ── the "+ New tile" panel: dead simple — start with /tile ── */
 function NewTileOverlay({ onClose }: { onClose: () => void; onSaved?: (slot: string, html: string) => void }) {
   return (
@@ -383,39 +380,6 @@ function NewTileOverlay({ onClose }: { onClose: () => void; onSaved?: (slot: str
             In Claude Code, run <code style={{ color: 'var(--mint)' }}>/tile train</code> (or any slot:
             fuel, vitals, brand, peak, finance). It builds the tile and drops it straight onto your board.
           </p>
-          <div
-            style={{
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: '13px 16px',
-              margin: '24px 0 0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-            }}
-          >
-            <p style={{ margin: 0, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.5 }}>
-              Out of ideas? Browse <strong style={{ color: 'var(--fg)' }}>Rowan &amp; Luke&apos;s builds</strong> in the Design Lab.
-            </p>
-            <a
-              href={DESIGN_LAB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                flex: '0 0 auto',
-                background: 'var(--mint)',
-                color: 'var(--mint-ink, #042a1c)',
-                borderRadius: 999,
-                padding: '8px 14px',
-                fontWeight: 600,
-                fontSize: 12.5,
-                textDecoration: 'none',
-              }}
-            >
-              Design Lab →
-            </a>
-          </div>
         </div>
       </div>
     </div>
@@ -593,7 +557,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   }, [])
 
   // Discover which slots are filled, from two sources (live wins over static):
-  //   1. static files committed to public/tiles/<id>.html (the /tile + Patreon path)
+  //   1. static files committed to public/tiles/<id>.html (the /tile + episode-command path)
   //   2. live tiles in Supabase, built from Claude via the MCP connector — these
   //      override a static file for the same slot and appear without a redeploy.
   useEffect(() => {

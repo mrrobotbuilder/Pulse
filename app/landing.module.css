@@ -324,51 +324,7 @@
   color: var(--muted);
 }
 
-/* ───────── pricing ───────── */
-
-.priceCard {
-  margin-top: var(--space-8);
-  max-width: 460px;
-  padding: var(--space-8);
-  border: 1px solid rgba(110, 231, 183, 0.3);
-  border-radius: var(--radius-lg);
-  background:
-    radial-gradient(120% 100% at 50% 0%, rgba(110, 231, 183, 0.09), transparent 70%),
-    var(--card);
-}
-
-.priceAmount {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: var(--font-serif), Georgia, serif;
-  font-size: clamp(2.4rem, 7vw, 3.4rem);
-  line-height: 1;
-}
-
-.pricePeriod {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-
-.priceList {
-  margin: var(--space-6) 0 var(--space-8);
-  list-style: none;
-  display: grid;
-  gap: var(--space-3);
-}
-
-.priceItem {
-  display: flex;
-  gap: 10px;
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  color: var(--muted-strong);
-}
-
-.check { color: var(--mint); flex: none; }
+/* ───────── "soon" chip ───────── */
 
 .soon {
   display: inline-block;

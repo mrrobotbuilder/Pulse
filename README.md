@@ -103,7 +103,7 @@ Then open http://localhost:3000. Requires Node 20+ (see `.nvmrc`).
 Click any tile and it opens a panel telling you how to build it. Each tile is a slot
 that fills when a file exists at `public/tiles/<slot>.html`. Two ways to fill one:
 
-- **Follow a build.** Each Patreon episode ships a slash command (e.g. `/logger`).
+- **Follow a build.** Each episode ships a slash command (e.g. `/logger`).
   Drop it into `.claude/commands/`, run it in Claude Code, and it writes the tile
   straight into the right slot. Commit, redeploy, and it appears.
 - **Build your own.** Run [`/tile <slot>`](.claude/commands/tile.md) in Claude Code

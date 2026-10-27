@@ -8,6 +8,11 @@ _Last updated: 2026-09-03 · commit `ca42145`_
 > if the two ever disagree again, believe SETUP.md.
 > The approved plan behind it all is [`docs/PLAN.md`](docs/PLAN.md).
 
+**2026-10-27:** the paid-product direction (Stripe, 14-day trial, paywall) was
+dropped before any of it was built. Pulse is a free personal board; the
+pricing section, Stripe hooks and Patreon / Design Lab promos were removed in
+PLAN.md Stage 1. The plan below that predates this is history.
+
 ---
 
 ## Where the board lives

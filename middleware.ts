@@ -69,14 +69,11 @@ export const config = {
    *   /api/walks      — bearer WALKS_TOKEN from STEGA
    *   /api/whoop/sync — the scheduled sync (parked with Stage A, excluded now
    *                     so it is not forgotten when Stage A resumes)
-   *   /api/stripe     — the webhook, which verifies a Stripe signature over the
-   *                     RAW body; running session middleware over it risks the
-   *                     body being touched and the signature failing
    *
    * Those callers carry no cookies, so refreshing a session for them is pure
-   * overhead — and for the Stripe webhook it is an actual hazard.
+   * overhead.
    */
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|api/mcp|api/walks|api/whoop/sync|api/stripe|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|api/mcp|api/walks|api/whoop/sync|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$).*)',
   ],
 }
