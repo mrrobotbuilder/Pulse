@@ -8,7 +8,9 @@
 //   4. A keyboard focus ring is 2px solid in --focus.
 //   (1–4 expect the AI builder off, e.g. no ANTHROPIC_API_KEY: they check the rule board.)
 //   5. With AI_MOCK=1 (run by `node scripts/check-ai.mjs ui`), only the AI build:
-//      follow-up questions, the plan landing, and the one-line fallback.
+//      follow-up questions, the plan landing, and the one-line fallback; then
+//   6. Stage 6 at 375px: the reveal, the reasoning room's restore and remove by
+//      keyboard (both survive a reload), and undoing the whole AI board.
 // Drives Playwright's installed Chromium over raw CDP. Exits 1 on any failure.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -143,6 +145,21 @@ try {
   ]
   const notice = async () => (await store('noticed'))?.[0]?.text ?? ''
 
+  const key = async (k, shift = false) => {
+    const map = { Tab: [9, 'Tab', ''], Enter: [13, 'Enter', '\r'], ' ': [32, 'Space', ' '] }
+    const [code, c, text] = map[k]
+    const mod = shift ? 8 : 0
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code: c, windowsVirtualKeyCode: code, text: text || undefined, modifiers: mod })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: c, windowsVirtualKeyCode: code, modifiers: mod })
+  }
+  const focusOn = async (test, shift = false) => {
+    for (let i = 0; i < 120; i++) {
+      if (await js(`(() => { const el = document.activeElement; return !!el && (${test}) })()`)) return
+      await key('Tab', shift)
+    }
+    throw new Error('keyboard never reached: ' + test)
+  }
+
   // ── 5. the AI build (Stage 5), against the fake model ──
   // AI_MOCK=1 is set by `scripts/check-ai.mjs ui`, which points the route at its
   // stand-in model; then only this flow runs. Sections 1–4 expect the AI off.
@@ -158,7 +175,7 @@ try {
     await type('#ob-fu-1', 'By spring.')
     const a = await built()
     ok(a.gold === 'After follow-ups' && !a.intro, `the answers to the follow-ups build the AI board (gold "${a.gold}")`)
-    ok((await store('ai:board'))?.overallTitle === 'After follow-ups', 'the raw plan is stored under ai:board')
+    ok((await store('ai:board'))?.plan?.overallTitle === 'After follow-ups', 'the plan is stored under ai:board')
     ok(a.theme === 'night' && a.firstTile === 'train' && a.removed.length === 5, `the plan sets theme, order and hidden tiles (${a.theme}, ${a.firstTile}, hidden ${a.removed.length})`)
 
     await fresh()
@@ -166,6 +183,73 @@ try {
     const f = await built()
     ok((await notice()).startsWith('The AI build did not work this time, so the rules built this board.'), `a failed AI build says so in one line ("${(await notice()).slice(0, 70)}…")`)
     ok((await store('ai:board')) === null && f.gold.includes('Bench 100 kg'), `and the rule-based board stands in (gold "${f.gold}")`)
+
+    // ── 6. "Why your board looks like this" (Stage 6): a full run at 375px ──
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 800, deviceScaleFactor: 1, mobile: true })
+    const REVEAL = `document.querySelector('[aria-labelledby=reveal-h]')`
+    const ROOM = `document.querySelector('[role=dialog][aria-label=Settings]')`
+    const slots = () => js(`[...document.querySelectorAll('[data-slot]')].map((e) => e.dataset.slot)`)
+    const fits = () => js(`document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.sheet')].every((s) => s.scrollWidth <= s.clientWidth)`)
+    const openRoom = async () => {
+      await click(`document.querySelector('button[aria-label=Settings]')`)
+      await click(byText('[role=tab]', 'Your board'))
+      await waitFor(`!!${ROOM}?.querySelector('[data-reason-btn]')`, 'the reasoning room')
+    }
+    const goal = `${vague.goal.replace('[[mock:ask]]', '[[mock:reveal]]')}`
+    await fresh()
+    for (const s of steps({ ...vague, goal })) await s()
+    await built()
+    await waitFor(`!!${REVEAL}`, 'the reveal screen')
+    const rv = await js(`${REVEAL}.textContent`)
+    const expect = ['You said sleep is the whole goal.', 'Coffee and skipped breakfasts', 'You already track steps on your watch.', 'No gym', 'Sage', 'You asked for calm.', 'Sleep consistency']
+    ok(expect.every((t) => rv.includes(t)), `the reveal shows the kept and hidden tiles with their why, the paper and the idea (missing: ${expect.filter((t) => !rv.includes(t)).join(', ') || 'none'})`)
+    ok(await fits(), 'the reveal fits 375px with no sideways scroll')
+    await snap('reveal-375.png')
+    await click(`${REVEAL}.querySelector('[aria-label="Sleep consistency: your call"] button:last-child')`)
+    ok((await store('ai:board')).ideas['Sleep consistency'] === 'no' && !JSON.stringify(await store('ideas')).includes('Sleep consistency'), '"Not for me" records the answer and drops the idea from every list')
+    await click(byText('button', 'Show me my board'))
+    ok((await js(`!${REVEAL}`)) && (await store('ai:board')).revealed === true, 'the reveal closes and is marked seen')
+    await go(base + '/app')
+    await waitFor(`!!document.querySelector('[data-slot]')`, 'the board after a reload')
+    ok(await js(`!${REVEAL}`), 'the reveal does not come back after a reload')
+    ok(JSON.stringify((await slots()).sort()) === '["fuel","vitals"]', `the AI board shows Vitals and Fuel (${await slots()})`)
+
+    // The room, keyboard only: restore a hidden tile, remove a shown one.
+    await openRoom()
+    await focusOn(`el.getAttribute('aria-label') === 'Restore Walks'`)
+    await key('Enter')
+    await waitFor(`!!document.querySelector('[data-slot=walks]')`, 'Walks back on the board', 3000)
+    ok(await js(`document.activeElement.getAttribute('aria-label') === 'Remove Walks'`), 'Restore puts Walks on the board without a reload, and focus follows it')
+    await focusOn(`el.getAttribute('aria-label') === 'Remove Fuel'`)
+    await key('Enter')
+    await waitFor(`!document.querySelector('[data-slot=fuel]')`, 'Fuel off the board', 3000)
+    const ov = (await store('goal:overall')).weights
+    ok(Object.values(ov).reduce((a, b) => a + b, 0) === 100 && !('fuel' in ov) && ov.walks > 0, `the main goal's weights stay at 100 over shown tiles (${JSON.stringify(ov)})`)
+    ok(await fits(), 'the reasoning room fits 375px')
+    await snap('room-375.png')
+
+    await go(base + '/app')
+    await waitFor(`!!document.querySelector('[data-slot]')`, 'the board after a reload')
+    const after = (await slots()).sort()
+    ok(after.includes('walks') && !after.includes('fuel'), `restore and remove both survive a reload (${after})`)
+    ok(JSON.stringify((await store('ai:board')).tiles) === '{"walks":"restored","fuel":"removed"}', 'the decisions are recorded under ai:board')
+    await openRoom()
+    const room = await js(`${ROOM}.textContent`)
+    ok(room.includes('The AI hid this · you brought it back') && room.includes('The AI showed this · you removed it'), 'the room says which calls you changed')
+
+    // Undo the whole AI board: two presses, then the rule board from the same answers.
+    await click(byText('button', 'Undo the AI board'))
+    events.length = 0
+    await click(byText('button', 'Sure?'))
+    for (let i = 0; i < 100 && !events.includes('Page.loadEventFired'); i++) await new Promise((r) => setTimeout(r, 100))
+    await waitFor(`!!document.querySelector('[role=tablist][aria-label=Goals]')`, 'the board after undo')
+    const gold = await js(`document.querySelector('[role=tablist][aria-label=Goals] button').textContent`)
+    ok((await store('ai:board')) === null && gold.startsWith('[[mock:reveal]]'), `undo gives the rule board from the same answers (gold "${gold}")`)
+    ok((await notice()).startsWith('You undid the AI board, so the rules built this one from the same answers.'), 'and says so in one line')
+    await click(`document.querySelector('button[aria-label=Settings]')`)
+    await click(byText('[role=tab]', 'Your board'))
+    ok(await js(`${ROOM}.textContent.includes('The rules built this board')`), 'the room now says the rules built it')
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false })
   } else {
   const boards = {}
   for (const p of personas) {
@@ -233,20 +317,6 @@ try {
 
   // Keyboard only: Tab / Shift+Tab to move, typing, Space on chips, Enter on buttons.
   await fresh()
-  const key = async (k, shift = false) => {
-    const map = { Tab: [9, 'Tab', ''], Enter: [13, 'Enter', '\r'], ' ': [32, 'Space', ' '] }
-    const [code, c, text] = map[k]
-    const mod = shift ? 8 : 0
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code: c, windowsVirtualKeyCode: code, text: text || undefined, modifiers: mod })
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: c, windowsVirtualKeyCode: code, modifiers: mod })
-  }
-  const focusOn = async (test, shift = false) => {
-    for (let i = 0; i < 120; i++) {
-      if (await js(`(() => { const el = document.activeElement; return !!el && (${test}) })()`)) return
-      await key('Tab', shift)
-    }
-    throw new Error('keyboard never reached: ' + test)
-  }
   const isBtn = (t) => `el.tagName === 'BUTTON' && el.textContent.trim().startsWith(${JSON.stringify(t)})`
   const kNext = async () => {
     const n = await stepNo()

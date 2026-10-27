@@ -15,6 +15,8 @@ import { syncClearTile, syncWipe } from '@/lib/sync'
 import { site } from '@/content/site'
 import { THEMES, readTheme, applyTheme, saveTheme, type ThemeId } from '@/lib/theme'
 import Onboarding from './Onboarding'
+import { BoardReasoning, RevealSheet } from './BoardReasoning'
+import { readAiBoard, undoAiBoard, type AiBoard } from '@/lib/aiBoard'
 import { onboardingState, hydratePersonalizationFromCloud, resetOnboarding } from '@/lib/onboarding'
 
 interface DashboardProps {
@@ -27,6 +29,7 @@ interface DashboardProps {
  * copy into Claude Code (deterministic — /detonate is code, not improvisation).
  * Rooms:
  *   theme    — pick a theme preset; the board and every tile recolour
+ *   why      — what the AI decided and why; restore, remove, undo the AI board
  *   how      — the loop: dashboard ⇄ Claude Code, the 4 data-in lanes
  *   yours    — redo the interview, or a talk-first restyle prompt
  *   data     — wipe what's INSIDE tiles (all, or one) — cards stay, contents go
@@ -35,9 +38,10 @@ interface DashboardProps {
 const MAKE_IT_YOURS_PROMPT =
   "Make this dashboard MINE. Before you touch anything, talk it through with me — one question at a time: do I keep the gem? The hatch patterns on the tiles? The mentor tile? The graph-paper theme? Then ask how I want it to FEEL — mood, colors, energy. Only after my answers: strip every piece of the current style I let go of, restyle the board to me, and keep every tile and all my data working."
 
-type Room = 'theme' | 'how' | 'yours' | 'data' | 'scratch'
+type Room = 'theme' | 'why' | 'how' | 'yours' | 'data' | 'scratch'
 const ROOMS: [Room, string][] = [
   ['theme', 'Theme'],
+  ['why', 'Your board’s reasoning'],
   ['how', 'How it works'],
   ['yours', 'Make it yours'],
   ['data', 'Tile data'],
@@ -50,7 +54,10 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
   const [keepBg, setKeepBg] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [dataIds, setDataIds] = useState<string[]>([])
-  const [armed, setArmed] = useState(false) // two-step "wipe all"
+  const [armed, setArmed] = useState(false) // two-step "wipe all" and "undo the AI board"
+  const [ai, setAi] = useState<AiBoard | null>(() => readAiBoard(userId))
+  const [undoing, setUndoing] = useState(false)
+  const [undoError, setUndoError] = useState<string | null>(null)
 
   useEffect(() => {
     setDataIds(tileStore.listDataIds(userId))
@@ -76,6 +83,21 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
   const wipeOne = async (id: string) => {
     await Promise.all([tileStore.clearData(userId, id), syncClearTile(id)])
     window.location.reload() // tiles load their data on mount — a clean reload shows the empty card
+  }
+  const undoAi = async () => {
+    if (!armed) {
+      setArmed(true)
+      return
+    }
+    if (!ai) return
+    setUndoing(true)
+    try {
+      await undoAiBoard(userId, ai)
+      window.location.reload()
+    } catch (e) {
+      setUndoing(false)
+      setUndoError(e instanceof Error ? e.message : String(e))
+    }
   }
   const wipeAll = async () => {
     if (!armed) {
@@ -161,6 +183,43 @@ function ScratchPanel({ userId, onClose }: { userId: string; onClose: () => void
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {tab === 'why' && (
+          <div className="sheet-body">
+            {ai ? (
+              <>
+                <p className="muted">
+                  What the AI decided when it built this board, and why. {strong('You have the last word')}: restore a tile it hid, remove one it showed, keep or drop its ideas.
+                </p>
+                <BoardReasoning userId={userId} rec={ai} onChange={setAi} />
+                <p className="ann" style={{ marginTop: 24 }}>Undo</p>
+                {ai.answers ? (
+                  <>
+                    <p className="muted" style={{ marginTop: 6 }}>
+                      Nothing the AI did is permanent. Undo it and the rules rebuild your board from the same answers.
+                    </p>
+                    <button type="button" className={armed ? 'btn' : 'btn ghost'} style={{ width: '100%', marginTop: 12 }} onClick={undoAi} disabled={undoing}>
+                      {undoing ? 'Rebuilding…' : armed ? 'Sure? The rules rebuild your board' : 'Undo the AI board'}
+                    </button>
+                    {undoError && (
+                      <p role="alert" style={{ marginTop: 8, color: 'var(--signal)' }}>
+                        Could not undo: {undoError}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    This board was built before undo existed. Redo the interview (Make it yours) to rebuild it.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="muted">
+                The rules built this board, not the AI, so there is no reasoning to show. {strong('Redo the interview')} under Make it yours for an AI build.
+              </p>
+            )}
           </div>
         )}
 
@@ -297,6 +356,7 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   const [scratched, setScratched] = useState(false)
   const [resolvedFirstName, setResolvedFirstName] = useState<string | null>(firstName)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [reveal, setReveal] = useState<AiBoard | null>(null) // the AI build's reveal, once
 
   useEffect(() => {
     // The pre-paint script painted this browser's last theme; correct it to
@@ -307,6 +367,9 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
       setScratched(readScoped(userId, 'scratched') === '1')
       const p = profile(userId)
       if (p.name) setResolvedFirstName(p.name)
+      // Straight after an AI build: walk through what it decided.
+      const ai = readAiBoard(userId)
+      if (ai && !ai.revealed && !site.detonated && onboardingState(userId) === 'done') setReveal(ai)
     } catch {
       /* ignore */
     }
@@ -398,6 +461,7 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
       </div>
 
       {scratchOpen && <ScratchPanel userId={userId} onClose={() => setScratchOpen(false)} />}
+      {reveal && <RevealSheet userId={userId} rec={reveal} onDone={() => setReveal(null)} />}
       {showOnboarding && (
         <Onboarding userId={userId} onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />
       )}

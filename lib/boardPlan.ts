@@ -246,6 +246,40 @@ function slugify(s: string, fallback: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 28) || fallback
 }
 
+/** Every tile the plan suggests adding: its ideas, then its new-tile specs. */
+export function planIdeas(plan: BoardPlan): TileIdea[] {
+  return [
+    ...plan.ideas,
+    ...plan.newTiles.map((t) => ({ word: t.name.split(' ')[0], title: t.name, tracks: t.tracks, why: t.why, estWeight: t.weight })),
+  ]
+}
+
+export interface BoardLayout {
+  removed: string[]
+  overall: Record<string, number>
+  goals: Record<string, number>[]
+}
+
+const asList = (w: Record<string, number>) => Object.entries(w).map(([tile, weight]) => ({ tile, weight }))
+
+/**
+ * Show or hide one tile on a built board (the reasoning room's restore and
+ * remove). Weights stay over shown tiles only and sum to 100, as sanitizePlan
+ * left them: a hidden tile's share is spread over the rest, and a restored tile
+ * joins the main goal with `share` before the renormalization (the sub-goals
+ * keep it at 0, so it sits in their tray). Throws when it would hide the last tile.
+ */
+export function setTileShown(board: BoardLayout, id: PlanTile, show: boolean, share = 10): BoardLayout {
+  const removed = show ? board.removed.filter((x) => x !== id) : [...new Set([...board.removed, id])]
+  const shown = PLAN_TILES.filter((t) => !removed.includes(t))
+  if (!shown.length) throw new Error('last_tile')
+  if (show) {
+    const overall = normalizeTo100([...asList(board.overall).filter((e) => e.tile !== id), { tile: id, weight: share > 0 ? share : 10 }], shown)
+    return { removed, overall, goals: board.goals }
+  }
+  return { removed, overall: normalizeTo100(asList(board.overall), shown), goals: board.goals.map((g) => normalizeTo100(asList(g), shown)) }
+}
+
 /**
  * A validated plan → the PersonalizationResult the board already knows how to
  * write. The rule-based draft supplies what the AI never decides (the profile,
@@ -259,10 +293,7 @@ export function planToResult(plan: BoardPlan, draft: PersonalizationResult): Per
     used.add(id)
     return { id, title: g.title, weights: g.weights, accent: draft.goals[i % Math.max(1, draft.goals.length)]?.accent ?? draft.overall.accent, progress: 0 }
   })
-  const ideas: TileIdea[] = [
-    ...plan.ideas,
-    ...plan.newTiles.map((t) => ({ word: t.name.split(' ')[0], title: t.name, tracks: t.tracks, why: t.why, estWeight: t.weight })),
-  ]
+  const ideas = planIdeas(plan)
   return {
     ...draft,
     goals,

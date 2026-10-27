@@ -17,6 +17,7 @@ import {
   type PersonalizationResult,
 } from '@/lib/onboarding'
 import { readScoped, writeScoped, removeScoped } from '@/lib/localScope'
+import { newAiBoard } from '@/lib/aiBoard'
 import { THEMES, applyTheme, type ThemeId } from '@/lib/theme'
 
 type Step = 'you' | 'goal' | 'days' | 'body' | 'recovery' | 'life' | 'track' | 'look' | 'review'
@@ -221,19 +222,22 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
   }
 
   /** Write the board (the AI's plan, or the rules with a one-line why) and reload. */
-  const finish = (answers: InterviewAnswersV2, plan: BoardPlan | null, reason?: string) => {
+  const finish = async (answers: InterviewAnswersV2, plan: BoardPlan | null, reason?: string) => {
     const draft = mapAnswersV2(answers)
     let result: PersonalizationResult = draft
+    // The AI record: the plan, the answers (for undo), and the person's decisions to come.
+    const record = plan ? newAiBoard(plan, answers) : null
     if (plan) {
       result = planToResult(plan, draft)
-      writeScoped(userId, 'ai:board', JSON.stringify(plan))
+      writeScoped(userId, 'ai:board', JSON.stringify(record))
     } else {
       removeScoped(userId, 'ai:board')
       const [first, ...rest] = draft.notices
       result = { ...draft, notices: [{ ...first, text: `${fallbackLine(reason)} ${first.text}` }, ...rest] }
     }
     applyPersonalization(userId, result)
-    mirrorPersonalization(answers, result, plan)
+    // Awaited: the reload below would cancel a cloud write still in flight.
+    await mirrorPersonalization(answers, result, record)
     // Keep the answers (a redo starts from them), but start a redo at step 1.
     removeScoped(userId, STEP)
     onComplete()
@@ -249,7 +253,7 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
       setSubmitting(false)
       return
     }
-    finish(answers, out.board ?? null, out.reason)
+    await finish(answers, out.board ?? null, out.reason)
   }
 
   const submitFollowUps = async () => {
@@ -257,7 +261,7 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
     setSubmitting(true)
     const answers = buildAnswers()
     const out = await askAi({ answers, ticket: ask.ticket, followUps: ask.questions.map((q, i) => ({ q, a: ask.replies[i].trim() })) })
-    finish(answers, out.board ?? null, out.reason)
+    await finish(answers, out.board ?? null, out.reason)
   }
 
   const skip = () => {

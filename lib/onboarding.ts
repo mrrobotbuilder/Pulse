@@ -18,7 +18,7 @@
  */
 
 import type { Goal, Notice, TileIdea } from '@/lib/tiles/weights'
-import { saveGoals, saveOverallGoal, setActiveGoalId } from '@/lib/tiles/weights'
+import { goals, overallGoal, saveGoals, saveOverallGoal, setActiveGoalId } from '@/lib/tiles/weights'
 import { saveProfile, type Profile } from '@/lib/tiles/profile'
 import { dashboardChrome, WALLPAPER_ACCENTS } from '@/lib/tiles/dashboardChrome'
 import { syncEnabled, syncSave, syncLoad } from '@/lib/sync'
@@ -384,10 +384,58 @@ export function applyPersonalization(userId: string, result: PersonalizationResu
   }
 }
 
-/** Fire-and-forget cloud mirror of the answers + result, so it follows the account. */
-export function mirrorPersonalization(answers: InterviewAnswers | InterviewAnswersV2, result: PersonalizationResult, aiBoard: unknown = null): void {
-  if (!syncEnabled()) return
-  void syncSave(CONFIG_TILE_ID, { answers, result, aiBoard }, new Date().toISOString())
+// Cloud writes of `_config` run one at a time, so a quick restore-then-remove
+// cannot land in the wrong order and leave the older layout in the cloud.
+let configQueue: Promise<void> = Promise.resolve()
+function enqueueConfig(job: () => Promise<void>): Promise<void> {
+  configQueue = configQueue.then(job).catch((e) => console.warn('could not save the board to the cloud', e))
+  return configQueue
+}
+
+/**
+ * Cloud mirror of the answers + result, so it follows the account. Callers that
+ * reload right after must await it: a reload cancels a write still in flight.
+ */
+export function mirrorPersonalization(answers: InterviewAnswers | InterviewAnswersV2, result: PersonalizationResult, aiBoard: unknown = null): Promise<void> {
+  if (!syncEnabled()) return Promise.resolve()
+  return enqueueConfig(async () => {
+    if (!(await syncSave(CONFIG_TILE_ID, { answers, result, aiBoard }, new Date().toISOString()))) throw new Error('syncSave failed')
+  })
+}
+
+const readJson = (userId: string, name: string): unknown => {
+  try {
+    return JSON.parse(readScoped(userId, name) || 'null')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * After a change to a built board on this device (the reasoning room): rewrite
+ * the cloud copy's layout, weights, ideas and AI record from local state, so a
+ * second device hydrates the board as it is now, not as it was built.
+ */
+export function mirrorBoardChange(userId: string): Promise<void> {
+  if (!syncEnabled()) return Promise.resolve()
+  return enqueueConfig(async () => {
+    const blob = (await syncLoad(CONFIG_TILE_ID)) as { result?: PersonalizationResult } | null
+    if (!blob?.result) return // nothing in the cloud to update (built while signed out)
+    const list = (name: string) => {
+      const v = readJson(userId, name)
+      return Array.isArray(v) ? (v as string[]) : undefined
+    }
+    const ideas = readJson(userId, 'ideas') as PersonalizationResult['ideas'] | null
+    const result: PersonalizationResult = {
+      ...blob.result,
+      overall: overallGoal(userId),
+      goals: goals(userId),
+      order: list('eq:order') ?? blob.result.order,
+      removed: list('eq:removed') ?? blob.result.removed,
+      ideas: ideas && typeof ideas === 'object' ? ideas : blob.result.ideas,
+    }
+    if (!(await syncSave(CONFIG_TILE_ID, { ...blob, result, aiBoard: readJson(userId, 'ai:board') }, new Date().toISOString()))) throw new Error('syncSave failed')
+  })
 }
 
 /** Restore personalization from the cloud on a fresh device. Returns whether it applied. */
@@ -397,7 +445,7 @@ export async function hydratePersonalizationFromCloud(userId: string): Promise<b
     const blob = (await syncLoad(CONFIG_TILE_ID)) as { result?: PersonalizationResult; aiBoard?: unknown } | null
     if (blob && blob.result && Array.isArray(blob.result.goals)) {
       applyPersonalization(userId, blob.result)
-      // The raw AI plan (Stage 6 reads it); a rule-built board has none.
+      // The AI record (lib/aiBoard.ts reads it); a rule-built board has none.
       if (blob.aiBoard) writeScoped(userId, 'ai:board', JSON.stringify(blob.aiBoard))
       else removeScoped(userId, 'ai:board')
       return true

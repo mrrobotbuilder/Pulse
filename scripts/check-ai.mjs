@@ -76,6 +76,20 @@ const MOCKS = {
   w340: () => JSON.stringify({ followUps: [], board: plan({ overallWeights: [{ tile: 'train', weight: 200 }, { tile: 'fuel', weight: 140 }] }) }),
   unknown: () => JSON.stringify({ followUps: [], board: plan({ tiles: [{ id: 'crypto', show: true, why: 'x' }, { id: 'train', show: true, why: 'a' }], overallWeights: [{ tile: 'crypto', weight: 90 }, { tile: 'train', weight: 10 }] }) }),
   obeyed: () => JSON.stringify({ followUps: [], board: plan({ overallWeights: [{ tile: 'brand', weight: 100 }], theme: 'hacked', accent: '#FFFFFF', admin: true, tiles: [{ id: 'train', show: true, why: 'a' }, { id: 'brand', show: false }] }) }),
+  // Stage 6: a board with reasons to show, a hidden tile to restore and an idea to answer.
+  reveal: () => JSON.stringify({ followUps: [], board: plan({
+    overallTitle: 'Sleep by eleven',
+    overallWeights: [{ tile: 'vitals', weight: 60 }, { tile: 'fuel', weight: 40 }],
+    goals: [{ title: 'Calm evenings', weights: [{ tile: 'vitals', weight: 100 }] }],
+    tiles: [
+      { id: 'vitals', show: true, why: 'You said sleep is the whole goal.' },
+      { id: 'fuel', show: true, why: 'Coffee and skipped breakfasts drive your crashes.' },
+      { id: 'walks', show: false, why: 'You already track steps on your watch.' },
+      { id: 'train', show: false, why: 'No gym, and you said lifting is not for you.' },
+    ],
+    theme: 'sage', themeWhy: 'You asked for calm.',
+    ideas: [{ word: 'Sleep', title: 'Sleep consistency', tracks: 'bedtime night to night', why: 'You fall asleep at 1am scrolling.', estWeight: 8 }],
+  }) }),
   ask: (final) => (final ? JSON.stringify(plan({ overallTitle: 'After follow-ups' })) : JSON.stringify({ followUps: ['What does better mean to you?', 'By when?'], board: null })),
 }
 let mockCalls = 0

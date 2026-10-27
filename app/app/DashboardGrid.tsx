@@ -254,6 +254,21 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
     }
   }, [userId])
 
+  // The reasoning room restored or removed a tile: re-read what it wrote.
+  useEffect(() => {
+    const on = () => {
+      try {
+        const r = JSON.parse(readScoped(userId, 'eq:removed') || '[]')
+        if (Array.isArray(r)) setRemoved(r.filter((x) => typeof x === 'string'))
+      } catch {
+        /* ignore */
+      }
+      setGoal(readActiveGoal(userId))
+    }
+    window.addEventListener('pulse:layout', on)
+    return () => window.removeEventListener('pulse:layout', on)
+  }, [userId])
+
   // While the mentor is alive over the board, the board must not scroll —
   // only the overlay does (it has its own overflowY).
   useEffect(() => {
