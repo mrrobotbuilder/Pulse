@@ -13,6 +13,7 @@ import { summarize, type TileStat } from '@/lib/tiles/tileStats'
 import { withBridge } from '@/lib/tiles/tileBridge'
 import { themeTokens } from '@/lib/theme'
 import { syncEnabled, syncLoadTiles } from '@/lib/sync'
+import { foldRemoteCustomTiles, listCustomTiles } from '@/lib/tiles/customTiles'
 import type { DashboardChrome } from '@/lib/tiles/dashboardChrome'
 
 // Lazy: the board never pays for the mentor (Three.js gem included) until it
@@ -37,8 +38,20 @@ const MentorPage = dynamic(() => import('@/app/mentor/MentorPage'), { ssr: false
 const SLOT_ORDER = DEFAULT_HOME_ORDER.filter((id) => id !== 'library') as string[]
 
 type FilledMap = Record<string, string> // slotId -> sealed HTML
+type CustomMeta = Record<string, { name: string; tracks: string }> // custom-* -> its name and what it tracks
 
-const labelFor = (id: string) => (id === 'vee' ? VEE_TILE.label : CORE_TILES[id as keyof typeof CORE_TILES]?.label ?? id)
+const coreLabel = (id: string) => (id === 'vee' ? VEE_TILE.label : CORE_TILES[id as keyof typeof CORE_TILES]?.label ?? id)
+
+/** The AI-written tiles in this browser's index: their HTML for `filled`, and their names. */
+function readCustom(userId: string): { html: FilledMap; meta: CustomMeta } {
+  const html: FilledMap = {}
+  const meta: CustomMeta = {}
+  for (const t of listCustomTiles(userId).reverse()) {
+    html[t.id] = t.html
+    meta[t.id] = { name: t.name, tracks: t.tracks ?? '' }
+  }
+  return { html, meta }
+}
 
 /** A notice's **bold** words, rendered. */
 function Bold({ text }: { text: string }) {
@@ -227,7 +240,11 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   const [goal, setGoal] = useState<Goal | undefined>(undefined) // active goal: drives the weights
   const [mentorAlive, setMentorAlive] = useState(false) // the mentor comes to life OVER the board — no page load
   const [notice, setNotice] = useState<Notice | undefined>(undefined)
+  const [custom, setCustom] = useState<CustomMeta>({}) // AI-written tiles (custom-*): name and what each tracks
   const dragId = useRef<string | null>(null)
+
+  const labelFor = (id: string) => custom[id]?.name ?? coreLabel(id)
+  const info = (id: string) => (custom[id] ? { ...tileInfo(id), measures: custom[id].tracks || 'Built by the AI for you.' } : tileInfo(id))
 
   // Every save re-reads that tile's face number, including a save that lands
   // just after its overlay closed.
@@ -254,19 +271,27 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
     }
   }, [userId])
 
-  // The reasoning room restored or removed a tile: re-read what it wrote.
+  // The reasoning room restored, removed or added a tile: re-read what it wrote.
   useEffect(() => {
     const on = () => {
       try {
         const r = JSON.parse(readScoped(userId, 'eq:removed') || '[]')
         if (Array.isArray(r)) setRemoved(r.filter((x) => typeof x === 'string'))
+        const o = JSON.parse(readScoped(userId, 'eq:order') || 'null')
+        if (Array.isArray(o)) setOrder(o.filter((x) => typeof x === 'string'))
       } catch {
         /* ignore */
       }
       setGoal(readActiveGoal(userId))
+      // An accepted AI tile lands in the tile index: fold it in without a reload.
+      const c = readCustom(userId)
+      setCustom(c.meta)
+      setFilled((prev) => ({ ...Object.fromEntries(Object.entries(prev).filter(([id]) => !id.startsWith('custom-'))), ...c.html }))
+      for (const id of Object.keys(c.html)) void refreshStat(id)
     }
     window.addEventListener('pulse:layout', on)
     return () => window.removeEventListener('pulse:layout', on)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshStat is stable per userId
   }, [userId])
 
   // While the mentor is alive over the board, the board must not scroll —
@@ -306,19 +331,27 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
       if (syncEnabled()) {
         const remote = await syncLoadTiles()
         for (const id of SLOT_ORDER) if (remote[id]) map[id] = remote[id].html
+        // AI-written tiles accepted on another device
+        foldRemoteCustomTiles(userId, remote)
       }
+      const c = readCustom(userId)
 
       if (alive) {
-        setFilled(map)
+        setFilled({ ...map, ...c.html })
+        setCustom(c.meta)
         setLoaded(true)
+        for (const id of Object.keys(c.html)) void refreshStat(id)
       }
     })()
     return () => {
       alive = false
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshStat is stable per userId
+  }, [userId])
 
-  const filledOrder = useMemo(() => SLOT_ORDER.filter((id) => filled[id]), [filled])
+  // Every slot that holds a tile: the fixed roster first, then the AI-written ones.
+  const slotIds = useMemo(() => [...SLOT_ORDER, ...Object.keys(custom)], [custom])
+  const filledOrder = useMemo(() => slotIds.filter((id) => filled[id]), [slotIds, filled])
 
   // Each input's share of the active goal (plain numbers — Claude retunes them;
   // the localStorage override wins. See lib/tiles/weights).
@@ -355,9 +388,9 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   const rowIds = useMemo(() => {
     const base = order.length ? order : SLOT_ORDER
     const seen = new Set(base)
-    const all = [...base, ...SLOT_ORDER.filter((id) => !seen.has(id))]
+    const all = [...base, ...slotIds.filter((id) => !seen.has(id))]
     return all.filter((id) => id !== 'vee' && filled[id] && !removed.includes(id))
-  }, [order, filled, removed])
+  }, [order, slotIds, filled, removed])
 
   const onIds = rowIds.filter((id) => (weights[id] ?? 0) > 0)
   const offIds = rowIds.filter((id) => !((weights[id] ?? 0) > 0))
@@ -483,7 +516,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
                 )}
               </p>
             </div>
-            <WeightStrip ids={rowIds} weights={weights} label="w" />
+            <WeightStrip ids={rowIds} weights={weights} label="w" names={labelFor} />
           </div>
 
           <div className={styles.bar}>
@@ -495,13 +528,13 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
           <div className={styles.tiles}>
             {onIds.map((id) => {
-              const info = tileInfo(id)
+              const ti = info(id)
               const st = stats[id]
               return (
                 <div key={id} data-slot={id} className={styles.tile} {...dragProps(id)}>
                   <div className={styles.tileTop}>
-                    <i className={`sw ${info.hatch}`} />
-                    <span className={`ann ${info.live ? styles.live : ''}`}>w {weights[id]}</span>
+                    <i className={`sw ${ti.hatch}`} />
+                    <span className={`ann ${ti.live ? styles.live : ''}`}>w {weights[id]}</span>
                   </div>
                   <h3>{labelFor(id)}</h3>
                   <p className={styles.stat}>
@@ -516,7 +549,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
                       ' '
                     )}
                   </p>
-                  <p className={styles.sub}>{st ? st.sub : info.measures}</p>
+                  <p className={styles.sub}>{st ? st.sub : ti.measures}</p>
                   <button type="button" className={styles.hit} aria-label={`Open ${labelFor(id)}`} onClick={() => openSlot(id)} />
                   {removeBadge(id)}
                 </div>
@@ -560,9 +593,9 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
               <p className="ann">Not in this goal · w 0</p>
               {offIds.map((id) => (
                 <div key={id} data-slot={id} className={styles.off} {...dragProps(id)}>
-                  <i className={`sw ${tileInfo(id).hatch}`} />
+                  <i className={`sw ${info(id).hatch}`} />
                   <b>{labelFor(id)}</b>
-                  <span>{stats[id] ? `${stats[id]!.value} ${stats[id]!.unit}` : tileInfo(id).measures}</span>
+                  <span>{stats[id] ? `${stats[id]!.value} ${stats[id]!.unit}` : info(id).measures}</span>
                   <button type="button" className={styles.hit} aria-label={`Open ${labelFor(id)}`} onClick={() => openSlot(id)} />
                   {removeBadge(id)}
                 </div>

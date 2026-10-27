@@ -1,6 +1,7 @@
 import { createMcpHandler } from 'mcp-handler'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { CUSTOM_TILE_RE, checkTileHtml, isCustomTileId } from '@/lib/tiles/tileCheck'
 
 import { constantTimeEquals, looksLikeJwt, verifyAccessToken } from '../oauth/crypto'
 import { MCP_SCOPE, mcpResourceUrl, oauthSecret, originOf, resourceMetadataUrl } from '../oauth/shared'
@@ -79,6 +80,10 @@ const MAX_TILE_DATA = 512 * 1024 // 512KB — mirrors tileStore's cap so a tile 
  *  would land nowhere, so the data tools refuse it up front. */
 const DATA_SLOTS = ['train', 'fuel', 'vitals', 'brand', 'peak', 'finance', 'walks'] as const
 
+/** A fixed slot, or an AI-written tile's own slot (custom-<slug>, docs/PLAN.md Stage 7). */
+const slotSchema = z.union([z.enum(SLOTS), z.string().regex(CUSTOM_TILE_RE)])
+const dataSlotSchema = z.union([z.enum(DATA_SLOTS), z.string().regex(CUSTOM_TILE_RE)])
+
 /** Read exactly what the board reads: the owner's row for this slot. */
 async function loadTileData(
   { client, ownerId }: Conn,
@@ -150,7 +155,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'List dashboard slots',
         description:
-          'READ. List the seven dashboard tile slots (train, fuel, vitals, vee, brand, peak, finance) and whether each currently holds a tile.',
+          'READ. List the dashboard tile slots (train, fuel, vitals, vee, brand, peak, finance, walks) and whether each currently holds a tile, plus every custom-* tile the AI wrote.',
         inputSchema: {},
       },
       async (): Promise<ToolResult> => {
@@ -172,7 +177,7 @@ const mcpHandler = createMcpHandler(
         title: 'Read a tile',
         description:
           'READ. Return the current sealed HTML of a slot so you can edit it. Empty slots return a note.',
-        inputSchema: { slot: z.enum(SLOTS) },
+        inputSchema: { slot: slotSchema },
       },
       async ({ slot }): Promise<ToolResult> => {
         const o = open()
@@ -196,7 +201,7 @@ const mcpHandler = createMcpHandler(
         description:
           'WRITE. Put a sealed, self-contained HTML tile into a dashboard slot, replacing any existing tile there (use this to edit too). The HTML MUST be one complete standalone document — all CSS and JS inline, no external requests, no network calls (it runs sandboxed with allow-scripts only). Match the look by colouring it ONLY with the board theme variables, each with a fallback: var(--pulse-bg, #EEF1F4) page, var(--pulse-surface, #FFFFFF) panels, var(--pulse-text, #16233B) text, var(--pulse-muted, #4F5B6D) secondary text, var(--pulse-line, #C3CCD8) lines, var(--pulse-accent, #C2271D) accent with var(--pulse-accent-ink, #FFFFFF) on it. The tile then follows the theme preset of the board. To persist data it may call window.Vitality.save(data) / window.Vitality.load(). The tile appears on the dashboard on next reload.',
         inputSchema: {
-          slot: z.enum(SLOTS),
+          slot: slotSchema,
           html: z.string().min(1).max(MAX_TILE_HTML).describe('The complete sealed tile HTML document'),
           name: z.string().min(1).max(60).optional().describe('Optional display name'),
         },
@@ -204,6 +209,11 @@ const mcpHandler = createMcpHandler(
       async ({ slot, html, name }): Promise<ToolResult> => {
         const o = open()
         if ('err' in o) return o.err
+        // A custom tile passes the same validator as an AI-written one (no network, uses Pulse.save/load).
+        if (isCustomTileId(slot)) {
+          const check = checkTileHtml(html)
+          if (!check.ok) return fail(`That tile was refused (${check.reason}). A custom tile must be one complete document under 60 KB, with no external scripts, resources or network calls, and must call Pulse.save and Pulse.load.`)
+        }
         // user_id is stated, not defaulted: the table's `default auth.uid()` is
         // null for a service-role request, which has no auth.uid(). The conflict
         // target must name both key columns to match the (user_id, slot) index.
@@ -230,7 +240,7 @@ const mcpHandler = createMcpHandler(
         title: 'Clear a tile',
         description:
           'WRITE. Remove the live tile from a slot. The slot reverts to any committed static file, or to empty.',
-        inputSchema: { slot: z.enum(SLOTS) },
+        inputSchema: { slot: slotSchema },
       },
       async ({ slot }): Promise<ToolResult> => {
         const o = open()
@@ -259,7 +269,7 @@ const mcpHandler = createMcpHandler(
         title: "Read a tile's saved data",
         description:
           "READ. Return the JSON a slot's tile has saved — resolved with the board's own precedence, so this is exactly what the tile renders. Use this BEFORE save_data when you need to append to history. Empty slots return a note.",
-        inputSchema: { slot: z.enum(DATA_SLOTS) },
+        inputSchema: { slot: dataSlotSchema },
       },
       async ({ slot }): Promise<ToolResult> => {
         const o = open()
@@ -278,7 +288,7 @@ const mcpHandler = createMcpHandler(
         description:
           'WRITE (data only — never touches tile HTML). File JSON into a slot\'s saved store: the exact data window.Vitality.load() hands the tile, so it renders on next reload. `data` is a JSON string. By default it SHALLOW-MERGES into what\'s already saved (existing keys you don\'t send survive — safe for sweeps that add a day to a date-keyed store). Pass merge:false only when you intend to replace the whole store. Payload capped at 512KB, matching what a tile is allowed to load.',
         inputSchema: {
-          slot: z.enum(DATA_SLOTS),
+          slot: dataSlotSchema,
           data: z
             .string()
             .min(1)
@@ -355,7 +365,7 @@ const mcpHandler = createMcpHandler(
         title: "Clear a tile's saved data",
         description:
           "WRITE — DESTRUCTIVE. Delete a slot's saved cloud data row outright. There is no undo and no merge: everything the tile had saved in the cloud is gone. The tile then falls back to whatever this device still holds in localStorage. ASK before calling this on a slot that holds real data — read_data first and say what is there. Its honest uses are undoing a save you just made, and clearing a slot deliberately.",
-        inputSchema: { slot: z.enum(DATA_SLOTS) },
+        inputSchema: { slot: dataSlotSchema },
       },
       async ({ slot }): Promise<ToolResult> => {
         const o = open()
