@@ -34,15 +34,20 @@ let failures = 0
 const ok = (cond, msg) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${msg}`); if (!cond) failures++ }
 
 // ── the server a leak would reach ──
+// Locally, a counting server on 127.0.0.1. Against a deployed (https) board
+// that server is unreachable anyway (mixed content), which would make "sent
+// nothing" prove nothing; there the leak target is https://example.com and
+// every request the browser starts is counted from its own Network events.
+const LIVE = base.startsWith('https:')
 const EXFIL_PORT = 3018
-const EX = `http://127.0.0.1:${EXFIL_PORT}`
+const EX = LIVE ? 'https://example.com' : `http://127.0.0.1:${EXFIL_PORT}`
 const hits = []
 const exfil = createServer((req, res) => {
   hits.push(req.url)
   res.writeHead(200, { 'access-control-allow-origin': '*', 'content-type': 'text/plain' })
   res.end('ok')
 })
-await new Promise((r, j) => { exfil.once('error', j); exfil.listen(EXFIL_PORT, '127.0.0.1', r) })
+if (!LIVE) await new Promise((r, j) => { exfil.once('error', j); exfil.listen(EXFIL_PORT, '127.0.0.1', r) })
 const hitsFor = (prefix) => hits.filter((u) => u.startsWith(prefix))
 
 /** A tile that tries every way out it can, tagged so each request names itself. */
@@ -79,7 +84,7 @@ try {
   const contexts = [] // { sessionId, id, frameId }
   const logs = [] // { t, text }
   const send = (method, params = {}, sessionId) => new Promise((r, j) => { const i = ++id; waiting.set(i, { r, j }); ws.send(JSON.stringify({ id: i, method, params, ...(sessionId ? { sessionId } : {}) })) })
-  const watch = (sessionId) => Promise.all([send('Runtime.enable', {}, sessionId), send('Log.enable', {}, sessionId), send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {})])
+  const watch = (sessionId) => Promise.all([send('Runtime.enable', {}, sessionId), send('Log.enable', {}, sessionId), ...(LIVE ? [send('Network.enable', {}, sessionId).catch(() => {})] : []), send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {})])
   ws.onmessage = (m) => {
     const d = JSON.parse(m.data)
     if (d.id && waiting.has(d.id)) { const { r, j } = waiting.get(d.id); waiting.delete(d.id); d.error ? j(new Error(d.error.message)) : r(d.result); return }
@@ -89,6 +94,7 @@ try {
     if (d.method === 'Target.attachedToTarget') void watch(p.sessionId)
     else if (d.method === 'Runtime.executionContextCreated') contexts.push({ sessionId: d.sessionId, id: p.context.id, frameId: p.context.auxData?.frameId, isDefault: p.context.auxData?.isDefault })
     else if (d.method === 'Log.entryAdded') logs.push({ t: Date.now(), text: p.entry.text })
+    else if (LIVE && d.method === 'Network.requestWillBeSent' && p.request.url.startsWith(EX + '/')) { const u = new URL(p.request.url); hits.push(u.pathname + u.search + ' [' + p.type + ' via ' + (p.initiator?.type || '?') + (p.initiator?.url ? ' ' + p.initiator.url.slice(0, 40) : '') + ']') }
     else if (d.method === 'Runtime.exceptionThrown') logs.push({ t: Date.now(), text: 'EXCEPTION ' + (p.exceptionDetails.exception?.description || p.exceptionDetails.text) })
     else if (d.method === 'Runtime.consoleAPICalled' && p.type === 'error') logs.push({ t: Date.now(), text: 'console.error ' + p.args.map((a) => a.value ?? a.description).join(' ') })
   }
@@ -219,7 +225,7 @@ try {
     await js(`document.querySelector('[data-slot="custom-planted"] button[aria-label^="Open"]').click(); true`)
     const c2 = await tileContext(s2)
     await sleep(2500)
-    ok(hitsFor('/custom-').length === 0 && (await evalIn(`document.body.dataset.fetch`, c2.id, c2.sessionId)) === 'blocked', `as a custom board tile it sends nothing either (${hitsFor('/custom-').length} requests)`)
+    ok(hitsFor('/custom-').length === 0 && (await evalIn(`document.body.dataset.fetch`, c2.id, c2.sessionId)) === 'blocked', `as a custom board tile it sends nothing either (${hitsFor("/custom-").length} requests: ${hitsFor("/custom-").join(", ") || "none"})`)
     ok(refusals(t2).length >= 4, `and the console shows the refusals (${refusals(t2).length})`)
   }
 
@@ -276,7 +282,7 @@ try {
 } finally {
   ws?.close()
   proc.kill()
-  exfil.close()
+  if (!LIVE) exfil.close()
 }
 console.log(failures ? `\n${failures} failed` : '\nall tile checks passed')
 process.exitCode = failures ? 1 : 0
