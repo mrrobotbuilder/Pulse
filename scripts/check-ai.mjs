@@ -90,6 +90,17 @@ const MOCKS = {
     theme: 'sage', themeWhy: 'You asked for calm.',
     ideas: [{ word: 'Sleep', title: 'Sleep consistency', tracks: 'bedtime night to night', why: 'You fall asleep at 1am scrolling.', estWeight: 8 }],
   }) }),
+  // Stage 7: a board that plans two new tiles (one the validator refuses) and one idea.
+  tiles: () => JSON.stringify({ followUps: [], board: plan({
+    overallTitle: 'Sleep and water',
+    overallWeights: [{ tile: 'vitals', weight: 60 }, { tile: 'fuel', weight: 40 }],
+    tiles: [{ id: 'vitals', show: true, why: 'Sleep is the goal.' }, { id: 'fuel', show: true, why: 'Coffee crashes.' }],
+    newTiles: [
+      { name: 'Water', tracks: 'glasses of water a day', why: 'Coffee and no water drive your crashes.', weight: 20 },
+      { name: '[[mock:tile_script]] Mood', tracks: 'mood 1 to 5', why: 'You said evenings feel heavy.', weight: 10 },
+    ],
+    ideas: [{ word: 'Steps', title: 'Steps', tracks: 'steps a day', why: 'You sit ten hours.', estWeight: 8 }],
+  }) }),
   ask: (final) => (final ? JSON.stringify(plan({ overallTitle: 'After follow-ups' })) : JSON.stringify({ followUps: ['What does better mean to you?', 'By when?'], board: null })),
   // Stage 7: the tile writer (/api/tiles/generate).
   tile_ok: () => JSON.stringify({ html: tileDoc('') }),
@@ -108,7 +119,8 @@ function startMock() {
     req.on('end', () => {
       mockCalls++
       const content = JSON.parse(body).messages?.[0]?.content ?? ''
-      const kind = content.match(/\[\[mock:(\w+)\]\]/)?.[1] ?? 'ok'
+      // The tile writer sends a <spec>; unmarked, it gets a good tile.
+      const kind = content.match(/\[\[mock:(\w+)\]\]/)?.[1] ?? (content.startsWith('<spec>') ? 'tile_ok' : 'ok')
       if (kind === 'hang') return // never answer: the route's own timeout must fire
       const text = MOCKS[kind](content.includes('<follow_up_answers>'))
       res.writeHead(200, { 'content-type': 'application/json' })

@@ -249,6 +249,40 @@ try {
     await click(`document.querySelector('button[aria-label=Settings]')`)
     await click(byText('[role=tab]', 'Your board'))
     ok(await js(`${ROOM}.textContent.includes('The rules built this board')`), 'the room now says the rules built it')
+
+    // ── 7. The AI writes new tiles (Stage 7), still at 375px ──
+    const idea = (title) => `[...${REVEAL}.querySelectorAll('li')].find((li) => li.querySelector('b')?.textContent === ${JSON.stringify(title)})`
+    await fresh()
+    for (const s of steps({ ...vague, goal: vague.goal.replace('[[mock:ask]]', '[[mock:tiles]]') })) await s()
+    await built()
+    await waitFor(`!!${REVEAL}`, 'the reveal screen')
+    await waitFor(`!!${idea('Water')}?.querySelector('iframe[title="Preview: Water"]')`, 'the Water preview', 30000)
+    ok(true, 'the reveal writes the first planned tile by itself and shows it in a preview card')
+    await waitFor(`${idea('[[mock:tile_script]] Mood')}?.textContent.includes('reached outside its box')`, 'the refused tile', 30000)
+    ok(await js(`!${idea('[[mock:tile_script]] Mood')}.querySelector('iframe')`), 'a tile with an external script is refused and stays an idea, with no preview')
+    ok(await js(`${idea('Steps')}.textContent.includes('Build me one for this') && !${idea('Steps')}.querySelector('iframe')`), 'the third idea is not built until asked (2 automatic builds at most)')
+    await click(`[...${idea('Steps')}.querySelectorAll('button')].find((b) => b.textContent === 'Build me one for this')`)
+    await waitFor(`!!${idea('Steps')}?.querySelector('iframe')`, 'the Steps preview', 30000)
+    ok(await js(`!${idea('Steps')}.querySelector('[aria-label="Steps: your call"]')`), 'while a preview is up, the idea buttons step aside (one "Not for me" per card)')
+    await click(`${idea('Steps')}.querySelector('[aria-label="Steps: keep the tile?"] .btn.ghost')`)
+    ok(await js(`${idea('Steps')}.textContent.includes('Dropped that tile') && !${idea('Steps')}.querySelector('iframe')`), '"Build me one for this" builds on request; "Not for me" drops the preview')
+    ok(await fits(), 'the reveal with a preview fits 375px')
+    await snap('tile-preview-375.png')
+    await click(`[...${idea('Water')}.querySelectorAll('button')].find((b) => b.textContent === 'Add to my board')`)
+    await waitFor(`${idea('Water')}?.textContent.includes('On your board.')`, 'the Water tile added')
+    await click(byText('button', 'Show me my board'))
+    await waitFor(`!!document.querySelector('[data-slot^="custom-water"]')`, 'the Water tile on the board', 5000)
+    const ovW = (await store('goal:overall')).weights
+    ok(Object.values(ovW).reduce((a, b) => a + b, 0) === 100 && ovW['custom-water'] > 0, `"Add to my board" puts it on the board with the plan's weight, goals at 100 (${JSON.stringify(ovW)})`)
+    // Use it: the mock tile saves { unit: 'h', entries: [{ value: 7 }] } when it opens.
+    await click(`document.querySelector('[data-slot^="custom-water"] button[aria-label^="Open"]')`)
+    await waitFor(`!!document.querySelector('iframe[title="Water"]')`, 'the Water tile open')
+    await new Promise((r) => setTimeout(r, 2500))
+    await click(byText('button', '← Board'))
+    await go(base + '/app')
+    await waitFor(`document.querySelector('[data-slot^="custom-water"]')?.textContent.includes('1 logged')`, 'the Water face after a reload', 10000)
+    ok(true, 'after a reload the tile is still there and its face shows what it saved (7 h, 1 logged)')
+    ok((await store('ai:board')).autoBuild === false && (await store('ai:board')).built.Water.status === 'added', 'the automatic builds ran once and the record says the tile was added')
     await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false })
   } else {
   const boards = {}
