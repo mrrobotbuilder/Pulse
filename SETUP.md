@@ -254,7 +254,9 @@ them all with instructions.
 | `SUPABASE_DB_PASSWORD` | local ✅ | Running migrations from the CLI |
 | `MCP_TOKEN` | local ✅ / Vercel ✅ | The Claude connector |
 | `OWNER_USER_ID` | local ✅ / Vercel ✅ | Which account the connector writes as — needed with `MCP_TOKEN` |
-| `ANTHROPIC_API_KEY` | not set | AI-polished onboarding wording |
+| `ANTHROPIC_API_KEY` | not set yet | The AI board builder (Stage 5). Off without it: rule-based board + a one-line note |
+| `AI_USAGE_SALT` | local ✅ / Vercel ✅ (generated) | Hashes visitor IPs for the AI caps table (`supabase/ai_usage.sql`) |
+| `AI_BUILDS_PER_IP_PER_DAY` / `AI_BUILDS_PER_DAY` | defaults 3 / 50 | AI build caps; the owner account is uncapped |
 | `YOUTUBE_API_KEY` / `FINNHUB_API_KEY` | not set | Live subs / stock prices |
 | `WHOOP_CLIENT_ID` / `_SECRET` | ⏸ parked — needs a membership | Stage A |
 | `WHOOP_REDIRECT_URI` | local ✅ | Must match the WHOOP app byte for byte |
@@ -291,6 +293,13 @@ one row per `(user_id, tile_id)`, matching `lib/sync.ts`.
 
 ## Known issues
 
+-1. **The free Supabase project pauses itself after a quiet week.** On
+   2026-10-27 `pulse` was found paused (`supabase projects list` said
+   `INACTIVE`, and `<ref>.supabase.co` did not even resolve): sign-in, sync,
+   the connector and the AI caps were all down, with no error on the board.
+   Fix: Supabase dashboard → the project → **Restore project** (a few
+   minutes). While paused, the AI builder fails closed (`caps_unavailable`)
+   and every visitor gets the rule-based board.
 0. **Supabase's Management API cannot run SQL on this project.** Both
    `supabase db query --linked` and the Supabase connector fail with
    `28P01: password authentication failed for user "postgres"` — even for

@@ -44,5 +44,18 @@ for (const [, sel, body] of css.matchAll(/((?:[^{}]*\[data-theme='[\w-]+'\]))\s*
   console.log(name.padEnd(10), unknown.length ? `NOT MEASURABLE (${unknown.join(', ')})` : bad.length ? `FAIL ${bad.join('; ')}` : `ok (${PAIRS.length} pairs, tightest at ${worst.toFixed(2)}x its minimum)`)
 }
 for (const id of expected) if (!seen.has(id)) { console.log(id.padEnd(10), 'NOT MEASURABLE (no block in globals.css)'); failed++ }
+
+// lib/boardPlan.ts keeps a copy of four colours per preset to check AI accents
+// against. The copy must match this file, or an accent could pass a stale check.
+const planSrc = readFileSync(new URL('../lib/boardPlan.ts', import.meta.url), 'utf8')
+const copies = [...planSrc.matchAll(/^\s*([\w-]+): \{ bg: '(#\w{6})', surface: '(#\w{6})', accent: '(#\w{6})', accentInk: '(#\w{6})' \}/gm)]
+if (copies.length !== expected.length) { console.log(`boardPlan THEME_COLORS: found ${copies.length} presets, expected ${expected.length} (NOT MEASURABLE)`); failed++ }
+let drift = 0
+for (const [, id, ...vals] of copies) {
+  const body = css.match(new RegExp(`\\[data-theme='${id}'\\]\\s*\\{([^}]*)\\}`))?.[1] ?? ''
+  const want = ['bg', 'surface', 'accent', 'accent-ink'].map((k) => body.match(new RegExp(`--${k}\\s*:\\s*(#\\w{6})`))?.[1]?.toUpperCase())
+  if (want.some((w, i) => w !== vals[i].toUpperCase())) { console.log(`boardPlan THEME_COLORS.${id} differs from globals.css`); failed++; drift++ }
+}
+if (copies.length === expected.length && !drift) console.log(`boardPlan THEME_COLORS: ${copies.length} presets checked against globals.css`)
 console.log(`\n${seen.size} presets checked, ${failed} not passing`)
 process.exitCode = failed ? 1 : 0

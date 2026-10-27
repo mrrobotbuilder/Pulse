@@ -92,13 +92,8 @@ export interface InterviewAnswersV2 {
   greeting: string
 }
 
-export const MAX_FIELD = 2000
-export const MAX_TOTAL = 8000
-
-/** Every free-text answer, for the total cap. */
-export function answerText(a: Pick<InterviewAnswersV2, 'goal' | 'otherGoals' | 'day' | 'trainNotes' | 'injuries' | 'eating' | 'hateTracking' | 'life'>): string[] {
-  return [a.goal, a.otherGoals, a.day, a.trainNotes, a.injuries, a.eating, a.hateTracking, ...Object.values(a.life)].map((s) => s ?? '')
-}
+// The caps live with the plan validator, so the server route checks the same numbers.
+export { MAX_FIELD, MAX_TOTAL, answerText } from './boardPlan'
 
 export interface PersonalizationResult {
   goals: Goal[]
@@ -390,18 +385,21 @@ export function applyPersonalization(userId: string, result: PersonalizationResu
 }
 
 /** Fire-and-forget cloud mirror of the answers + result, so it follows the account. */
-export function mirrorPersonalization(answers: InterviewAnswers | InterviewAnswersV2, result: PersonalizationResult): void {
+export function mirrorPersonalization(answers: InterviewAnswers | InterviewAnswersV2, result: PersonalizationResult, aiBoard: unknown = null): void {
   if (!syncEnabled()) return
-  void syncSave(CONFIG_TILE_ID, { answers, result }, new Date().toISOString())
+  void syncSave(CONFIG_TILE_ID, { answers, result, aiBoard }, new Date().toISOString())
 }
 
 /** Restore personalization from the cloud on a fresh device. Returns whether it applied. */
 export async function hydratePersonalizationFromCloud(userId: string): Promise<boolean> {
   if (!syncEnabled()) return false
   try {
-    const blob = (await syncLoad(CONFIG_TILE_ID)) as { result?: PersonalizationResult } | null
+    const blob = (await syncLoad(CONFIG_TILE_ID)) as { result?: PersonalizationResult; aiBoard?: unknown } | null
     if (blob && blob.result && Array.isArray(blob.result.goals)) {
       applyPersonalization(userId, blob.result)
+      // The raw AI plan (Stage 6 reads it); a rule-built board has none.
+      if (blob.aiBoard) writeScoped(userId, 'ai:board', JSON.stringify(blob.aiBoard))
+      else removeScoped(userId, 'ai:board')
       return true
     }
   } catch {

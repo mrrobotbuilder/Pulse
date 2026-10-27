@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { planToResult, type BoardPlan } from '@/lib/boardPlan'
 import {
   answersV2ToV1,
   answerText,
@@ -21,6 +22,25 @@ import { THEMES, applyTheme, type ThemeId } from '@/lib/theme'
 type Step = 'you' | 'goal' | 'days' | 'body' | 'recovery' | 'life' | 'track' | 'look' | 'review'
 const STEPS: Step[] = ['you', 'goal', 'days', 'body', 'recovery', 'life', 'track', 'look', 'review']
 const MIN_GOAL = 20
+
+/** The one plain line a rule-built board opens with, saying why the AI did not build it. */
+function fallbackLine(reason?: string): string {
+  switch (reason) {
+    case 'cap_ip':
+      return 'You have used today’s AI builds, so the rules built this board. Redo the interview tomorrow for an AI one.'
+    case 'cap_day':
+      return 'Today’s AI builds are all used up, so the rules built this board. Redo the interview tomorrow for an AI one.'
+    case 'timeout':
+      return 'The AI took too long, so the rules built this board.'
+    case 'no_key':
+    case 'caps_unavailable':
+      return 'The AI builder is off right now, so the rules built this board.'
+    case 'offline':
+      return 'Could not reach the AI builder, so the rules built this board.'
+    default:
+      return 'The AI build did not work this time, so the rules built this board.'
+  }
+}
 
 // Scoped keys: the half-filled interview survives a reload.
 const DRAFT = 'intro:draft'
@@ -122,6 +142,8 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
     return Number.isInteger(n) && n >= 0 && n < STEPS.length ? n : 0
   })
   const [submitting, setSubmitting] = useState(false)
+  // The AI's follow-up questions, when it found an answer too vague to build from.
+  const [ask, setAsk] = useState<{ questions: string[]; ticket: string; replies: string[] } | null>(null)
   const step = STEPS[stepIdx]
 
   useEffect(() => writeScoped(userId, DRAFT, JSON.stringify(form)), [userId, form])
@@ -134,7 +156,11 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
   const canAdvance = !over && (step !== 'you' || form.name.trim().length > 0) && (step !== 'goal' || form.goal.trim().length >= MIN_GOAL)
 
   const next = () => setStepIdx((i) => Math.min(i + 1, STEPS.length - 1))
-  const back = () => setStepIdx((i) => Math.max(i - 1, 0))
+  // Going back may change the answers, and a follow-up ticket only fits the answers it was asked about.
+  const back = () => {
+    setAsk(null)
+    setStepIdx((i) => Math.max(i - 1, 0))
+  }
 
   const buildAnswers = (): InterviewAnswersV2 => {
     const f = form
@@ -176,34 +202,62 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
     }
   }
 
-  const submit = async () => {
-    setSubmitting(true)
-    const answers = buildAnswers()
-    const draft = mapAnswersV2(answers)
-    let result: PersonalizationResult = draft
-
+  /** One call to the AI builder. Never throws: a failure comes back as a reason. */
+  const askAi = async (body: object): Promise<{ board?: BoardPlan; followUps?: string[]; ticket?: string; reason?: string }> => {
     try {
-      // Until Stage 5 the route still reads the V1 shape; it only rewrites wording.
       const res = await fetch('/api/personalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: answersV2ToV1(answers), draft }),
-        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
+        body: JSON.stringify(body),
+        // The server gives the model 30 s; this leaves room for the caps check.
+        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(40000) : undefined,
       })
-      if (res.ok) {
-        const json = await res.json()
-        if (json?.result) result = { ...(json.result as PersonalizationResult), theme: draft.theme, order: draft.order, removed: draft.removed }
-      }
-    } catch {
-      /* offline / timeout — the rule-based board already stands in */
+      const json = await res.json().catch(() => null)
+      if (res.ok && (json?.board || json?.followUps)) return json
+      return { reason: typeof json?.reason === 'string' ? json.reason : 'ai_error' }
+    } catch (e) {
+      return { reason: e instanceof DOMException && e.name === 'TimeoutError' ? 'timeout' : 'offline' }
     }
+  }
 
+  /** Write the board (the AI's plan, or the rules with a one-line why) and reload. */
+  const finish = (answers: InterviewAnswersV2, plan: BoardPlan | null, reason?: string) => {
+    const draft = mapAnswersV2(answers)
+    let result: PersonalizationResult = draft
+    if (plan) {
+      result = planToResult(plan, draft)
+      writeScoped(userId, 'ai:board', JSON.stringify(plan))
+    } else {
+      removeScoped(userId, 'ai:board')
+      const [first, ...rest] = draft.notices
+      result = { ...draft, notices: [{ ...first, text: `${fallbackLine(reason)} ${first.text}` }, ...rest] }
+    }
     applyPersonalization(userId, result)
-    mirrorPersonalization(answers, result)
+    mirrorPersonalization(answers, result, plan)
     // Keep the answers (a redo starts from them), but start a redo at step 1.
     removeScoped(userId, STEP)
     onComplete()
     window.location.reload()
+  }
+
+  const submit = async () => {
+    setSubmitting(true)
+    const answers = buildAnswers()
+    const out = await askAi({ answers })
+    if (out.followUps?.length && out.ticket) {
+      setAsk({ questions: out.followUps, ticket: out.ticket, replies: out.followUps.map(() => '') })
+      setSubmitting(false)
+      return
+    }
+    finish(answers, out.board ?? null, out.reason)
+  }
+
+  const submitFollowUps = async () => {
+    if (!ask) return
+    setSubmitting(true)
+    const answers = buildAnswers()
+    const out = await askAi({ answers, ticket: ask.ticket, followUps: ask.questions.map((q, i) => ({ q, a: ask.replies[i].trim() })) })
+    finish(answers, out.board ?? null, out.reason)
   }
 
   const skip = () => {
@@ -478,7 +532,16 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
             </div>
           )}
 
-          {step === 'review' && preview && (
+          {step === 'review' && ask && (
+            <div>
+              {stepHead('Two quick questions', <>Your answers left the AI unsure about something. Answer what you can, then build. Blank is fine.</>)}
+              {ask.questions.map((q, i) =>
+                box(`ob-fu-${i}`, q, ask.replies[i], (v) => setAsk((a) => (a ? { ...a, replies: a.replies.map((r, j) => (j === i ? v : r)) } : a)), 'Your answer', 80),
+              )}
+            </div>
+          )}
+
+          {step === 'review' && !ask && preview && (
             <div>
               {stepHead('Build your Pulse', <>Here&apos;s what your board is about to become. Go back to change anything.</>)}
               <div style={{ background: 'var(--bg)', border: '1.5px solid var(--text)', borderRadius: 'var(--radius)', padding: '14px 16px' }}>
@@ -524,7 +587,7 @@ export default function Onboarding({ userId, onComplete, onSkip }: OnboardingPro
               </button>
             )}
             {step === 'review' ? (
-              <button type="button" className="btn" style={{ flex: 1.3 }} onClick={submit} disabled={submitting || over}>
+              <button type="button" className="btn" style={{ flex: 1.3 }} onClick={ask ? submitFollowUps : submit} disabled={submitting || over}>
                 {submitting ? 'Building your Pulse…' : 'Build my Pulse'}
               </button>
             ) : (

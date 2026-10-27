@@ -6,6 +6,9 @@
 //      choice survives a reload.
 //   3. The gem's pause button pauses, and says so.
 //   4. A keyboard focus ring is 2px solid in --focus.
+//   (1–4 expect the AI builder off, e.g. no ANTHROPIC_API_KEY: they check the rule board.)
+//   5. With AI_MOCK=1 (run by `node scripts/check-ai.mjs ui`), only the AI build:
+//      follow-up questions, the plan landing, and the one-line fallback.
 // Drives Playwright's installed Chromium over raw CDP. Exits 1 on any failure.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -138,6 +141,32 @@ try {
       goal: 'Reach 100k subscribers on YouTube by next summer. I post cooking videos; my views die every time I miss a week of uploads.',
     },
   ]
+  const notice = async () => (await store('noticed'))?.[0]?.text ?? ''
+
+  // ── 5. the AI build (Stage 5), against the fake model ──
+  // AI_MOCK=1 is set by `scripts/check-ai.mjs ui`, which points the route at its
+  // stand-in model; then only this flow runs. Sections 1–4 expect the AI off.
+  if (process.env.AI_MOCK) {
+    const vague = { name: 'Sam', size: 'Tiny', theme: 'auto', goal: '[[mock:ask]] I just want to be better at everything in my life.' }
+    await fresh()
+    for (const s of steps(vague)) await s()
+    await click(byText('button', 'Build my Pulse'))
+    await waitFor(`!!document.querySelector('#ob-fu-1')`, 'the follow-up questions')
+    ok(await js(`${INTRO}.textContent.includes('What does better mean to you?')`), 'a vague goal shows the follow-up questions as one more step')
+    await snap('ai-followups.png')
+    await type('#ob-fu-0', 'More energy and better sleep.')
+    await type('#ob-fu-1', 'By spring.')
+    const a = await built()
+    ok(a.gold === 'After follow-ups' && !a.intro, `the answers to the follow-ups build the AI board (gold "${a.gold}")`)
+    ok((await store('ai:board'))?.overallTitle === 'After follow-ups', 'the raw plan is stored under ai:board')
+    ok(a.theme === 'night' && a.firstTile === 'train' && a.removed.length === 5, `the plan sets theme, order and hidden tiles (${a.theme}, ${a.firstTile}, hidden ${a.removed.length})`)
+
+    await fresh()
+    for (const s of steps({ ...vague, goal: '[[mock:malformed]] Bench 100 kg by summer and eat more protein.' })) await s()
+    const f = await built()
+    ok((await notice()).startsWith('The AI build did not work this time, so the rules built this board.'), `a failed AI build says so in one line ("${(await notice()).slice(0, 70)}…")`)
+    ok((await store('ai:board')) === null && f.gold.includes('Bench 100 kg'), `and the rule-based board stands in (gold "${f.gold}")`)
+  } else {
   const boards = {}
   for (const p of personas) {
     await fresh()
@@ -161,6 +190,7 @@ try {
     const first = p.goal.split(/(?<=[.!?])\s/)[0]
     ok(!b.intro && b.gold.length > 0 && first.startsWith(b.gold.replace(/…$/, '')), `${p.who}: the gold goal is the first sentence of their goal ("${b.gold}")`)
     ok(Array.isArray(b.order) && b.firstTile === b.order.find((id) => b.shown.includes(id)), `${p.who}: the board's first tile follows the saved order (${b.firstTile})`)
+    ok((await notice()).startsWith('The AI builder is off right now, so the rules built this board.'), `${p.who}: the rule-built board says why in one line`)
   }
   const { lifter, 'office sleeper': office, creator } = boards
   ok(lifter.firstTile === 'train' && lifter.theme === 'blueprint', 'lifter: Train first, intense vibe picked Blueprint')
@@ -283,6 +313,7 @@ try {
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 })
   const ring = await js(`(() => { const el = document.activeElement; if (!el || el === document.body) return null; const s = getComputedStyle(el); return { tag: el.tagName, style: s.outlineStyle, width: s.outlineWidth, color: s.outlineColor, focus: getComputedStyle(document.documentElement).getPropertyValue('--focus').trim() } })()`)
   ok(ring && ring.style === 'solid' && ring.width === '2px', `keyboard focus ring: ${JSON.stringify(ring)}`)
+  } // end of sections 1–4 (AI off)
 } finally {
   ws?.close()
   proc.kill()
