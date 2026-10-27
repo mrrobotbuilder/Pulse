@@ -195,6 +195,13 @@ repo `C:\Users\User\Projects\stega`) — not on this board.
 - Adding a slot means touching all of: `lib/tiles/coreTiles.tsx` (`CoreTileId`,
   `CORE_TILES`, `DEFAULT_HOME_ORDER`), the `READABLE` list in
   `lib/tiles/useTileHost.ts`, and `SLOTS`/`DATA_SLOTS` in the MCP route.
+- AI-written tiles (Stage 7) need none of that: they live in the `custom-<slug>`
+  lane (`lib/tiles/customTiles.ts`, ids and the validator in
+  `lib/tiles/tileCheck.ts`), written by `app/api/tiles/generate/route.ts` and
+  previewed/added from the reasoning room (`lib/aiBoard.ts`). Checks:
+  `node --use-system-ca scripts/check-ai.mjs tiles` (fake model),
+  `realtiles <dir>` (real model, ~20 cents), then
+  `GEN=<dir> CUSTOM=1 node scripts/check-tiles.mjs <url>` to use them in a browser.
 
 Note: `npm run build` reports a pre-existing prerender error on `/icon` and
 `/apple-icon` (next/og "Invalid URL"). It predates this integration and does not

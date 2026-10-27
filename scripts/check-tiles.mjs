@@ -13,10 +13,13 @@
 //      must reach it (the check can see a leak), the locked tile must not.
 //   3. With CUSTOM=1, the same planted tile as a custom board tile (custom-*
 //      lane), opened from the board like any other.
+//   4. With GEN=<dir>, every .html there (tiles the real model wrote, from
+//      `node scripts/check-ai.mjs realtiles <dir>`) on the board, used once,
+//      and its saved entry still on its face after a reload.
 // Drives Playwright's installed Chromium over raw CDP. Exits 1 on any failure.
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
-import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
+import { mkdtempSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir, homedir } from 'node:os'
 import { withBridge } from '../lib/tiles/tileBridge.ts'
@@ -218,6 +221,57 @@ try {
     await sleep(2500)
     ok(hitsFor('/custom-').length === 0 && (await evalIn(`document.body.dataset.fetch`, c2.id, c2.sessionId)) === 'blocked', `as a custom board tile it sends nothing either (${hitsFor('/custom-').length} requests)`)
     ok(refusals(t2).length >= 4, `and the console shows the refusals (${refusals(t2).length})`)
+  }
+
+  // ── 4. GEN=<dir>: tiles the real model wrote (check-ai.mjs realtiles <dir>) ──
+  // Each goes on the board as a custom tile and gets USED: fill its first input,
+  // press its log button, then reload and require the saved entry on its face.
+  if (process.env.GEN) {
+    const files = readdirSync(process.env.GEN).filter((f) => f.endsWith('.html')).sort()
+    if (!files.length) throw new Error('GEN: no .html files in ' + process.env.GEN)
+    const now = Date.now()
+    const planted = files.map((f, i) => ({ id: `custom-gen-${i + 1}`, name: `Gen ${i + 1}`, html: readFileSync(join(process.env.GEN, f), 'utf8'), createdAt: now - i, updatedAt: now - i }))
+    await go(base + '/manifest.webmanifest')
+    await js(`localStorage.clear(); localStorage.setItem('vitality:me:onboarded', 'skip'); localStorage.setItem('vitality:me:tiles', ${JSON.stringify(JSON.stringify(planted))}); true`)
+    await go(base + '/app')
+    for (const t of planted) {
+      await waitFor(`!!document.querySelector('[data-slot="${t.id}"]')`, `${t.id} on the board`)
+      const t0 = Date.now()
+      const since = contexts.length
+      await js(`document.querySelector('[data-slot="${t.id}"] button[aria-label^="Open"]').click(); true`)
+      const c = await tileContext(since)
+      await sleep(1200)
+      const used = await evalIn(`(async () => {
+        const input = [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=date]):not([type=time]):not([type=datetime-local])')].find((el) => el.offsetParent)
+        if (input) {
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '5')
+          input.dispatchEvent(new Event('input', { bubbles: true }))
+          input.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+        const btn = [...document.querySelectorAll('button')].find((b) => b.offsetParent && /log|add|save|record|^\\s*\\+/i.test(b.textContent))
+        if (!btn) return { input: !!input, button: null }
+        btn.click()
+        await new Promise((r) => setTimeout(r, 1500))
+        return { input: !!input, button: btn.textContent.trim().slice(0, 30), saved: await Pulse.load() }
+      })()`, c.id, c.sessionId)
+      const bad = problems(t0)
+      const entries = used.saved?.entries
+      ok(used.button && Array.isArray(entries) && entries.length > 0 && bad.length === 0,
+        `${t.id}: used it (input ${used.input}, pressed "${used.button}"), it saved ${Array.isArray(entries) ? entries.length + ' entries' : JSON.stringify(used.saved)?.slice(0, 80)}, ${bad.length ? 'PROBLEMS: ' + bad.map((b) => b.text.slice(0, 120)).join(' | ') : 'no errors, no refusals'}`)
+      if (process.env.SHOTS) {
+        const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: 60 })
+        writeFileSync(join(process.env.SHOTS, `${t.id}.jpg`), Buffer.from(shot.data, 'base64'))
+      }
+      await js(`document.querySelector('[role=dialog] button').click(); true`)
+      await waitFor(`!document.querySelector('[role=dialog] iframe')`, `${t.id} to close`)
+    }
+    await go(base + '/app')
+    for (const t of planted) {
+      await waitFor(`!!document.querySelector('[data-slot="${t.id}"]')`, `${t.id} after a reload`)
+      const face = await js(`document.querySelector('[data-slot="${t.id}"]').textContent`)
+      // Unweighted, so it sits in the tray: name, then "<value> <unit>" from summarize().
+      ok(face.slice(t.name.length).trim().startsWith('5') && !/No data yet/.test(face), `${t.id}: after a reload its face shows the 5 it saved ("${face.replace(/\s+/g, ' ').slice(0, 70)}")`)
+    }
   }
 } finally {
   ws?.close()

@@ -291,7 +291,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
     }
     window.addEventListener('pulse:layout', on)
     return () => window.removeEventListener('pulse:layout', on)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshStat is stable per userId
+    // refreshStat is stable per userId
   }, [userId])
 
   // While the mentor is alive over the board, the board must not scroll —
@@ -346,7 +346,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
     return () => {
       alive = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshStat is stable per userId
+    // refreshStat is stable per userId
   }, [userId])
 
   // Every slot that holds a tile: the fixed roster first, then the AI-written ones.
