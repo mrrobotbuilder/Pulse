@@ -2,8 +2,9 @@
 
 _Written 2026-10-27. Stage 2 of `docs/PLAN.md`._
 
-**Chosen direction: not picked yet.** The owner picks A, B or C (or a mix) and
-this line gets updated.
+**Chosen direction: A · Drafting Table** (owner, 2026-10-27), plus two add-ons
+kept from the current site: the green gem and its animations, and the landing
+page with its math and board sections. See "The choice" at the end.
 
 ## How to look at them
 
@@ -135,4 +136,55 @@ parts you want from which.
 
 ## The choice
 
-_To be filled in when the owner picks._
+**A · Drafting Table**, picked by the owner on 2026-10-27. Stage 3 builds A
+as drawn in `docs/design/a-drafting.html`: its tokens, its five presets
+(`vellum` default, `blueprint`, `pencil`, `sage`, `night`), its fonts, the
+weight strip with hatch patterns, the parts list and the title block. The
+add-ons below sit on top of A; they do not change it.
+
+### Add-on 1: keep the gem and some green
+
+The owner wants to keep the current site's green crystal (the faceted gem with
+the V) and its "laser" animations: the glow, the light rings, the sparkles and
+motes. They are what make the board feel alive.
+
+- **What it is in the code:** `components/HeroCrystal.tsx` (the 3D crystal on the
+  landing and mentor pages) and `app/app/DashboardHeaderGem.tsx` with
+  `dashboardHeaderGem.module.css` (the gem beside the greeting on the board).
+  Keep both, and keep the gem where it is today: left of the greeting on the
+  board, in the hero on the landing page, on the Mentor page.
+- **The greeting** next to the gem uses A's display face (Bricolage Grotesque),
+  not the current italic serif.
+- **Green stays as a detail colour, not the main accent.** A's red pencil stays
+  the accent for buttons and the active step. Add one token, `--signal`, for
+  the gem's glow and small "live" details (the gem, its rings and particles,
+  a live dot on tiles that update on their own, the strip's draw-in edge).
+  On the dark presets (`night`, `blueprint`) it is the current mint
+  `#6EE7B7`. On the light presets it must be a darker green, because mint on
+  pale paper is unreadable. If `--signal` is ever used for text, it goes
+  through `check-contrast.mjs` like every other text colour.
+- **The gem on light paper:** keep its green fill and glow, and draw its edges
+  in `--text` so it reads as part of the drawing rather than a sticker from the
+  old dark theme. Check it on every preset in the browser.
+- **Motion rule:** the halo (`dashgem-halo`) and breathing (`dashgem-breathe`)
+  loops run forever today. WCAG 2.2.2 says motion that runs more than 5 seconds
+  on its own needs a pause control. Stage 3 either stops those loops after 5 s
+  (the event animations, the rings and sparkles on a tap, are fine as they
+  are) or adds a visible pause. Reduced motion keeps freezing all of it.
+
+### Add-on 2: keep the landing page, with the math and the board
+
+The landing page (`app/page.tsx`, live at `/#equation`) stays. Nothing in the
+plan removes it; Stage 3 restyles it in A. Its job: someone who clicks through
+sees the math and the board, cleanly and simply explained.
+
+- Keep the nav links **The math** (`#equation`) and **The board** (`#inputs`),
+  and keep every section: the hero, the math (x, w, y), the eight tiles, data
+  in, ownership, the footer.
+- **The math** becomes A's Fig. 1: the equation set large, the dimensioned
+  weight strip under it, and the x / w / y key.
+- **The board** becomes A's parts list (every tile, what it measures, what
+  feeds it), and gains a small static preview of the board itself (the y
+  number, the weight strip and a few tiles, as in the mockup's board section)
+  so a visitor sees what they get before opening it.
+- Copy stays plain and short. The current wording is the starting point.
