@@ -64,6 +64,16 @@ Read docs/PLAN.md, docs/HOW-TO-RUN.md and docs/DESIGN.md, then run Stage 3 (Appl
 
 Done when: you have seen the live board's screenshots and said it is right.
 
+## Session 3b — Live numbers on the tiles
+
+Paste:
+
+```
+Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 3b (Live numbers on the tiles). First read each tile's own save format and show me the headline number you plan for each tile, and wait for my OK. Then build the summarizers, put the live numbers on the tile faces, run every verify step, commit, push, and show me screenshots of the live board.
+```
+
+Done when: you have seen the live board showing real numbers on the tiles.
+
 ## Session 4 — The deep intro
 
 Paste:

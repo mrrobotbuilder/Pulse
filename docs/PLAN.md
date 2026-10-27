@@ -132,6 +132,47 @@ the intro still builds a board.
 
 Stop when: the owner has seen screenshots of the live board and says it is right.
 
+### Stage 3b — Live numbers on the tiles
+
+Added 2026-10-27 at the owner's request, after Stage 3. Today a tile's real
+numbers only show when you open it; the board face shows each tile's weight
+(`30% of y`) and a description. The owner wants the live number on the face,
+because it says more than the weight. (The old board showed no numbers either,
+so this is new, not a regression.)
+
+- **Where the numbers come from:** the board already reads each tile's saved
+  data with `tileStore.loadData(userId, id)` (the same data the tile gets from
+  `Pulse.load()`, local or cloud). No tile has to change.
+- **One summarizer per tile** in a new `lib/tiles/tileStats.ts`:
+  `summarize(id, data) => { value, unit, sub } | null`. Read each tile's own
+  save format first (its `Pulse.save` calls in `public/tiles/<id>.html`); never
+  guess a field name. Suggested headline per tile, confirm with the owner:
+  Train (last session: day and best set), Fuel (today, against target),
+  Walks (steps this week), Vitals (last night's sleep), Brand (followers or
+  subscribers, total), Finance (net worth or money left), Peak (only if its
+  data holds a score; else null).
+- **The face:** the big number becomes the live value (`12.4k subs`), the
+  sub line its context (`+312 this week`), and the weight moves to the small
+  `w 30` mark that is already in the corner. No data yet → the tile says
+  "No data yet · open to log" instead of a number. A summarizer that throws or
+  gets a shape it does not know returns null (shown as "No data yet"), and
+  the error goes to the console, never a blank board.
+- **Live updates:** re-read a tile's summary when its overlay closes (it may
+  have just saved), and when the Walks sync lands.
+- Keep `DashboardTileStats` / `CoreTile.stat` only if the new code uses them;
+  otherwise delete them (dead today).
+
+Verify: one runnable check (`node --test` or a plain assert script) feeds
+each summarizer a real saved sample (copy one from the tile's own save shape)
+plus empty, null and a wrong shape; each wrong input gives null, never a
+throw. In the browser: log something in Train, Fuel and Vitals, close each
+tile, and the face shows the new number without a reload; reload and it is
+still there; a fresh board shows "No data yet" on every tile. 375px and
+1440px, light and dark theme. `node scripts/shoot-app.mjs` still passes.
+Push, then check live.
+
+Stop when: the owner has seen the live board with real numbers on it.
+
 ### Stage 4 — The deep intro (no AI yet)
 
 Replace the six-step interview with a deeper one. Questions (draft; refine in
