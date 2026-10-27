@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" data-theme="lane4">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse · B · Track Meet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500&family=Barlow:wght@400;600;700&family=Big+Shoulders+Display:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Direction B: Track Meet. The board as a stadium scoreboard: y in giant
+   condensed digits, every tile a lane ranked by weight, its bar the points it
+   adds to y. Motion level: high (count-up, lanes sprint in), all of it once. */
+:root {
+  --radius: 2px;
+  --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+  --font-mono: 'Azeret Mono', ui-monospace, monospace;
+  --motion: high;
+}
+[data-theme="lane4"]  { --bg:#0B1E33; --surface:#10294A; --text:#F3F6FA; --muted:#A9BCD0; --line:#2B4C73; --accent:#FF5A36; --accent-ink:#1A0700; --gold:#FFC845; --focus:#FFC845; }
+[data-theme="night"]  { --bg:#0A0B0E; --surface:#15171C; --text:#F5F5F7; --muted:#A3A6AE; --line:#30333B; --accent:#4DA3FF; --accent-ink:#04121F; --gold:#FFD166; --focus:#FFD166; }
+[data-theme="indoor"] { --bg:#F3F4F6; --surface:#FFFFFF; --text:#0B1E33; --muted:#4A5868; --line:#CDD4DD; --accent:#C2360F; --accent-ink:#FFFFFF; --gold:#855600; --focus:#0B1E33; }
+[data-theme="tartan"] { --bg:#2A0E0B; --surface:#3A1510; --text:#FFF4EE; --muted:#E2BCAF; --line:#5E2C23; --accent:#FFC845; --accent-ink:#2A0E0B; --gold:#FFE29A; --focus:#FFFFFF; }
+[data-theme="finish"] { --bg:#FFFFFF; --surface:#F1F1F1; --text:#000000; --muted:#474747; --line:#C9C9C9; --accent:#000000; --accent-ink:#FFFFFF; --gold:#765400; --focus:#D4141A; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--text); font: 400 17px/1.5 var(--font-body); }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.wrap { width: min(1240px, 100% - 32px); margin-inline: auto; }
+.tag { font: 500 12px/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3, .disp { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; line-height: .9; letter-spacing: .005em; }
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; background: var(--accent); color: var(--accent-ink); border: 2px solid var(--accent); border-radius: var(--radius);
+  font: 800 19px/1 var(--font-display); text-transform: uppercase; letter-spacing: .04em; text-decoration: none; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--text); border-color: var(--text); }
+.view { padding-bottom: 80px; }
+.view + .view { border-top: 6px solid var(--accent); padding-top: 56px; }
+/* lane lines: the recurring texture */
+.lanes-bg { background-image: repeating-linear-gradient(180deg, transparent 0 63px, var(--line) 63px 65px); }
+
+/* ---------- landing ---------- */
+.nav { display: flex; justify-content: space-between; align-items: center; padding-block: 18px; }
+.mark { display: flex; align-items: center; gap: 10px; font: 900 28px var(--font-display); text-transform: uppercase; text-decoration: none; letter-spacing: .04em; }
+.mark i { width: 14px; height: 28px; background: var(--accent); transform: skewX(-12deg); }
+.links { display: flex; gap: 22px; align-items: center; }
+.links a:not(.btn) { font-weight: 600; text-decoration: none; }
+.hero { position: relative; padding-block: 40px 56px; }
+.hero h1 { font-size: clamp(72px, 13.5vw, 210px); font-weight: 900; margin: 18px 0 28px; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero-row { display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: end; }
+.lede { font-size: 21px; max-width: 40ch; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 14px; }
+.board-chip { background: var(--surface); border: 2px solid var(--line); padding: 16px 22px; min-width: 260px; }
+.board-chip .y { font: 900 132px/.82 var(--font-display); }
+.board-chip .y small { font-size: 36px; color: var(--muted); margin-right: 6px; }
+.board-chip .g { color: var(--gold); font-weight: 700; margin-top: 8px; }
+.math { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--line); }
+.math div { padding: 28px 28px 28px 0; }
+.math div + div { padding-left: 28px; border-left: 2px solid var(--line); }
+.math b { display: block; font: 900 88px/.8 var(--font-display); color: var(--accent); margin-bottom: 14px; }
+.math div:last-child b { color: var(--gold); }
+.math h3 { font-size: 32px; margin-bottom: 8px; }
+.math p { color: var(--muted); }
+.sec-title { font-size: clamp(44px, 6vw, 84px); margin: 72px 0 24px; max-width: 14ch; }
+.startlist { width: 100%; border-collapse: collapse; }
+.startlist th { font: 500 12px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0 16px 10px 0; border-bottom: 2px solid var(--text); }
+.startlist td { padding: 16px 16px 16px 0; border-bottom: 2px solid var(--line); vertical-align: middle; }
+.startlist td.ln { font: 900 40px/1 var(--font-display); color: var(--accent); width: 64px; }
+.startlist td.nm { font: 800 34px/1 var(--font-display); text-transform: uppercase; width: 220px; }
+.startlist td.fed { color: var(--muted); }
+.foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 56px; padding-top: 18px; border-top: 2px solid var(--line); }
+
+/* ---------- intro ---------- */
+.track { position: relative; display: grid; grid-template-columns: repeat(9, 1fr); list-style: none; padding: 20px 0 0; margin-bottom: 36px; border-top: 2px solid var(--line); }
+.track li { position: relative; font: 700 13px var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 10px; }
+.track li::before { content: ""; position: absolute; top: -27px; left: 0; width: 12px; height: 12px; border: 2px solid var(--line); background: var(--bg); transform: skewX(-12deg); }
+.track li.done::before { background: var(--text); border-color: var(--text); }
+.track li[aria-current] { color: var(--text); }
+.track li[aria-current]::before { width: 22px; height: 22px; top: -32px; background: var(--accent); border-color: var(--accent); }
+.steps { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: start; }
+.panel { background: var(--surface); border-top: 6px solid var(--accent); padding: 28px; }
+.panel.quiet { border-top-color: var(--line); }
+.panel h2 { font-size: clamp(48px, 5.6vw, 76px); margin: 10px 0 12px; }
+.help { color: var(--muted); max-width: 54ch; }
+.field { display: block; font-weight: 700; margin: 22px 0 8px; }
+.field small { color: var(--muted); font-weight: 400; }
+textarea, input[type="time"] { width: 100%; font: 400 17px/1.55 var(--font-body); color: var(--text); background: var(--bg); border: 2px solid var(--line); border-radius: var(--radius); padding: 14px 16px; resize: vertical; }
+textarea:focus-visible, input:focus-visible { border-color: var(--focus); }
+input[type="time"] { color-scheme: dark; font-family: var(--font-mono); }
+[data-theme="indoor"] input[type="time"], [data-theme="finish"] input[type="time"] { color-scheme: light; }
+.count { display: flex; justify-content: space-between; margin-top: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 16px; font: 800 18px var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--text); background: transparent; border: 2px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nav-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
+
+/* ---------- board ---------- */
+.bhead { display: flex; justify-content: space-between; align-items: end; gap: 16px; padding-block: 26px 22px; }
+.bhead h2 { font-size: clamp(44px, 6vw, 80px); margin-top: 8px; }
+.icon { width: 48px; height: 48px; display: grid; place-items: center; color: var(--text); background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.score { display: grid; grid-template-columns: 1.1fr 1fr; gap: 0; background: var(--surface); }
+.score .now { padding: 24px 28px; border-right: 2px solid var(--line); }
+.score .y { font: 900 clamp(150px, 19vw, 260px)/.8 var(--font-display); margin: 14px 0 10px; font-variant-numeric: tabular-nums; }
+.score .goalname { color: var(--gold); font: 800 28px/1 var(--font-display); text-transform: uppercase; }
+.score .delta { color: var(--muted); margin-top: 8px; }
+.events { padding: 24px 28px; display: grid; gap: 6px; align-content: start; }
+.event { display: grid; gap: 8px; text-align: left; padding: 12px 14px; min-height: 44px; color: var(--text); background: transparent; border: 2px solid transparent; border-radius: var(--radius); cursor: pointer; font: 600 17px var(--font-body); }
+.event[aria-selected="true"] { border-color: var(--line); background: var(--bg); }
+.event .row { display: flex; justify-content: space-between; gap: 12px; }
+.event.overall { color: var(--gold); }
+.event .bar { height: 6px; background: var(--line); }
+.event .bar i { display: block; height: 100%; width: calc(var(--p) * 1%); background: var(--text); }
+.event.overall .bar i { background: var(--gold); }
+.lanehead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 6px 16px; margin: 40px 0 10px; }
+.coach { text-decoration: none; }
+.lanehead h3 { font-size: 40px; }
+.lane { display: grid; grid-template-columns: 56px 200px 240px 1fr 120px; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 2px solid var(--line); text-decoration: none; }
+.lane:first-of-type { border-top: 2px solid var(--line); }
+.lane .rk { font: 900 44px/1 var(--font-display); color: var(--accent); }
+.lane .nm { font: 800 36px/1 var(--font-display); text-transform: uppercase; }
+.lane .st { font: 800 30px/1 var(--font-display); }
+.lane .st small { font: 400 15px var(--font-body); color: var(--muted); margin-left: 6px; text-transform: none; }
+.lane .sb { color: var(--muted); font: 400 15px/1.3 var(--font-body); text-transform: none; display: block; margin-top: 4px; }
+.lane .bar { height: 22px; background: repeating-linear-gradient(90deg, var(--line) 0 2px, transparent 2px 10%); border-left: 2px solid var(--line); }
+.lane .bar i { display: block; height: 100%; width: calc(var(--c) / 30 * 100%); background: var(--accent); transform-origin: left; }
+.lane .pts { text-align: right; font: 500 14px var(--font-mono); color: var(--muted); }
+.lane .pts b { display: block; font: 900 30px/1 var(--font-display); color: var(--text); }
+.lane.off .nm, .lane.off .st { color: var(--muted); }
+.coach { margin-top: 32px; display: grid; grid-template-columns: 220px 1fr auto; gap: 24px; align-items: center; background: var(--surface); border-left: 6px solid var(--gold); padding: 22px 26px; }
+.coach h3 { font-size: 34px; color: var(--gold); }
+.coach p { font-size: 20px; }
+.coach .tag { margin-top: 6px; display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  .lane .bar i { animation: sprint .8s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--i) * 70ms + 150ms); }
+  @keyframes sprint { from { transform: scaleX(0) } }
+}
+
+/* ---------- presets sheet ---------- */
+.sheet { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.pv { background: var(--bg); color: var(--text); padding: 18px; display: grid; gap: 14px; border-top: 6px solid var(--accent); }
+.pv .y { font: 900 104px/.8 var(--font-display); }
+.pv .lane { grid-template-columns: 1fr; gap: 6px; padding: 10px 0; }
+.pv .lane .bar { height: 14px; }
+
+/* ---------- mock bar (not part of the design) ---------- */
+.mockbar { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px; background: #111; color: #fff; font: 13px system-ui, sans-serif; }
+.mockbar button { font: inherit; color: #fff; background: #333; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+.mockbar button[aria-pressed="true"] { background: #fff; color: #111; }
+.shot .mockbar { display: none; }
+
+@media (max-width: 1000px) {
+  .hero-row, .steps, .score { grid-template-columns: 1fr; }
+  .score .now { border-right: 0; border-bottom: 2px solid var(--line); }
+  .lane { grid-template-columns: 44px 1fr auto; grid-template-areas: "rk nm pts" "rk st pts" "rk bar bar"; gap: 6px 14px; }
+  .lane .rk { grid-area: rk; align-self: start; } .lane .nm { grid-area: nm; } .lane .st { grid-area: st; } .lane .bar { grid-area: bar; } .lane .pts { grid-area: pts; align-self: start; }
+  .coach { grid-template-columns: 1fr; gap: 10px; }
+  .sheet { grid-template-columns: 1fr 1fr; }
+  .math { grid-template-columns: 1fr; }
+  .math div + div { padding-left: 0; border-left: 0; border-top: 2px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .links a:not(.btn) { display: none; }
+  .hero { padding-top: 16px; }
+  .lede { font-size: 18px; }
+  .board-chip { min-width: 0; }
+  .startlist thead { display: none; }
+  .startlist, .startlist tbody, .startlist tr { display: block; }
+  .startlist tr { display: grid; grid-template-columns: 44px 1fr; gap: 2px 12px; padding: 14px 0; border-bottom: 2px solid var(--line); }
+  .startlist td { border: 0; padding: 0; width: auto !important; }
+  .startlist td.ln { grid-row: span 3; font-size: 34px; }
+  .startlist td.nm { font-size: 28px; }
+  .track li { font-size: 0; }
+  .track li[aria-current] { font-size: 13px; white-space: nowrap; }
+  .panel { padding: 20px; }
+  .two { grid-template-columns: 1fr; }
+  .score .now, .events { padding: 18px; }
+  .lane .nm { font-size: 30px; }
+  .lane .st { font-size: 24px; }
+  .lane .rk { font-size: 34px; }
+  .sheet { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="mockbar" role="region" aria-label="Mockup controls">
+  <strong>B · Track Meet</strong>
+  <span>Theme:</span>
+  <button data-pick="lane4">Lane 4</button><button data-pick="night">Night race</button><button data-pick="indoor">Indoor</button><button data-pick="tartan">Tartan</button><button data-pick="finish">Finish line</button>
+</div>
+
+<!-- ================= LANDING ================= -->
+<section class="view" data-view="landing" aria-label="Landing page">
+  <div class="lanes-bg">
+    <nav class="nav wrap">
+      <a class="mark" href="#"><i aria-hidden="true"></i>Pulse</a>
+      <div class="links"><a href="#">The math</a><a href="#">The board</a><a class="btn" href="#">Open the board</a></div>
+    </nav>
+    <header class="hero wrap">
+      <p class="tag">A personal life board</p>
+      <h1>Your life is an <em>equation.</em></h1>
+      <div class="hero-row">
+        <div>
+          <p class="lede">Everything you track is an input. Pulse weighs each one against the goal you named, and puts one number on the board: did today count?</p>
+          <div class="cta"><a class="btn" href="#">Open the board</a><a class="btn ghost" href="#">See the math</a></div>
+          <p class="tag">Free to use · no sign-up to look around · your data stays yours</p>
+        </div>
+        <div class="board-chip" aria-label="Example score: 72 toward A jacked, famous YouTuber">
+          <p class="tag">Today</p>
+          <p class="y"><small>y</small>72</p>
+          <p class="g">A jacked, famous YouTuber</p>
+        </div>
+      </div>
+    </header>
+  </div>
+  <div class="wrap">
+    <div class="math">
+      <div><b>x</b><h3>The inputs</h3><p>Each tile is one input: training, fuel, sleep, money, reach. You log it, or a device sends it.</p></div>
+      <div><b>w</b><h3>The weights</h3><p>How much that input moves your goal. They add to 100, and they shift as your data does.</p></div>
+      <div><b>y</b><h3>The score</h3><p>One honest number. Every lane shows exactly how many points it added.</p></div>
+    </div>
+    <h2 class="sec-title">Eight lanes. Add your own.</h2>
+    <table class="startlist">
+      <thead><tr><th>Lane</th><th>Tile</th><th>What it times</th><th>Fed by</th></tr></thead>
+      <tbody>
+        <tr><td class="ln">1</td><td class="nm">Train</td><td>Every session, every best, every kilo.</td><td class="fed">You, after the set</td></tr>
+        <tr><td class="ln">2</td><td class="nm">Fuel</td><td>What you ate against what your body needs.</td><td class="fed">You</td></tr>
+        <tr><td class="ln">3</td><td class="nm">Walks</td><td>Distance, steps and where you went.</td><td class="fed">Your phone, on the move</td></tr>
+        <tr><td class="ln">4</td><td class="nm">Vitals</td><td>Sleep and recovery.</td><td class="fed">You, by hand</td></tr>
+        <tr><td class="ln">5</td><td class="nm">Peak</td><td>The curve you are on: compounding, or stalled.</td><td class="fed">Your Train log</td></tr>
+        <tr><td class="ln">6</td><td class="nm">Brand</td><td>Views, subscribers, followers.</td><td class="fed">TikTok, no key · YouTube, your key</td></tr>
+        <tr><td class="ln">7</td><td class="nm">Finance</td><td>What comes in, what leaves.</td><td class="fed">You · live prices with your key</td></tr>
+        <tr><td class="ln">8</td><td class="nm">Mentor</td><td>Reads every lane, spots patterns, retunes the weights.</td><td class="fed">Claude, on your computer</td></tr>
+      </tbody>
+    </table>
+    <div class="foot"><span class="tag">Pulse — your life is an equation</span><span class="tag">Free · nothing for sale</span></div>
+  </div>
+</section>
+
+<!-- ================= INTRO ================= -->
+<section class="view" data-view="intro" aria-label="Intro interview">
+  <div class="wrap">
+    <ol class="track" aria-label="Interview progress">
+      <li class="done">You</li><li aria-current="step">Goal</li><li>Days</li><li>Body</li><li>Recovery</li><li>Life</li><li>Tracking</li><li>Look</li><li>Review</li>
+    </ol>
+    <div class="steps">
+      <div class="panel">
+        <p class="tag">Step 2 / 9</p>
+        <h2>Your goal, in your own words.</h2>
+        <p class="help">Write everything: what you're chasing, why it matters, by when, and what has stopped you before. As long as you want.</p>
+        <label class="field" for="b-g1">Your main goal</label>
+        <textarea id="b-g1" rows="7" maxlength="2000" data-count="b-c1">I want to get to 185 lb and actually look like I lift by next summer. I train four days a week but I skip when work runs late, and I never eat enough protein on rest days. What stopped me last time: I tracked everything for two weeks, got bored of typing, and quit.</textarea>
+        <div class="count"><span class="tag">Saved as you type</span><span class="tag" id="b-c1"></span></div>
+        <label class="field" for="b-g2">Any other goals? <small>(optional)</small></label>
+        <textarea id="b-g2" rows="3" maxlength="2000">Grow the channel to 25k subscribers, one video a week.</textarea>
+        <div class="nav-row"><button class="btn ghost">Back</button><button class="btn">Next: your days</button></div>
+      </div>
+      <div class="panel quiet">
+        <p class="tag">Step 3 / 9</p>
+        <h2>Your days.</h2>
+        <div class="two">
+          <div><label class="field" for="b-w">Wake up</label><input id="b-w" type="time" value="06:30"></div>
+          <div><label class="field" for="b-s">Lights out</label><input id="b-s" type="time" value="23:00"></div>
+        </div>
+        <p class="field" id="b-work">How do you work?</p>
+        <div class="chips" role="group" aria-labelledby="b-work">
+          <button class="chip" aria-pressed="true">Desk</button><button class="chip" aria-pressed="false">On my feet</button><button class="chip" aria-pressed="false">Shifts</button><button class="chip" aria-pressed="false">Student</button><button class="chip" aria-pressed="false">Other</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BOARD ================= -->
+<section class="view" data-view="board" aria-label="The board">
+  <div class="wrap">
+    <header class="bhead">
+      <div><p class="tag">Tue 27 Oct · week 44</p><h2>Good morning, Darre.</h2></div>
+      <button class="icon" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+    </header>
+    <div class="score">
+      <div class="now">
+        <p class="tag">Today's score</p>
+        <p class="y" data-count-to="72" aria-label="y equals 72">72</p>
+        <p class="goalname">A jacked, famous YouTuber</p>
+        <p class="delta">+4 on last Tuesday</p>
+      </div>
+      <div class="events" role="tablist" aria-label="Goals">
+        <p class="tag">Your goals</p>
+        <button class="event overall" role="tab" aria-selected="true"><span class="row"><span>A jacked, famous YouTuber</span><span>overall</span></span><span class="bar"><i style="--p:72"></i></span></button>
+        <button class="event" role="tab" aria-selected="false"><span class="row"><span>Become a famous YouTuber</span><span>28%</span></span><span class="bar"><i style="--p:28"></i></span></button>
+        <button class="event" role="tab" aria-selected="false"><span class="row"><span>Be 185 lb lean</span><span>61%</span></span><span class="bar"><i style="--p:61"></i></span></button>
+      </div>
+    </div>
+    <div class="lanehead"><h3>Lanes</h3><p class="tag">Ranked by weight · bar = points added to y</p></div>
+    <a class="lane" href="#" style="--i:0"><span class="rk">1</span><span class="nm">Brand</span><span class="st">12.4k<small>subs</small><span class="sb">+312 this week</span></span><span class="bar"><i style="--c:21"></i></span><span class="pts"><b>21.0</b>of w 30</span></a>
+    <a class="lane" href="#" style="--i:1"><span class="rk">2</span><span class="nm">Train</span><span class="st">Day 3<small>push</small><span class="sb">Bench 92.5 kg × 5, a new best</span></span><span class="bar"><i style="--c:20.5"></i></span><span class="pts"><b>20.5</b>of w 25</span></a>
+    <a class="lane" href="#" style="--i:2"><span class="rk">3</span><span class="nm">Vitals</span><span class="st">7 h 12<small>slept</small><span class="sb">Recovery 68%</span></span><span class="bar"><i style="--c:13.6"></i></span><span class="pts"><b>13.6</b>of w 20</span></a>
+    <a class="lane" href="#" style="--i:3"><span class="rk">4</span><span class="nm">Fuel</span><span class="st">2,140<small>of 2,600 kcal</small><span class="sb">148 g protein</span></span><span class="bar"><i style="--c:10.7"></i></span><span class="pts"><b>10.7</b>of w 13</span></a>
+    <a class="lane" href="#" style="--i:4"><span class="rk">5</span><span class="nm">Finance</span><span class="st">4,820<small>kr left</small><span class="sb">12 days to payday</span></span><span class="bar"><i style="--c:4.2"></i></span><span class="pts"><b>4.2</b>of w 7</span></a>
+    <a class="lane" href="#" style="--i:5"><span class="rk">6</span><span class="nm">Peak</span><span class="st">+4.1%<small>30 days</small><span class="sb">Strength still compounding</span></span><span class="bar"><i style="--c:2"></i></span><span class="pts"><b>2.0</b>of w 5</span></a>
+    <a class="lane off" href="#" style="--i:6"><span class="rk">–</span><span class="nm">Walks</span><span class="st">41,280<small>steps</small><span class="sb">Not in this goal</span></span><span class="bar"><i style="--c:0"></i></span><span class="pts"><b>0</b>w 0</span></a>
+    <a class="coach" href="#">
+      <div><h3>Mentor</h3><span class="tag">Noticed this week</span></div>
+      <p>On gym days you publish <b>2.3× more videos</b>. Train now counts toward the channel goal too.</p>
+      <span class="tag">Train 0 → 8 · Brand 70 → 62</span>
+    </a>
+  </div>
+</section>
+
+<!-- ================= PRESETS ================= -->
+<section class="view" data-view="presets" aria-label="Theme presets">
+  <div class="wrap">
+    <h2 class="sec-title" style="margin-top:0">Theme presets</h2>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</section>
+
+<template id="pv">
+  <div class="pv">
+    <p class="tag" data-name></p>
+    <p class="y">72</p>
+    <p style="color:var(--gold);font:800 22px/1 var(--font-display);text-transform:uppercase">A jacked, famous YouTuber</p>
+    <a class="lane" href="#" style="--i:0"><span class="nm">Brand</span><span class="st">12.4k<small>subs</small></span><span class="bar"><i style="--c:21"></i></span></a>
+    <div><button class="btn">Open the board</button></div>
+  </div>
+</template>
+
+<script>
+  const q = new URLSearchParams(location.search), root = document.documentElement
+  const picks = [...document.querySelectorAll('[data-pick]')]
+  const setTheme = (t) => { root.dataset.theme = t; picks.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pick === t))) }
+  picks.forEach((b) => (b.onclick = () => setTheme(b.dataset.pick)))
+  setTheme(q.get('theme') || root.dataset.theme)
+  if (q.get('view')) document.querySelectorAll('[data-view]').forEach((s) => (s.hidden = s.dataset.view !== q.get('view')))
+  if (q.has('shot')) document.body.classList.add('shot')
+  const tpl = document.getElementById('pv'), sheet = document.getElementById('sheet')
+  picks.forEach((b) => { const n = tpl.content.cloneNode(true); n.firstElementChild.dataset.theme = b.dataset.pick; n.querySelector('[data-name]').textContent = b.textContent; sheet.append(n) })
+  document.querySelectorAll('[data-count]').forEach((t) => { const out = document.getElementById(t.dataset.count); const f = () => (out.textContent = t.value.length.toLocaleString('en-US') + ' / 2,000'); t.addEventListener('input', f); f() })
+  document.querySelectorAll('.chips').forEach((g) => g.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')) }))
+  // the score counts up once on load; reduced motion shows the final number
+  const y = document.querySelector('[data-count-to]')
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !q.has('shot')) {
+    const end = +y.dataset.countTo, t0 = performance.now()
+    const tick = (t) => { const k = Math.min(1, (t - t0) / 900); y.textContent = Math.round(end * (1 - (1 - k) ** 3)); if (k < 1) requestAnimationFrame(tick) }
+    requestAnimationFrame(tick)
+  }
+</script>
+</body>
+</html>

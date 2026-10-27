@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en" data-theme="morning">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse · C · Balance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Figtree:ital,wght@0,400;0,600;0,700;1,400&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Direction C: Balance. The equation as a hanging mobile: y at the top, each
+   tile a disc whose size is its weight, every tile card tinted to match its
+   disc and sized by its weight tier. Motion level: medium (one settling sway). */
+:root {
+  --radius: 26px;
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+  --motion: medium;
+}
+[data-theme="morning"] { --bg:#EEEAF4; --surface:#FFFFFF; --text:#231A33; --muted:#5B5170; --line:#D8D0E6; --accent:#231A33; --accent-ink:#FFFFFF; --gold:#835700; --focus:#6B3FD9;
+  --t-brand:#FFD3E1; --t-train:#FFDCCB; --t-vitals:#D4E3FF; --t-fuel:#FFEDAA; --t-finance:#CDEDE9; --t-peak:#E7D9FF; --t-walks:#D7EEDB; --mentor-bg:#231A33; --mentor-text:#FFFFFF; }
+[data-theme="moss"]    { --bg:#E6EEE3; --surface:#FBFDFA; --text:#1B2B1E; --muted:#4C5F4F; --line:#C9D8C6; --accent:#1B2B1E; --accent-ink:#FFFFFF; --gold:#765000; --focus:#2F6B3A;
+  --t-brand:#F6D6CF; --t-train:#F3DFC0; --t-vitals:#CFE3E8; --t-fuel:#EDE7B4; --t-finance:#C9E6D3; --t-peak:#DED8EC; --t-walks:#D5E8C9; --mentor-bg:#1B2B1E; --mentor-text:#F3F7F1; }
+[data-theme="sea"]     { --bg:#E3EDF2; --surface:#FAFDFE; --text:#102A38; --muted:#46606D; --line:#C4D6DF; --accent:#0F4C6B; --accent-ink:#FFFFFF; --gold:#7A5200; --focus:#0F4C6B;
+  --t-brand:#FFD8D2; --t-train:#FFE2C4; --t-vitals:#CFE4F7; --t-fuel:#F6EDB8; --t-finance:#C7EBE5; --t-peak:#DCDDF6; --t-walks:#D0EDDA; --mentor-bg:#102A38; --mentor-text:#F2F8FB; }
+[data-theme="dusk"]    { --bg:#1B1726; --surface:#262035; --text:#F3EEFA; --muted:#B7ADC9; --line:#3B3350; --accent:#F3EEFA; --accent-ink:#1B1726; --gold:#F0C463; --focus:#C9A8FF;
+  --t-brand:#4A2A3A; --t-train:#4A3226; --t-vitals:#263A57; --t-fuel:#45401F; --t-finance:#1F4441; --t-peak:#3A2D58; --t-walks:#26402C; --mentor-bg:#F3EEFA; --mentor-text:#1B1726; }
+[data-theme="ink"]     { --bg:#FFFFFF; --surface:#FFFFFF; --text:#000000; --muted:#454545; --line:#BDBDBD; --accent:#000000; --accent-ink:#FFFFFF; --gold:#6E4B00; --focus:#0050D8;
+  --t-brand:#FFB8CF; --t-train:#FFC3A6; --t-vitals:#A9C8FF; --t-fuel:#FFE066; --t-finance:#9EE3DA; --t-peak:#D2B8FF; --t-walks:#B4E4BC; --mentor-bg:#000000; --mentor-text:#FFFFFF; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--text); font: 400 17px/1.55 var(--font-body); }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.wrap { width: min(1180px, 100% - 32px); margin-inline: auto; }
+.tag { font: 500 13px/1.3 var(--font-mono); color: var(--muted); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; line-height: 1.04; }
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 24px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); border: 2px solid var(--accent); font: 700 16px var(--font-body); text-decoration: none; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--text); border-color: var(--text); }
+.view { padding-bottom: 80px; }
+.view + .view { border-top: 2px solid var(--line); padding-top: 56px; }
+.brand { background: var(--t-brand); } .train { background: var(--t-train); } .vitals { background: var(--t-vitals); } .fuel { background: var(--t-fuel); }
+.finance { background: var(--t-finance); } .peak { background: var(--t-peak); } .walks { background: var(--t-walks); }
+
+/* the mobile: the signature */
+.mobile { display: block; width: 100%; max-width: 680px; margin-inline: auto; overflow: visible; }
+.mobile .wire { stroke: var(--text); stroke-width: 2; }
+.mobile .beam { stroke: var(--text); stroke-width: 3.5; stroke-linecap: round; }
+.mobile .disc { stroke: var(--text); stroke-width: 2; }
+.mobile .ydisc { fill: var(--text); }
+.mobile .yval { fill: var(--bg); font: 700 30px var(--font-display); }
+.mobile .lbl { fill: var(--text); font: 600 15px var(--font-body); }
+.mobile .lbl tspan.w { font: 500 13px var(--font-mono); fill: var(--muted); }
+.mobile .disc-brand { fill: var(--t-brand); } .mobile .disc-train { fill: var(--t-train); } .mobile .disc-vitals { fill: var(--t-vitals); }
+.mobile .disc-fuel { fill: var(--t-fuel); } .mobile .disc-finance { fill: var(--t-finance); } .mobile .disc-peak { fill: var(--t-peak); }
+@media (prefers-reduced-motion: no-preference) {
+  .mobile .swing { transform-box: view-box; transform-origin: 320px 26px; animation: settle 3.2s cubic-bezier(.3,.6,.3,1) 1 both; }
+  @keyframes settle { 0% { transform: rotate(4deg) } 30% { transform: rotate(-2.4deg) } 55% { transform: rotate(1.2deg) } 78% { transform: rotate(-.5deg) } 100% { transform: rotate(0) } }
+}
+
+/* ---------- landing ---------- */
+.nav { display: flex; justify-content: space-between; align-items: center; padding-block: 20px; }
+.mark { display: flex; align-items: center; gap: 10px; font: 700 22px var(--font-display); text-decoration: none; letter-spacing: -0.03em; }
+.mark i { width: 22px; height: 22px; border-radius: 50%; background: var(--t-brand); border: 2px solid var(--text); box-shadow: 9px 0 0 -2px var(--t-vitals), 9px 0 0 0 var(--text); margin-right: 8px; }
+.links { display: flex; gap: 22px; align-items: center; }
+.links a:not(.btn) { text-decoration: none; font-weight: 600; }
+.hero { text-align: center; padding-block: 56px 24px; }
+.hero h1 { font-size: clamp(44px, 7.4vw, 104px); max-width: 12ch; margin: 16px auto 22px; }
+.lede { font-size: 20px; max-width: 44ch; margin-inline: auto; }
+.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 28px 0 14px; }
+.caption { text-align: center; margin-top: 6px; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 72px; }
+.trio div { border-radius: var(--radius); padding: 28px; }
+.trio b { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface); border: 2px solid var(--text); font: 700 24px var(--font-display); margin-bottom: 18px; }
+.trio h3 { font-size: 24px; margin-bottom: 8px; }
+.sec-title { font-size: clamp(32px, 4.4vw, 56px); max-width: 16ch; margin: 80px 0 24px; }
+.pebbles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.pebble { border-radius: var(--radius); padding: 22px; display: grid; gap: 6px; align-content: start; }
+.pebble h3 { font-size: 22px; }
+.pebble .tag { color: var(--text); }
+.pebble.mentor { background: var(--mentor-bg); color: var(--mentor-text); }
+.pebble.mentor .tag { color: var(--mentor-text); }
+.foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 64px; }
+
+/* ---------- intro ---------- */
+.dots { display: flex; align-items: center; gap: 10px; list-style: none; margin-bottom: 14px; }
+.dots li { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text); }
+.dots li.done { background: var(--text); }
+.dots li[aria-current] { width: 22px; height: 22px; background: var(--t-train); }
+.dots li span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.steps { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; margin-top: 22px; }
+.card { background: var(--surface); border-radius: var(--radius); padding: 32px; }
+.card h2 { font-size: clamp(30px, 3.6vw, 44px); margin: 10px 0 12px; }
+.help { color: var(--muted); max-width: 52ch; }
+.field { display: block; font-weight: 700; margin: 22px 0 8px; }
+.field small { font-weight: 400; color: var(--muted); }
+textarea, input[type="time"] { width: 100%; font: 400 17px/1.6 var(--font-body); color: var(--text); background: var(--bg); border: 2px solid transparent; border-radius: 18px; padding: 16px 18px; resize: vertical; }
+textarea:focus-visible, input:focus-visible { outline-offset: 0; }
+input[type="time"] { font-family: var(--font-mono); }
+[data-theme="dusk"] input[type="time"] { color-scheme: dark; }
+.count { display: flex; justify-content: space-between; margin-top: 8px; padding-inline: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 18px; border-radius: 999px; font: 600 16px var(--font-body); color: var(--text); background: var(--bg); border: 2px solid transparent; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--t-vitals); border-color: var(--text); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nav-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
+
+/* ---------- board ---------- */
+.bhead { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 28px 18px; }
+.bhead h2 { font-size: clamp(30px, 4.2vw, 52px); margin-top: 6px; }
+.icon { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); border: 2px solid var(--line); cursor: pointer; }
+.goals { display: flex; flex-wrap: wrap; gap: 8px; }
+.goal { min-height: 44px; padding: 8px 18px; border-radius: 999px; background: var(--surface); color: var(--text); border: 2px solid var(--line); font: 600 15px var(--font-body); cursor: pointer; }
+.goal[aria-selected="true"] { border-color: var(--text); }
+.goal.overall { color: var(--gold); }
+.goal.overall[aria-selected="true"] { border-color: var(--gold); }
+.goal span { font: 500 13px var(--font-mono); color: var(--muted); margin-left: 6px; }
+.stage { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: center; background: var(--surface); border-radius: var(--radius); padding: 18px 28px; margin-top: 18px; }
+.stage .read { display: grid; gap: 8px; }
+.stage .ybig { font: 700 88px/.9 var(--font-display); letter-spacing: -0.05em; }
+.stage .ybig small { font-size: 28px; color: var(--muted); letter-spacing: 0; margin-right: 4px; }
+.stage .gname { color: var(--gold); font-weight: 700; font-size: 18px; }
+.grid { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(150px, auto); gap: 14px; margin-top: 14px; }
+.tile { border-radius: var(--radius); padding: 22px; display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: var(--text); }
+.tile .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: auto; }
+.tile h3 { font-size: 20px; }
+.tile .w { white-space: nowrap; font: 500 13px var(--font-mono); background: var(--surface); color: var(--text); border-radius: 999px; padding: 3px 10px; }
+.tile .stat { font: 700 34px/1.05 var(--font-display); letter-spacing: -0.04em; margin-top: 18px; }
+.tile .stat small { font: 400 15px var(--font-body); letter-spacing: 0; margin-left: 4px; }
+.tile .sub { font-size: 15px; }
+.tile.big { grid-column: span 3; grid-row: span 2; }
+.tile.big .stat { font-size: 72px; }
+.tile.mid { grid-column: span 3; }
+.tile.small { grid-column: span 2; }
+.tile.off { background: transparent; border: 2px dashed var(--line); }
+.tile.mentor { grid-column: span 4; background: var(--mentor-bg); color: var(--mentor-text); }
+.tile.mentor .note { font-size: 20px; max-width: 48ch; margin-top: 14px; }
+.tile.mentor .tag { color: var(--mentor-text); }
+
+/* ---------- presets sheet ---------- */
+.sheet { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.pv { background: var(--bg); color: var(--text); border-radius: var(--radius); padding: 18px; display: grid; gap: 12px; border: 2px solid var(--line); }
+.pv .tile { min-height: 0; grid-column: auto; }
+.pv .tile .stat { font-size: 28px; }
+
+/* ---------- mock bar (not part of the design) ---------- */
+.mockbar { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px; background: #111; color: #fff; font: 13px system-ui, sans-serif; }
+.mockbar button { font: inherit; color: #fff; background: #333; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+.mockbar button[aria-pressed="true"] { background: #fff; color: #111; }
+.shot .mockbar { display: none; }
+
+@media (max-width: 900px) {
+  .steps, .stage { grid-template-columns: 1fr; }
+  .trio { grid-template-columns: 1fr; }
+  .pebbles { grid-template-columns: 1fr 1fr; }
+  .sheet { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .links a:not(.btn) { display: none; }
+  .hero { padding-top: 28px; }
+  .lede { font-size: 18px; }
+  .mobile .lbl { display: none; }
+  .pebbles { grid-template-columns: 1fr; }
+  .card { padding: 22px; }
+  .two { grid-template-columns: 1fr; }
+  .stage { padding: 18px; }
+  .grid { grid-template-columns: 1fr 1fr; grid-auto-rows: auto; gap: 10px; }
+  .tile { padding: 16px; }
+  .tile.big, .tile.mentor { grid-column: span 2; grid-row: auto; }
+  .tile.big .stat { font-size: 48px; }
+  .tile.mid, .tile.small { grid-column: span 1; }
+  .tile.off { order: 1; }
+  .tile.mentor { order: 2; }
+  .tile h3 { font-size: 17px; }
+  .tile .stat { font-size: 26px; margin-top: 12px; }
+  .tile .stat small, .tile .sub { font-size: 13px; }
+  .sheet { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="mockbar" role="region" aria-label="Mockup controls">
+  <strong>C · Balance</strong>
+  <span>Theme:</span>
+  <button data-pick="morning">Morning</button><button data-pick="moss">Moss</button><button data-pick="sea">Sea</button><button data-pick="dusk">Dusk</button><button data-pick="ink">Ink</button>
+</div>
+
+<!-- the mobile, written once and cloned into each place that shows it -->
+<template id="mobile">
+  <svg class="mobile" viewBox="0 0 640 280" role="img" aria-label="A hanging mobile: y at the top; below it Brand weighs 30, Train 25, Vitals 20, Fuel 13, Finance 7, Peak 5">
+    <line class="wire" x1="320" y1="0" x2="320" y2="26"/>
+    <g class="swing">
+      <circle class="ydisc" cx="320" cy="58" r="32"/>
+      <text class="yval" x="320" y="67" text-anchor="middle">y</text>
+      <line class="wire" x1="320" y1="90" x2="320" y2="104"/>
+      <line class="beam" x1="100" y1="104" x2="600" y2="104"/>
+      <line class="wire" x1="120" y1="104" x2="120" y2="150"/><circle class="disc disc-brand" cx="120" cy="200" r="50"/><text class="lbl" x="120" y="270" text-anchor="middle">Brand <tspan class="w">30</tspan></text>
+      <line class="wire" x1="235" y1="104" x2="235" y2="129"/><circle class="disc disc-train" cx="235" cy="175" r="46"/><text class="lbl" x="235" y="241" text-anchor="middle">Train <tspan class="w">25</tspan></text>
+      <line class="wire" x1="345" y1="104" x2="345" y2="164"/><circle class="disc disc-vitals" cx="345" cy="205" r="41"/><text class="lbl" x="345" y="266" text-anchor="middle">Vitals <tspan class="w">20</tspan></text>
+      <line class="wire" x1="440" y1="104" x2="440" y2="137"/><circle class="disc disc-fuel" cx="440" cy="170" r="33"/><text class="lbl" x="440" y="223" text-anchor="middle">Fuel <tspan class="w">13</tspan></text>
+      <line class="wire" x1="520" y1="104" x2="520" y2="171"/><circle class="disc disc-finance" cx="520" cy="195" r="24"/><text class="lbl" x="520" y="239" text-anchor="middle">Finance <tspan class="w">7</tspan></text>
+      <line class="wire" x1="585" y1="104" x2="585" y2="139"/><circle class="disc disc-peak" cx="585" cy="160" r="21"/><text class="lbl" x="585" y="201" text-anchor="middle">Peak <tspan class="w">5</tspan></text>
+    </g>
+  </svg>
+</template>
+
+<!-- ================= LANDING ================= -->
+<section class="view" data-view="landing" aria-label="Landing page">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="mark" href="#"><i aria-hidden="true"></i>pulse</a>
+      <div class="links"><a href="#">The math</a><a href="#">The board</a><a class="btn" href="#">Open the board</a></div>
+    </nav>
+    <header class="hero">
+      <p class="tag">A personal life board</p>
+      <h1>Your life is an equation.</h1>
+      <p class="lede">Everything you track is an input. Pulse weighs each one against the goal you named, and balances them into one number that says whether today counted.</p>
+      <div class="cta"><a class="btn" href="#">Open the board</a><a class="btn ghost" href="#">See the math</a></div>
+      <p class="tag">Free to use · no sign-up to look around · your data stays yours</p>
+    </header>
+    <div data-mobile></div>
+    <p class="tag caption">Each disc is one tile, sized by how much it moves the goal.</p>
+    <div class="trio">
+      <div class="train"><b>x</b><h3>The inputs</h3><p>Each tile is one input: training, fuel, sleep, money, reach. You log it, or a device sends it.</p></div>
+      <div class="vitals"><b>w</b><h3>The weights</h3><p>How much that input moves your goal. They add to 100, and they shift as your data does.</p></div>
+      <div class="peak"><b>y</b><h3>The answer</h3><p>One honest number, and you can see exactly where it came from.</p></div>
+    </div>
+    <h2 class="sec-title">Eight tiles, and room for the ones you invent.</h2>
+    <div class="pebbles">
+      <div class="pebble train"><h3>Train</h3><p>Every session, every best, every kilo.</p><p class="tag">You, after the set</p></div>
+      <div class="pebble fuel"><h3>Fuel</h3><p>What you ate against what your body needs.</p><p class="tag">You</p></div>
+      <div class="pebble walks"><h3>Walks</h3><p>Distance, steps and where you went.</p><p class="tag">Your phone, on the move</p></div>
+      <div class="pebble vitals"><h3>Vitals</h3><p>Sleep and recovery.</p><p class="tag">You, by hand</p></div>
+      <div class="pebble peak"><h3>Peak</h3><p>The curve you are on: compounding, or stalled.</p><p class="tag">Your Train log</p></div>
+      <div class="pebble brand"><h3>Brand</h3><p>Views, subscribers, followers.</p><p class="tag">TikTok, no key · YouTube, your key</p></div>
+      <div class="pebble finance"><h3>Finance</h3><p>What comes in, what leaves.</p><p class="tag">You · live prices with your key</p></div>
+      <div class="pebble mentor"><h3>Mentor</h3><p>Reads every tile, notices patterns, rebalances the weights.</p><p class="tag">Claude, on your computer</p></div>
+    </div>
+    <div class="foot"><span class="tag">Pulse — your life is an equation</span><span class="tag">Free · nothing for sale</span></div>
+  </div>
+</section>
+
+<!-- ================= INTRO ================= -->
+<section class="view" data-view="intro" aria-label="Intro interview">
+  <div class="wrap">
+    <ol class="dots" aria-label="Interview progress, step 2 of 9">
+      <li class="done"><span>You, done</span></li><li aria-current="step"><span>Goal, current</span></li><li><span>Days</span></li><li><span>Body</span></li><li><span>Recovery</span></li><li><span>Life</span></li><li><span>Tracking</span></li><li><span>Look</span></li><li><span>Review</span></li>
+    </ol>
+    <p class="tag">Step 2 of 9 · Goal</p>
+    <div class="steps">
+      <div class="card">
+        <h2>Your goal, in your own words.</h2>
+        <p class="help">Write everything: what you're chasing, why it matters, by when, and what has stopped you before. As long as you want.</p>
+        <label class="field" for="c-g1">Your main goal</label>
+        <textarea id="c-g1" rows="7" maxlength="2000" data-count="c-c1">I want to get to 185 lb and actually look like I lift by next summer. I train four days a week but I skip when work runs late, and I never eat enough protein on rest days. What stopped me last time: I tracked everything for two weeks, got bored of typing, and quit.</textarea>
+        <div class="count"><span class="tag">Saved as you type</span><span class="tag" id="c-c1"></span></div>
+        <label class="field" for="c-g2">Any other goals? <small>(optional)</small></label>
+        <textarea id="c-g2" rows="3" maxlength="2000">Grow the channel to 25k subscribers, one video a week.</textarea>
+        <div class="nav-row"><button class="btn ghost">Back</button><button class="btn">Next: your days</button></div>
+      </div>
+      <div class="card">
+        <p class="tag">Step 3 of 9 · Days</p>
+        <h2>Your days.</h2>
+        <div class="two">
+          <div><label class="field" for="c-w">Wake up</label><input id="c-w" type="time" value="06:30"></div>
+          <div><label class="field" for="c-s">Lights out</label><input id="c-s" type="time" value="23:00"></div>
+        </div>
+        <p class="field" id="c-work">How do you work?</p>
+        <div class="chips" role="group" aria-labelledby="c-work">
+          <button class="chip" aria-pressed="true">Desk</button><button class="chip" aria-pressed="false">On my feet</button><button class="chip" aria-pressed="false">Shifts</button><button class="chip" aria-pressed="false">Student</button><button class="chip" aria-pressed="false">Other</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BOARD ================= -->
+<section class="view" data-view="board" aria-label="The board">
+  <div class="wrap">
+    <header class="bhead">
+      <div><p class="tag">Tue 27 Oct · week 44</p><h2>Good morning, Darre.</h2></div>
+      <button class="icon" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+    </header>
+    <div class="goals" role="tablist" aria-label="Goals">
+      <button class="goal overall" role="tab" aria-selected="true">A jacked, famous YouTuber</button>
+      <button class="goal" role="tab" aria-selected="false">Become a famous YouTuber<span>28%</span></button>
+      <button class="goal" role="tab" aria-selected="false">Be 185 lb lean<span>61%</span></button>
+    </div>
+    <div class="stage">
+      <div data-mobile></div>
+      <div class="read">
+        <p class="ybig"><small>y</small>72</p>
+        <p class="gname">A jacked, famous YouTuber</p>
+        <p class="tag">+4 on last Tuesday · discs sized by weight</p>
+      </div>
+    </div>
+    <div class="grid">
+      <a class="tile big brand" href="#"><div class="top"><h3>Brand</h3><span class="w">w 30</span></div><p class="stat">12.4k<small>subs</small></p><p class="sub">+312 this week</p></a>
+      <a class="tile mid train" href="#"><div class="top"><h3>Train</h3><span class="w">w 25</span></div><p class="stat">Day 3<small>push</small></p><p class="sub">Bench 92.5 kg × 5, a new best</p></a>
+      <a class="tile mid vitals" href="#"><div class="top"><h3>Vitals</h3><span class="w">w 20</span></div><p class="stat">7 h 12<small>slept</small></p><p class="sub">Recovery 68%</p></a>
+      <a class="tile small fuel" href="#"><div class="top"><h3>Fuel</h3><span class="w">w 13</span></div><p class="stat">2,140<small>of 2,600 kcal</small></p><p class="sub">148 g protein</p></a>
+      <a class="tile small finance" href="#"><div class="top"><h3>Finance</h3><span class="w">w 7</span></div><p class="stat">4,820<small>kr left</small></p><p class="sub">12 days to payday</p></a>
+      <a class="tile small peak" href="#"><div class="top"><h3>Peak</h3><span class="w">w 5</span></div><p class="stat">+4.1%<small>30 days</small></p><p class="sub">Strength still compounding</p></a>
+      <a class="tile mentor" href="#"><p class="tag">Mentor · noticed this week</p><p class="note">On gym days you publish <b>2.3× more videos</b>. Train now counts toward the channel goal too.</p><p class="tag">Train 0 → 8 · Brand 70 → 62</p></a>
+      <a class="tile small off" href="#"><div class="top"><h3>Walks</h3><span class="w">w 0</span></div><p class="stat">41,280<small>steps</small></p><p class="sub">Not in this goal</p></a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRESETS ================= -->
+<section class="view" data-view="presets" aria-label="Theme presets">
+  <div class="wrap">
+    <h2 class="sec-title" style="margin-top:0">Theme presets</h2>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</section>
+
+<template id="pv">
+  <div class="pv">
+    <p class="tag" data-name></p>
+    <a class="tile brand" href="#"><div class="top"><h3>Brand</h3><span class="w">w 30</span></div><p class="stat">12.4k<small>subs</small></p></a>
+    <a class="tile vitals" href="#"><div class="top"><h3>Vitals</h3><span class="w">w 20</span></div><p class="stat">7 h 12</p></a>
+    <a class="tile mentor" href="#" style="padding:16px"><p>On gym days you publish <b>2.3× more videos</b>.</p></a>
+    <p style="color:var(--gold);font-weight:700">A jacked, famous YouTuber</p>
+    <div><button class="btn">Open the board</button></div>
+  </div>
+</template>
+
+<script>
+  const q = new URLSearchParams(location.search), root = document.documentElement
+  const picks = [...document.querySelectorAll('[data-pick]')]
+  const setTheme = (t) => { root.dataset.theme = t; picks.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pick === t))) }
+  picks.forEach((b) => (b.onclick = () => setTheme(b.dataset.pick)))
+  setTheme(q.get('theme') || root.dataset.theme)
+  if (q.get('view')) document.querySelectorAll('[data-view]').forEach((s) => (s.hidden = s.dataset.view !== q.get('view')))
+  if (q.has('shot')) document.body.classList.add('shot')
+  const m = document.getElementById('mobile')
+  document.querySelectorAll('[data-mobile]').forEach((el) => el.replaceWith(m.content.cloneNode(true)))
+  const tpl = document.getElementById('pv'), sheet = document.getElementById('sheet')
+  picks.forEach((b) => { const n = tpl.content.cloneNode(true); n.firstElementChild.dataset.theme = b.dataset.pick; n.querySelector('[data-name]').textContent = b.textContent; sheet.append(n) })
+  document.querySelectorAll('[data-count]').forEach((t) => { const out = document.getElementById(t.dataset.count); const f = () => (out.textContent = t.value.length.toLocaleString('en-US') + ' / 2,000'); t.addEventListener('input', f); f() })
+  document.querySelectorAll('.chips').forEach((g) => g.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')) }))
+</script>
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en" data-theme="vellum">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse · A · Drafting Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Direction A: Drafting Table. The board as a technical drawing: graph paper,
+   ink, hatch patterns, dimension lines. Motion level: low (one draw-in). */
+:root {
+  --radius: 3px;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --motion: low;
+}
+[data-theme="vellum"]    { --bg:#EEF1F4; --surface:#FFFFFF; --text:#16233B; --muted:#4F5B6D; --line:#C3CCD8; --grid:#DFE4EA; --accent:#C2271D; --accent-ink:#FFFFFF; --gold:#855600; --focus:#1D4ED8; }
+[data-theme="blueprint"] { --bg:#123A66; --surface:#0E3058; --text:#F2F6FB; --muted:#BACADC; --line:#4A6E98; --grid:#1A4675; --accent:#FFD34D; --accent-ink:#10223A; --gold:#FFE39A; --focus:#FFFFFF; }
+[data-theme="pencil"]    { --bg:#F1F1EF; --surface:#FFFFFF; --text:#1C1C1C; --muted:#565656; --line:#CBCBC6; --grid:#E1E1DC; --accent:#1C1C1C; --accent-ink:#FFFFFF; --gold:#765400; --focus:#C2271D; }
+[data-theme="sage"]      { --bg:#E6EEE8; --surface:#FAFCFA; --text:#15301E; --muted:#466053; --line:#B8CBBD; --grid:#D2E0D5; --accent:#A3361F; --accent-ink:#FFFFFF; --gold:#735000; --focus:#15301E; }
+[data-theme="night"]     { --bg:#101318; --surface:#171B22; --text:#E8ECF1; --muted:#9BA5B3; --line:#333B47; --grid:#181D24; --accent:#FF7A6B; --accent-ink:#1A0C0A; --gold:#F2C14E; --focus:#8AB4FF; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background-color: var(--bg); color: var(--text);
+  font: 400 16px/1.55 var(--font-body);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.wrap { width: min(1200px, 100% - 32px); margin-inline: auto; }
+.ann { font: 500 12px/1.4 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.02; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px;
+  background: var(--accent); color: var(--accent-ink); border: 1.5px solid var(--accent);
+  border-radius: var(--radius); font: 700 15px/1 var(--font-body); text-decoration: none; cursor: pointer;
+}
+.btn.ghost { background: var(--surface); color: var(--text); border-color: var(--text); }
+.view { padding-block: 0 72px; }
+.view + .view { border-top: 1.5px dashed var(--line); padding-top: 56px; }
+
+/* hatches: the signature. Every tile owns one pattern, in ink. */
+.h1 { background: repeating-linear-gradient(45deg, var(--text) 0 1.5px, transparent 1.5px 6px); }
+.h2 { background: repeating-linear-gradient(-45deg, var(--text) 0 1.5px, transparent 1.5px 6px); }
+.h3 { background: repeating-linear-gradient(45deg, var(--text) 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, var(--text) 0 1px, transparent 1px 7px); }
+.h4 { background: radial-gradient(var(--text) 1.3px, transparent 1.6px) 0 0 / 6px 6px; }
+.h5 { background: repeating-linear-gradient(0deg, var(--text) 0 1.5px, transparent 1.5px 5px); }
+.h6 { background: repeating-linear-gradient(90deg, var(--text) 0 1.5px, transparent 1.5px 5px); }
+.h0 { background: transparent; }
+
+/* the dimensioned weight strip */
+.strip { margin-top: 28px; }
+.dim { position: relative; height: 22px; border-inline: 1.5px solid var(--text); margin-bottom: 6px; }
+.dim::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--text); }
+.dim span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--bg); padding: 0 8px; font: 500 12px var(--font-mono); }
+.segs { display: flex; height: 44px; border: 1.5px solid var(--text); background: var(--surface); }
+.seg { flex: var(--w) 1 0; position: relative; border-right: 1.5px solid var(--text); transform-origin: left; }
+.seg:last-child { border-right: 0; }
+.seg-labels { display: flex; margin-top: 6px; }
+.seg-labels span { flex: var(--w) 1 0; font: 500 12px var(--font-mono); white-space: nowrap; overflow: visible; }
+.legend { display: none; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 12px; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 8px; font: 500 13px var(--font-mono); }
+.sw { display: inline-block; width: 18px; height: 18px; border: 1.5px solid var(--text); background-color: var(--surface); flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .segs .seg { animation: draw .7s cubic-bezier(.2,.8,.2,1) both; }
+  .segs .seg:nth-child(2) { animation-delay: .08s } .segs .seg:nth-child(3) { animation-delay: .16s }
+  .segs .seg:nth-child(4) { animation-delay: .24s } .segs .seg:nth-child(5) { animation-delay: .32s }
+  .segs .seg:nth-child(6) { animation-delay: .40s }
+  @keyframes draw { from { transform: scaleX(0) } }
+}
+
+/* ---------- landing ---------- */
+.nav { display: flex; align-items: center; justify-content: space-between; padding-block: 20px; }
+.mark { display: flex; align-items: center; gap: 10px; font: 800 20px var(--font-display); text-decoration: none; }
+.mark i { width: 22px; height: 22px; border: 1.5px solid var(--text); display: inline-block; }
+.links { display: flex; align-items: center; gap: 24px; }
+.links a:not(.btn) { font-size: 15px; text-decoration: none; }
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 64px; align-items: end; padding-block: 64px 48px; }
+.hero h1 { font-size: clamp(56px, 8.4vw, 120px); font-variation-settings: "wdth" 80; margin: 14px 0 22px; }
+.lede { font-size: 19px; max-width: 34ch; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 14px; }
+.drawing { background: var(--surface); border: 1.5px solid var(--text); padding: 24px; position: relative; }
+.drawing .corner { position: absolute; top: -1px; right: -1px; padding: 4px 8px; border-left: 1.5px solid var(--text); border-bottom: 1.5px solid var(--text); }
+.eq { font: 700 clamp(64px, 9vw, 120px)/1 var(--font-display); font-variation-settings: "wdth" 75; display: flex; gap: .18em; align-items: baseline; }
+.eq .op { color: var(--muted); font-weight: 400; }
+.eq .g { color: var(--gold); }
+.key { list-style: none; display: grid; gap: 12px; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+.key li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; font-size: 15px; }
+.key b { font: 700 18px var(--font-mono); }
+.sec-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin: 72px 0 24px; flex-wrap: wrap; }
+.sec-head h2 { font-size: clamp(32px, 4.4vw, 52px); max-width: 18ch; }
+.parts { width: 100%; border-collapse: collapse; background: var(--surface); border: 1.5px solid var(--text); }
+.parts th, .parts td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.parts th { font: 500 12px var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--text); }
+.parts td:first-child { font: 700 18px var(--font-display); white-space: nowrap; }
+.parts td:first-child .sw { margin-right: 10px; vertical-align: -3px; }
+.parts td:last-child { color: var(--muted); }
+.parts tr:last-child td { border-bottom: 0; }
+.title-block { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; border: 1.5px solid var(--text); background: var(--surface); margin-top: 72px; }
+.title-block div { padding: 12px 16px; border-right: 1px solid var(--line); }
+.title-block div:last-child { border-right: 0; }
+.title-block p:last-child { font: 700 16px var(--font-body); margin-top: 4px; }
+
+/* ---------- intro ---------- */
+.ruler { display: grid; grid-template-columns: repeat(9, 1fr); border-top: 1.5px solid var(--text); margin-bottom: 40px; list-style: none; }
+.ruler li { position: relative; padding-top: 14px; font: 500 12px var(--font-mono); color: var(--muted); }
+.ruler li::before { content: ""; position: absolute; left: 0; top: 0; height: 10px; border-left: 1.5px solid var(--text); }
+.ruler li.done, .ruler li[aria-current] { color: var(--text); }
+.ruler li.done::after, .ruler li[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; top: -1.5px; border-top: 4px solid var(--text); }
+.ruler li[aria-current]::after { border-color: var(--accent); }
+.steps { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; align-items: start; }
+.card { background: var(--surface); border: 1.5px solid var(--text); padding: 28px; }
+.card h2 { font-size: clamp(34px, 4vw, 48px); margin: 8px 0 10px; }
+.help { color: var(--muted); max-width: 52ch; margin-bottom: 22px; }
+.field { display: block; font-weight: 700; margin: 18px 0 8px; }
+.field small { font-weight: 400; color: var(--muted); }
+textarea, input[type="time"] {
+  width: 100%; font: 400 16px/1.6 var(--font-body); color: var(--text);
+  background-color: var(--surface); border: 1.5px solid var(--text); border-radius: var(--radius); padding: 12px 14px;
+  background-image: linear-gradient(transparent calc(1.6em + 11px), var(--grid) 0); background-size: 100% 1.6em; resize: vertical;
+}
+input[type="time"] { background-image: none; }
+.count { display: flex; justify-content: space-between; margin-top: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; font: 400 15px var(--font-body); color: var(--text); background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.chip::before { content: ""; width: 12px; height: 12px; border: 1.5px solid var(--text); }
+.chip[aria-pressed="true"] { border-color: var(--text); font-weight: 700; }
+.chip[aria-pressed="true"]::before { background: var(--text); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nav-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
+
+/* ---------- board ---------- */
+.bhead { display: flex; justify-content: space-between; align-items: end; padding-block: 28px 18px; gap: 16px; }
+.bhead h2 { font-size: clamp(36px, 5vw, 64px); font-variation-settings: "wdth" 85; margin-top: 6px; }
+.icon { width: 44px; height: 44px; display: grid; place-items: center; background: var(--surface); border: 1.5px solid var(--text); border-radius: var(--radius); color: var(--text); cursor: pointer; }
+.goals { display: flex; gap: 8px; flex-wrap: wrap; }
+.goal { min-height: 44px; padding: 8px 14px; background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius); color: var(--text); font: 400 15px var(--font-body); text-align: left; cursor: pointer; }
+.goal[aria-selected="true"] { border-color: var(--text); font-weight: 700; box-shadow: inset 0 -4px 0 var(--text); }
+.goal.overall { color: var(--gold); }
+.goal.overall[aria-selected="true"] { box-shadow: inset 0 -4px 0 var(--gold); border-color: var(--gold); }
+.goal span { font: 500 12px var(--font-mono); color: var(--muted); margin-left: 6px; }
+.yrow { display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: end; margin-top: 28px; }
+.ybig { font: 700 clamp(72px, 10vw, 140px)/0.85 var(--font-display); font-variation-settings: "wdth" 75; }
+.ybig small { font-size: .32em; color: var(--muted); font-weight: 400; margin-right: .2em; }
+.ynote { color: var(--muted); max-width: 30ch; margin-top: 10px; }
+.ynote b { color: var(--gold); }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 36px; }
+.tile { display: flex; flex-direction: column; gap: 6px; min-height: 196px; padding: 18px; background: var(--surface); border: 1.5px solid var(--text); border-radius: var(--radius); text-decoration: none; position: relative; }
+.tile-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: auto; }
+.tile h3 { font-size: 26px; margin-top: 20px; }
+.stat { font: 700 34px/1 var(--font-display); font-variation-settings: "wdth" 80; }
+.stat small { font: 400 15px var(--font-body); color: var(--muted); margin-left: 4px; }
+.sub { color: var(--muted); font-size: 14px; }
+.tray { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 20px; }
+.tile.off { border-style: dashed; min-height: 44px; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 10px 14px; }
+.tile.off b { font: 700 17px var(--font-display); }
+.tile.off span { color: var(--muted); font-size: 14px; }
+.tile.mentor { grid-column: span 2; }
+.tile.mentor p.note { font-size: 18px; max-width: 46ch; }
+.tile.mentor ul { list-style: none; display: grid; gap: 4px; margin-top: 4px; font: 500 13px var(--font-mono); color: var(--muted); }
+
+/* ---------- presets sheet ---------- */
+.sheet { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.pv { background-color: var(--bg); color: var(--text); border: 1.5px solid var(--text); padding: 16px; display: grid; gap: 12px; font-family: var(--font-body);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 16px 16px; }
+.pv .tile { min-height: 0; }
+.pv .tile h3 { margin-top: 8px; font-size: 22px; }
+.pv .stat { font-size: 26px; }
+.pv .ybig { font-size: 64px; }
+
+/* ---------- mock bar (not part of the design) ---------- */
+.mockbar { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px; background: #111; color: #fff; font: 13px system-ui, sans-serif; }
+.mockbar button { font: inherit; color: #fff; background: #333; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+.mockbar button[aria-pressed="true"] { background: #fff; color: #111; }
+.shot .mockbar { display: none; }
+
+@media (max-width: 900px) {
+  .hero, .steps, .yrow { grid-template-columns: 1fr; gap: 28px; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .sheet { grid-template-columns: 1fr 1fr; }
+  .title-block { grid-template-columns: 1fr 1fr; }
+  .title-block div:nth-child(2) { border-right: 0; }
+  .title-block div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .links a:not(.btn) { display: none; }
+  .hero { padding-top: 32px; }
+  .lede { font-size: 17px; }
+  .seg-labels { display: none; }
+  .legend { display: grid; }
+  .tiles { gap: 10px; }
+  .tile { min-height: 0; padding: 14px; }
+  .tile h3 { margin-top: 10px; font-size: 21px; }
+  .stat { font-size: 27px; }
+  .stat small, .sub { font-size: 13px; }
+  .goal { flex: 1 1 auto; }
+  .parts thead { display: none; }
+  .parts, .parts tbody, .parts tr, .parts td { display: block; }
+  .parts tr { border-bottom: 1px solid var(--line); padding: 12px 16px; }
+  .parts tr:last-child { border-bottom: 0; }
+  .parts td { padding: 2px 0; border: 0; }
+  .ruler { grid-template-columns: repeat(9, 1fr); }
+  .ruler li { font-size: 0; }
+  .ruler li[aria-current] { font-size: 12px; white-space: nowrap; }
+  .card { padding: 20px; }
+  .two { grid-template-columns: 1fr; }
+  .sheet { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="mockbar" role="region" aria-label="Mockup controls">
+  <strong>A · Drafting Table</strong>
+  <span>Theme:</span>
+  <button data-pick="vellum">Vellum</button><button data-pick="blueprint">Blueprint</button><button data-pick="pencil">Pencil</button><button data-pick="sage">Sage</button><button data-pick="night">Night</button>
+</div>
+
+<!-- ================= LANDING ================= -->
+<section class="view" data-view="landing" aria-label="Landing page">
+  <nav class="nav wrap">
+    <a class="mark" href="#"><i class="h3" aria-hidden="true"></i>Pulse</a>
+    <div class="links"><a href="#">The math</a><a href="#">The board</a><a class="btn" href="#">Open the board</a></div>
+  </nav>
+  <header class="hero wrap">
+    <div>
+      <p class="ann">A personal life board</p>
+      <h1>Your life is an equation.</h1>
+      <p class="lede">Everything you track is an input. Pulse weighs each one against the goal you named, and gives you one number that says whether today counted.</p>
+      <div class="cta"><a class="btn" href="#">Open the board</a><a class="btn ghost" href="#">See the math</a></div>
+      <p class="ann">Free to use · no sign-up to look around · your data stays yours</p>
+    </div>
+    <figure class="drawing">
+      <span class="ann corner">Fig. 1</span>
+      <p class="eq" aria-label="y equals the sum of w times x"><span class="g">y</span><span class="op">=</span><span>Σ</span><span>w</span><span class="op">·</span><span>x</span></p>
+      <div class="strip" role="img" aria-label="Example weights for A jacked, famous YouTuber: Brand 30, Train 25, Vitals 20, Fuel 13, Finance 7, Peak 5">
+        <div class="dim"><span>100</span></div>
+        <div class="segs"><i class="seg h3" style="--w:30"></i><i class="seg h1" style="--w:25"></i><i class="seg h4" style="--w:20"></i><i class="seg h2" style="--w:13"></i><i class="seg h5" style="--w:7"></i><i class="seg h6" style="--w:5"></i></div>
+        <div class="seg-labels" aria-hidden="true"><span style="--w:30">brand 30</span><span style="--w:25">train 25</span><span style="--w:20">vitals 20</span><span style="--w:13">fuel 13</span><span style="--w:7">fin 7</span><span style="--w:5"></span></div>
+        <ul class="legend" aria-hidden="true"><li><i class="sw h3"></i>brand 30</li><li><i class="sw h1"></i>train 25</li><li><i class="sw h4"></i>vitals 20</li><li><i class="sw h2"></i>fuel 13</li><li><i class="sw h5"></i>finance 7</li><li><i class="sw h6"></i>peak 5</li></ul>
+      </div>
+      <ul class="key">
+        <li><b>x</b><span>Each tile is one input: training, fuel, sleep, money, reach. You log it, or a device sends it.</span></li>
+        <li><b>w</b><span>How much that input moves your goal. The weights add to 100 and shift as your data does.</span></li>
+        <li><b>y</b><span>One honest number, with the whole trail behind it.</span></li>
+      </ul>
+    </figure>
+  </header>
+
+  <div class="wrap">
+    <div class="sec-head"><h2>Eight tiles, and room for the ones you invent.</h2><p class="ann">Parts list</p></div>
+    <table class="parts">
+      <thead><tr><th>Tile</th><th>What it measures</th><th>Fed by</th></tr></thead>
+      <tbody>
+        <tr><td><i class="sw h1"></i>Train</td><td>Every session, every best, every kilo.</td><td>You, after the set</td></tr>
+        <tr><td><i class="sw h2"></i>Fuel</td><td>What you ate against what your body needs.</td><td>You</td></tr>
+        <tr><td><i class="sw h0"></i>Walks</td><td>Distance, steps and where you went.</td><td>Your phone, on the move</td></tr>
+        <tr><td><i class="sw h4"></i>Vitals</td><td>Sleep and recovery.</td><td>You, by hand</td></tr>
+        <tr><td><i class="sw h6"></i>Peak</td><td>The curve you are on: compounding, or stalled.</td><td>Your Train log</td></tr>
+        <tr><td><i class="sw h3"></i>Brand</td><td>Views, subscribers, followers.</td><td>TikTok, no key · YouTube, your key</td></tr>
+        <tr><td><i class="sw h5"></i>Finance</td><td>What comes in, what leaves.</td><td>You · live prices with your key</td></tr>
+        <tr><td><i class="sw h0"></i>Mentor</td><td>Reads every tile, notices patterns, retunes the weights.</td><td>Claude, on your computer</td></tr>
+      </tbody>
+    </table>
+    <div class="title-block">
+      <div><p class="ann">Title</p><p>Pulse — your life is an equation</p></div>
+      <div><p class="ann">Owner</p><p>You</p></div>
+      <div><p class="ann">Price</p><p>Free</p></div>
+      <div><p class="ann">Your data</p><p>Stays yours</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INTRO ================= -->
+<section class="view" data-view="intro" aria-label="Intro interview">
+  <div class="wrap">
+    <ol class="ruler" aria-label="Interview progress">
+      <li class="done">You</li><li aria-current="step">Goal</li><li>Days</li><li>Body</li><li>Recovery</li><li>Life</li><li>Tracking</li><li>Look</li><li>Review</li>
+    </ol>
+    <div class="steps">
+      <div class="card">
+        <p class="ann">Step 2 of 9</p>
+        <h2>Your goal, in your own words.</h2>
+        <p class="help">Write everything: what you're chasing, why it matters, by when, and what has stopped you before. As long as you want.</p>
+        <label class="field" for="a-g1">Your main goal</label>
+        <textarea id="a-g1" rows="7" maxlength="2000" data-count="a-c1">I want to get to 185 lb and actually look like I lift by next summer. I train four days a week but I skip when work runs late, and I never eat enough protein on rest days. What stopped me last time: I tracked everything for two weeks, got bored of typing, and quit.</textarea>
+        <div class="count"><span class="ann">Saved as you type</span><span class="ann" id="a-c1"></span></div>
+        <label class="field" for="a-g2">Any other goals? <small>(optional)</small></label>
+        <textarea id="a-g2" rows="3" maxlength="2000">Grow the channel to 25k subscribers, one video a week.</textarea>
+        <div class="nav-row"><button class="btn ghost">Back</button><button class="btn">Next: your days</button></div>
+      </div>
+      <div class="card">
+        <p class="ann">Step 3 of 9</p>
+        <h2>Your days.</h2>
+        <div class="two">
+          <div><label class="field" for="a-w">Wake up</label><input id="a-w" type="time" value="06:30"></div>
+          <div><label class="field" for="a-s">Lights out</label><input id="a-s" type="time" value="23:00"></div>
+        </div>
+        <p class="field" id="a-work">How do you work?</p>
+        <div class="chips" role="group" aria-labelledby="a-work">
+          <button class="chip" aria-pressed="true">Desk</button><button class="chip" aria-pressed="false">On my feet</button><button class="chip" aria-pressed="false">Shifts</button><button class="chip" aria-pressed="false">Student</button><button class="chip" aria-pressed="false">Other</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BOARD ================= -->
+<section class="view" data-view="board" aria-label="The board">
+  <div class="wrap">
+    <header class="bhead">
+      <div><p class="ann">Tue 27 Oct · week 44</p><h2>Good morning, Darre.</h2></div>
+      <button class="icon" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+    </header>
+    <div class="goals" role="tablist" aria-label="Goals">
+      <button class="goal overall" role="tab" aria-selected="true">A jacked, famous YouTuber</button>
+      <button class="goal" role="tab" aria-selected="false">Become a famous YouTuber<span>28%</span></button>
+      <button class="goal" role="tab" aria-selected="false">Be 185 lb lean<span>61%</span></button>
+    </div>
+    <div class="yrow">
+      <div><p class="ybig"><small>y =</small>72</p><p class="ynote">Today, toward <b>A jacked, famous YouTuber</b>. Up 4 on last Tuesday.</p></div>
+      <div class="strip" role="img" aria-label="Weights: Brand 30, Train 25, Vitals 20, Fuel 13, Finance 7, Peak 5">
+        <div class="dim"><span>w · 100</span></div>
+        <div class="segs"><i class="seg h3" style="--w:30"></i><i class="seg h1" style="--w:25"></i><i class="seg h4" style="--w:20"></i><i class="seg h2" style="--w:13"></i><i class="seg h5" style="--w:7"></i><i class="seg h6" style="--w:5"></i></div>
+        <div class="seg-labels" aria-hidden="true"><span style="--w:30">brand 30</span><span style="--w:25">train 25</span><span style="--w:20">vitals 20</span><span style="--w:13">fuel 13</span><span style="--w:7">fin 7</span><span style="--w:5">pk 5</span></div>
+        <ul class="legend" aria-hidden="true"><li><i class="sw h3"></i>brand 30</li><li><i class="sw h1"></i>train 25</li><li><i class="sw h4"></i>vitals 20</li><li><i class="sw h2"></i>fuel 13</li><li><i class="sw h5"></i>finance 7</li><li><i class="sw h6"></i>peak 5</li></ul>
+      </div>
+    </div>
+    <div class="tiles">
+      <a class="tile" href="#"><div class="tile-top"><i class="sw h3"></i><span class="ann">w 30</span></div><h3>Brand</h3><p class="stat">12.4k<small>subs</small></p><p class="sub">+312 this week</p></a>
+      <a class="tile" href="#"><div class="tile-top"><i class="sw h1"></i><span class="ann">w 25</span></div><h3>Train</h3><p class="stat">Day 3<small>push</small></p><p class="sub">Bench 92.5 kg × 5, a new best</p></a>
+      <a class="tile" href="#"><div class="tile-top"><i class="sw h4"></i><span class="ann">w 20</span></div><h3>Vitals</h3><p class="stat">7 h 12<small>slept</small></p><p class="sub">Recovery 68%</p></a>
+      <a class="tile" href="#"><div class="tile-top"><i class="sw h2"></i><span class="ann">w 13</span></div><h3>Fuel</h3><p class="stat">2,140<small>of 2,600 kcal</small></p><p class="sub">148 g protein</p></a>
+      <a class="tile" href="#"><div class="tile-top"><i class="sw h5"></i><span class="ann">w 7</span></div><h3>Finance</h3><p class="stat">4,820<small>kr left</small></p><p class="sub">12 days to payday</p></a>
+      <a class="tile" href="#"><div class="tile-top"><i class="sw h6"></i><span class="ann">w 5</span></div><h3>Peak</h3><p class="stat">+4.1%<small>30 days</small></p><p class="sub">Strength still compounding</p></a>
+      <a class="tile mentor" href="#"><div class="tile-top"><span class="ann">Mentor · noticed this week</span></div><p class="note">On gym days you publish <b>2.3× more videos</b>. Train now counts toward the channel goal too.</p><ul><li>Train · 0 → 8 in Become a famous YouTuber</li><li>Brand · 70 → 62</li></ul></a>
+    </div>
+    <div class="tray">
+      <p class="ann">Not in this goal · w 0</p>
+      <a class="tile off" href="#"><i class="sw h0"></i><b>Walks</b><span>41,280 steps · 26.4 km this week</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRESETS ================= -->
+<section class="view" data-view="presets" aria-label="Theme presets">
+  <div class="wrap">
+    <div class="sec-head"><h2>Theme presets</h2><p class="ann">Same drawing, five papers</p></div>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</section>
+
+<template id="pv">
+  <div class="pv">
+    <p class="ann" data-name></p>
+    <p class="ybig"><small>y =</small>72</p>
+    <a class="tile" href="#"><div class="tile-top"><i class="sw h1"></i><span class="ann">w 25</span></div><h3>Train</h3><p class="stat">Day 3<small>push</small></p><p class="sub">Bench 92.5 kg × 5</p></a>
+    <p style="color:var(--gold);font-weight:700">A jacked, famous YouTuber</p>
+    <div><button class="btn">Open the board</button></div>
+  </div>
+</template>
+
+<script>
+  const q = new URLSearchParams(location.search), root = document.documentElement
+  const picks = [...document.querySelectorAll('[data-pick]')]
+  const setTheme = (t) => { root.dataset.theme = t; picks.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pick === t))) }
+  picks.forEach((b) => (b.onclick = () => setTheme(b.dataset.pick)))
+  setTheme(q.get('theme') || root.dataset.theme)
+  if (q.get('view')) document.querySelectorAll('[data-view]').forEach((s) => (s.hidden = s.dataset.view !== q.get('view')))
+  if (q.has('shot')) document.body.classList.add('shot')
+  const tpl = document.getElementById('pv'), sheet = document.getElementById('sheet')
+  picks.forEach((b) => { const n = tpl.content.cloneNode(true); n.firstElementChild.dataset.theme = b.dataset.pick; n.querySelector('[data-name]').textContent = b.textContent; sheet.append(n) })
+  document.querySelectorAll('[data-count]').forEach((t) => { const out = document.getElementById(t.dataset.count); const f = () => (out.textContent = t.value.length.toLocaleString('en-US') + ' / 2,000'); t.addEventListener('input', f); f() })
+  document.querySelectorAll('.chips').forEach((g) => g.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')) }))
+</script>
+</body>
+</html>

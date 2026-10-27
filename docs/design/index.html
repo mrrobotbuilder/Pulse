@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse design directions</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f4f4f5; --fg: #18181b; --muted: #52525b; --card: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #18181b; --fg: #f4f4f5; --muted: #a1a1aa; --card: #27272a; } }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; } h2 { font-size: 18px; margin: 40px 0 12px; }
+  p { color: var(--muted); max-width: 70ch; }
+  a { color: inherit; }
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .cols > div { background: var(--card); border-radius: 8px; padding: 12px; }
+  .cols h3 { font-size: 15px; margin-bottom: 8px; }
+  img { display: block; width: 100%; height: auto; border-radius: 4px; }
+  .phone img { max-width: 375px; margin-inline: auto; }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>Pulse: three design directions</h1>
+<p>Static screenshots at 1440px and 375px. Open a mockup to click through its theme presets: <a href="a-drafting.html">A · Drafting Table</a>, <a href="b-trackmeet.html">B · Track Meet</a>, <a href="c-balance.html">C · Balance</a>. Notes and tokens are in docs/DESIGN.md.</p>
+<div id="rows"></div>
+<script>
+  const dirs = [['a-drafting', 'A · Drafting Table'], ['b-trackmeet', 'B · Track Meet'], ['c-balance', 'C · Balance']]
+  const rows = [['board', 1440, 'The board, desktop'], ['board', 375, 'The board, phone'], ['intro', 1440, 'The intro, desktop'], ['intro', 375, 'The intro, phone'], ['landing', 1440, 'The landing page, desktop'], ['landing', 375, 'The landing page, phone'], ['presets', 1440, 'Theme presets']]
+  document.getElementById('rows').innerHTML = rows.map(([v, w, label]) => `<h2>${label}</h2><div class="cols${w === 375 ? ' phone' : ''}">` +
+    dirs.map(([id, name]) => `<div><h3><a href="${id}.html">${name}</a></h3><img loading="lazy" src="shots/${id}-${v}-${w}.png" alt="${name}, ${label}"></div>`).join('') + '</div>').join('')
+</script>
+</body>
+</html>
