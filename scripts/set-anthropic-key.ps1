@@ -33,10 +33,18 @@ Write-Host "Saved to .env.local (length $($key.Length))."
 if (-not $LocalOnly) {
   Push-Location $root
   try {
-    vercel env rm ANTHROPIC_API_KEY production --yes 2>$null | Out-Null
-    $key | vercel env add ANTHROPIC_API_KEY production | Out-Null
-    if ($LASTEXITCODE -ne 0) { Write-Error 'vercel env add failed. Run it again, or add the key in Vercel > Settings > Environment Variables.'; exit 1 }
-    Write-Host 'Added to Vercel production. It takes effect on the next deploy.'
+    # Never remove a production key here: a remove followed by a failed add would
+    # leave production with no key at all. Add only when none exists yet.
+    $listing = vercel env list production 2>$null | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Error 'Could not read the Vercel variables (not logged in, or the folder is not linked). Vercel was not changed.'; exit 1 }
+    if ($listing -match '(?m)^\s*ANTHROPIC_API_KEY\s') {
+      Write-Host 'Vercel production already has ANTHROPIC_API_KEY, so it was left as it is.'
+      Write-Host 'To replace it: Vercel > pulse > Settings > Environment Variables > ANTHROPIC_API_KEY > Edit.'
+    } else {
+      $key | vercel env add ANTHROPIC_API_KEY production | Out-Null
+      if ($LASTEXITCODE -ne 0) { Write-Error 'vercel env add failed. Nothing was removed. Add the key in Vercel > Settings > Environment Variables.'; exit 1 }
+      Write-Host 'Added to Vercel production. It takes effect on the next deploy.'
+    }
   } finally { Pop-Location }
 }
 $key = $null
