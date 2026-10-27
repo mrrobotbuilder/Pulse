@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import type { TileSize } from './tileSkin'
-import type { DashboardTileStats } from '@/lib/vitality/dashboardStats'
 
 /**
  * The core tiles are Vitality's pre-installed apps (Train, Fuel, Vitals, Peak,
@@ -29,12 +28,6 @@ export type CoreTileId =
   | 'finance'
   | 'walks'
 
-/** A single live metric to surface on a tile (Train day, Fuel kcal). */
-export interface CoreStat {
-  value: string
-  unit: string
-}
-
 export interface CoreTile {
   id: CoreTileId
   href: string
@@ -53,8 +46,6 @@ export interface CoreTile {
   art: ReactNode
   /** Default size on a fresh dashboard (matches the approved customize mockup). */
   defaultSize: TileSize
-  /** Resolve this tile's one glanceable live stat, or null to show none. */
-  stat?: (stats: DashboardTileStats) => CoreStat | null
 }
 
 export const CORE_TILES: Record<CoreTileId, CoreTile> = {
@@ -79,7 +70,6 @@ export const CORE_TILES: Record<CoreTileId, CoreTile> = {
         <g className="orb"><circle className="glow" r="10" /><circle className="node" r="3.4" /></g>
       </svg>
     ),
-    stat: (s) => (s.trainDay ? { value: s.trainDay, unit: 'day' } : null),
   },
   fuel: {
     id: 'fuel',
@@ -100,10 +90,6 @@ export const CORE_TILES: Record<CoreTileId, CoreTile> = {
         <g className="orb"><circle className="glow" r="10" /><circle className="node" r="3.4" /></g>
       </svg>
     ),
-    stat: (s) =>
-      s.fuelKcalToday != null
-        ? { value: s.fuelKcalToday.toLocaleString('en-US'), unit: 'kcal' }
-        : null,
   },
   walks: {
     id: 'walks',
@@ -126,7 +112,6 @@ export const CORE_TILES: Record<CoreTileId, CoreTile> = {
         <g className="orb"><circle className="glow" r="8" /><circle className="node" r="3.2" /></g>
       </svg>
     ),
-    stat: (s) => (s.walkStepsWeek != null ? { value: s.walkStepsWeek.toLocaleString('en-US'), unit: 'steps' } : null),
   },
   vitals: {
     id: 'vitals',

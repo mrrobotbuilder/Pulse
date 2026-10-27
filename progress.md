@@ -174,3 +174,5 @@ template demo contents. The interview personalizes the board *around* them;
 rebuilding each tile's interior per user is separate per-tile work.
 
 **2026-10-27 — Stage 3 (redesign) applied.** Direction A "Drafting Table" on the board, intro, mentor and landing page; five theme presets with a picker in the gear; every tile follows the theme through `withBridge`. Details in `docs/DESIGN.md`, "Stage 3: applied".
+
+**2026-10-27 — Stage 3b (live numbers) applied.** Each tile face shows its live number from its own saved data (`lib/tiles/tileStats.ts`, check: `node --test lib/tiles/tileStats.test.mjs`); the weight lives in the corner mark. Peak shows none by choice (no score of its own).

@@ -73,7 +73,8 @@ if(!window.Pulse){window.Pulse={save:function(){return Promise.resolve(true)},lo
 
 var DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-function ymd(d){return d.toISOString().slice(0,10)}
+// Local calendar date: toISOString() is UTC, which shifts every day back one east of Greenwich.
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 
 /** Monday-based start of the ISO week containing `d`. */
 function weekStart(d){

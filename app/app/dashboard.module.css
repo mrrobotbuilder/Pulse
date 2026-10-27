@@ -192,6 +192,7 @@
 .tile h3 { font-size: 26px; margin-top: 20px; }
 .stat { font: 700 34px/1 var(--font-display); font-variation-settings: 'wdth' 80; }
 .stat small { margin-left: 4px; font: 400 15px var(--font-body); color: var(--muted); }
+.stat .statEmpty { display: block; margin-left: 0; line-height: 1.35; text-wrap: balance; }
 .sub { color: var(--muted); font-size: 14px; }
 
 /* A tile that fills itself (a device or an API feeds it) shows a live dot. */

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import styles from './dashboard.module.css'
 import { CORE_TILES, VEE_TILE, DEFAULT_HOME_ORDER } from '@/lib/tiles/coreTiles'
@@ -8,7 +8,8 @@ import { tileInfo } from '@/lib/tiles/tileInfo'
 import WeightStrip from './WeightStrip'
 import { activeGoal as readActiveGoal, allGoals, setActiveGoalId, tileWeights, noticedFeed, type Goal, type Notice } from '@/lib/tiles/weights'
 import { readScoped, writeScoped } from '@/lib/localScope'
-import { useTileHost } from '@/lib/tiles/useTileHost'
+import { useTileHost, loadTileData } from '@/lib/tiles/useTileHost'
+import { summarize, type TileStat } from '@/lib/tiles/tileStats'
 import { withBridge } from '@/lib/tiles/tileBridge'
 import { themeTokens } from '@/lib/theme'
 import { syncEnabled, syncLoadTiles } from '@/lib/sync'
@@ -228,7 +229,15 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   const [notice, setNotice] = useState<Notice | undefined>(undefined)
   const dragId = useRef<string | null>(null)
 
-  const { register, unregister } = useTileHost(userId, undefined, () => {})
+  // Every save re-reads that tile's face number, including a save that lands
+  // just after its overlay closed.
+  const { register, unregister } = useTileHost(
+    userId,
+    (info) => {
+      if (info.type === 'save') void refreshStat(info.tileId)
+    },
+    () => {},
+  )
 
   useEffect(() => {
     setMounted(true)
@@ -299,6 +308,32 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   // Each input's share of the active goal (plain numbers — Claude retunes them;
   // the localStorage override wins. See lib/tiles/weights).
   const weights = useMemo(() => (mounted ? tileWeights(userId) : {}), [mounted, goal, userId])
+
+  // The live number on each tile's face, read from the tile's own saved data.
+  // undefined = still reading, null = nothing to show ("No data yet").
+  const [stats, setStats] = useState<Record<string, TileStat | null>>({})
+  const refreshStat = useCallback(
+    async (id: string) => {
+      let stat: TileStat | null = null
+      try {
+        stat = summarize(id, await loadTileData(userId, id))
+      } catch (e) {
+        console.error(`could not read the ${id} tile's data`, e)
+      }
+      setStats((prev) => ({ ...prev, [id]: stat }))
+    },
+    [userId],
+  )
+  useEffect(() => {
+    for (const id of SLOT_ORDER) if (id !== 'vee') void refreshStat(id)
+    // a tile's data changed outside its overlay (the Walks sync from STEGA)
+    const onData = (e: Event) => {
+      const id = (e as CustomEvent).detail
+      if (typeof id === 'string') void refreshStat(id)
+    }
+    window.addEventListener('pulse:tiledata', onData)
+    return () => window.removeEventListener('pulse:tiledata', onData)
+  }, [refreshStat])
 
   // Every filled slot except the mentor, in the saved order, minus anything
   // removed in edit mode. New tiles append.
@@ -446,6 +481,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
           <div className={styles.tiles}>
             {onIds.map((id) => {
               const info = tileInfo(id)
+              const st = stats[id]
               return (
                 <div key={id} className={styles.tile} {...dragProps(id)}>
                   <div className={styles.tileTop}>
@@ -454,9 +490,18 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
                   </div>
                   <h3>{labelFor(id)}</h3>
                   <p className={styles.stat}>
-                    {weights[id]}%<small>of y</small>
+                    {st ? (
+                      <>
+                        {st.value}
+                        <small>{st.unit}</small>
+                      </>
+                    ) : st === null ? (
+                      <small className={styles.statEmpty}>No data yet{' '}· open to log</small>
+                    ) : (
+                      ' '
+                    )}
                   </p>
-                  <p className={styles.sub}>{info.measures}</p>
+                  <p className={styles.sub}>{st ? st.sub : info.measures}</p>
                   <button type="button" className={styles.hit} aria-label={`Open ${labelFor(id)}`} onClick={() => openSlot(id)} />
                   {removeBadge(id)}
                 </div>
@@ -502,7 +547,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
                 <div key={id} className={styles.off} {...dragProps(id)}>
                   <i className={`sw ${tileInfo(id).hatch}`} />
                   <b>{labelFor(id)}</b>
-                  <span>{tileInfo(id).measures}</span>
+                  <span>{stats[id] ? `${stats[id]!.value} ${stats[id]!.unit}` : tileInfo(id).measures}</span>
                   <button type="button" className={styles.hit} aria-label={`Open ${labelFor(id)}`} onClick={() => openSlot(id)} />
                   {removeBadge(id)}
                 </div>

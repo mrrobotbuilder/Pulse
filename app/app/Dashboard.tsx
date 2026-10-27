@@ -324,6 +324,8 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
         const { walks } = await res.json()
         if (cancelled || !Array.isArray(walks)) return
         await tileStore.saveData(userId, 'walks', { walks, syncedAt: new Date().toISOString() })
+        // the board re-reads the Walks number on the tile face
+        window.dispatchEvent(new CustomEvent('pulse:tiledata', { detail: 'walks' }))
       } catch {
         // Offline or blob unconfigured — the tile keeps its last synced copy.
       }

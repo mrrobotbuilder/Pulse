@@ -4,6 +4,26 @@ import { useCallback, useEffect, useRef } from 'react'
 import { tileStore } from './tileStore'
 import { syncEnabled, syncSave, syncLoad } from '@/lib/sync'
 
+// Cloud mirrors still in flight, per tile. A read right after a save (the board
+// re-reading that tile's face number) waits for the mirror, so the
+// older cloud copy can never win over what the tile just saved.
+const pendingSync = new Map<string, Promise<unknown>>()
+
+/**
+ * A tile's saved data with the board's precedence: the cloud copy when sync is
+ * on (so a fresh device gets the real data), else this browser's local copy.
+ * The same data the tile itself gets from Pulse.load().
+ */
+export async function loadTileData(userId: string, tileId: string): Promise<unknown> {
+  let data: unknown = await tileStore.loadData(userId, tileId)
+  if (syncEnabled()) {
+    await pendingSync.get(tileId)?.catch(() => {})
+    const remote = await syncLoad(tileId)
+    if (remote != null) data = remote
+  }
+  return data
+}
+
 /**
  * useTileHost is the host side of the Vitality bridge, fixed for MANY tiles.
  *
@@ -147,11 +167,7 @@ export function useTileHost(
           src.postMessage({ source: 'vitality-host', type: 'read:error', id: msg.id, reason: 'slot_not_allowed' }, '*')
           return
         }
-        let data = await tileStore.loadData(userId, slot)
-        if (syncEnabled()) {
-          const remote = await syncLoad(slot)
-          if (remote != null) data = remote as typeof data
-        }
+        const data = await loadTileData(userId, slot)
         src.postMessage({ source: 'vitality-host', type: 'read:result', id: msg.id, data }, '*')
         return
       }
@@ -181,7 +197,14 @@ export function useTileHost(
         src.postMessage({ source: 'vitality-host', type: 'save:ok', id: msg.id }, '*')
         // then mirror to the owner's Supabase (if configured) so the same data shows
         // up on their other devices. Fire-and-forget — never blocks the tile.
-        if (syncEnabled()) void syncSave(tileId, msg.data, new Date().toISOString())
+        if (syncEnabled()) {
+          const p = syncSave(tileId, msg.data, new Date().toISOString())
+          pendingSync.set(tileId, p)
+          const done = () => {
+            if (pendingSync.get(tileId) === p) pendingSync.delete(tileId)
+          }
+          void p.then(done, done)
+        }
         const count = Array.isArray(msg.data) ? msg.data.length : 0
         activity.current?.({ tileId, type: 'save', count })
         return
@@ -190,11 +213,7 @@ export function useTileHost(
       if (msg.type === 'load') {
         // Prefer the cloud copy when sync is on (so a fresh device — the phone —
         // gets the real data); fall back to this browser's local copy otherwise.
-        let data = await tileStore.loadData(userId, tileId)
-        if (syncEnabled()) {
-          const remote = await syncLoad(tileId)
-          if (remote != null) data = remote as typeof data
-        }
+        const data = await loadTileData(userId, tileId)
         // reply to the exact sender, never a broadcast. targetOrigin stays '*'
         // because a sealed srcDoc tile has an opaque (null) origin; the sender
         // is already verified via the registered e.source, and the payload is
