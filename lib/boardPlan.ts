@@ -268,10 +268,15 @@ const asList = (w: Record<string, number>) => Object.entries(w).map(([tile, weig
  * left them: a hidden tile's share is spread over the rest, and a restored tile
  * joins the main goal with `share` before the renormalization (the sub-goals
  * keep it at 0, so it sits in their tray). Throws when it would hide the last tile.
+ *
+ * `id` may be an AI-written tile (custom-*, Stage 7): adding one is a restore of
+ * a tile the plan never had. Custom tiles already weighted keep their share
+ * through every later restore and remove.
  */
-export function setTileShown(board: BoardLayout, id: PlanTile, show: boolean, share = 10): BoardLayout {
+export function setTileShown(board: BoardLayout, id: string, show: boolean, share = 10): BoardLayout {
   const removed = show ? board.removed.filter((x) => x !== id) : [...new Set([...board.removed, id])]
-  const shown = PLAN_TILES.filter((t) => !removed.includes(t))
+  const custom = [id, ...Object.keys(board.overall), ...board.goals.flatMap((g) => Object.keys(g))].filter((t) => t.startsWith('custom-'))
+  const shown = [...PLAN_TILES, ...new Set(custom)].filter((t) => !removed.includes(t))
   if (!shown.length) throw new Error('last_tile')
   if (show) {
     const overall = normalizeTo100([...asList(board.overall).filter((e) => e.tile !== id), { tile: id, weight: share > 0 ? share : 10 }], shown)

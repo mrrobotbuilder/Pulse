@@ -232,9 +232,24 @@ const READERS: Record<string, (d: unknown, now: Date) => TileStat | null> = {
   peak: () => null,
 }
 
+/*
+ * An AI-written tile (custom-*) is asked to save { unit, entries: [{ at, value }] }
+ * (app/api/tiles/generate): the newest value and how many. A model may still
+ * pick its own shape; then the face only says something was logged.
+ */
+function custom(d: unknown, now: Date): TileStat | null {
+  if (!isObj(d) || !Array.isArray(d.entries)) return { value: 'Logged', unit: '', sub: 'open to see it' }
+  const list = d.entries.filter((e): e is Obj => isObj(e) && num(e.value))
+  const last = list[list.length - 1]
+  if (!last) return null
+  const when = typeof last.at === 'string' && !Number.isNaN(Date.parse(last.at)) ? dayLabel(dayKey(new Date(last.at)), now) : ''
+  const unit = typeof d.unit === 'string' ? d.unit.slice(0, 16) : ''
+  return { value: compact(Math.round((last.value as number) * 10) / 10), unit, sub: `${list.length} logged${when ? ' · last ' + when : ''}` }
+}
+
 /** The face number for tile `id`, or null (nothing saved, an unknown tile, or a shape we cannot read). */
 export function summarize(id: string, data: unknown, now: Date = new Date()): TileStat | null {
-  const read = READERS[id]
+  const read = READERS[id] ?? (id.startsWith('custom-') ? custom : undefined)
   if (!read || isEmpty(data)) return null
   try {
     return read(data, now)

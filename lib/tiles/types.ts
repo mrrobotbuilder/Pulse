@@ -13,6 +13,7 @@ export interface Tile {
   createdAt: number // Date.now(); the rail sorts newest first
   updatedAt: number // bumped on rename / html edit
   category?: string // display category, e.g. 'Intake'; defaults from kind, else 'Custom'
+  tracks?: string // an AI-written tile (custom-*): what it tracks, the board's sub line
   // The tile's DECLARED stream (what its envelope said it reports). Carried on
   // the tile so share/publish round-trips keep the report contract intact — a
   // shared beer tile must not silently lose goalDirection:'down' (PATCH21).

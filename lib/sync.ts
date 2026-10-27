@@ -64,6 +64,8 @@ export async function syncClearTile(tileId: string): Promise<void> {
 export interface RemoteTile {
   html: string
   name: string | null
+  /** ms since epoch, from updated_at (0 when unreadable) */
+  updatedAt: number
 }
 
 /**
@@ -77,12 +79,12 @@ export async function syncLoadTiles(): Promise<Record<string, RemoteTile>> {
   const c = supabase()
   if (!c || !isSignedIn()) return {}
   try {
-    const { data, error } = await c.from('tiles').select('slot, html, name')
+    const { data, error } = await c.from('tiles').select('slot, html, name, updated_at')
     if (error || !data) return {}
     const map: Record<string, RemoteTile> = {}
-    for (const row of data as Array<{ slot: string; html: string; name: string | null }>) {
+    for (const row of data as Array<{ slot: string; html: string; name: string | null; updated_at: string | null }>) {
       if (row.slot && typeof row.html === 'string' && row.html.trim()) {
-        map[row.slot] = { html: row.html, name: row.name ?? null }
+        map[row.slot] = { html: row.html, name: row.name ?? null, updatedAt: Date.parse(row.updated_at ?? '') || 0 }
       }
     }
     return map
@@ -115,17 +117,18 @@ export async function syncSaveTile(slot: string, html: string, name?: string): P
 }
 
 /**
- * Wipe the owner's cloud data — every tile's saved data AND every tile they built
- * (the connector / "+ New tile" store). Used by the dashboard's Reset button. No-op
- * if unconfigured / signed out. Best-effort; never throws. Row Level Security scopes
- * this to the signed-in account automatically — there is no unfiltered delete here.
+ * Wipe the owner's cloud tile data — what is INSIDE every tile. The tiles
+ * themselves stay (the gear's "Wipe all tile data" promises every card stays):
+ * deleting the `tiles` rows here used to remove connector-built and AI-written
+ * tiles from every other device. No-op if unconfigured / signed out.
+ * Best-effort; never throws. Row Level Security scopes this to the signed-in
+ * account automatically — there is no unfiltered delete here.
  */
 export async function syncWipe(): Promise<void> {
   const c = supabase()
   if (!c || !isSignedIn()) return
   try {
     await c.from('tile_data').delete().neq('tile_id', '')
-    await c.from('tiles').delete().neq('slot', '')
   } catch {
     /* best-effort */
   }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { tileStore } from './tileStore'
+import { isCustomTileId } from './tileCheck'
 import { syncEnabled, syncSave, syncLoad } from '@/lib/sync'
 
 // Cloud mirrors still in flight, per tile. A read right after a save (the board
@@ -159,11 +160,12 @@ export function useTileHost(
       // Cross-tile READ — the host hands a tile another slot's saved data so
       // tiles can react to each other client-side (e.g. Peak reshaping from the
       // Vitals recovery) with no /sweep and no connector. Read-only, the user's
-      // OWN data, and whitelisted to the data slots (never 'vee' or internals).
+      // OWN data, and whitelisted to the data slots and custom tiles (never 'vee'
+      // or internals like '_config').
       if (msg.type === 'read') {
         const slot = String(msg.slot || '')
         const READABLE = ['train', 'fuel', 'vitals', 'brand', 'peak', 'finance', 'walks']
-        if (!READABLE.includes(slot)) {
+        if (!READABLE.includes(slot) && !isCustomTileId(slot)) {
           src.postMessage({ source: 'vitality-host', type: 'read:error', id: msg.id, reason: 'slot_not_allowed' }, '*')
           return
         }
