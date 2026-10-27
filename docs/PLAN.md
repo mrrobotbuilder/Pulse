@@ -321,6 +321,18 @@ still work. Run live after the push.
 
 Stop when: verify passes live.
 
+**Status (2026-10-28, 4627378):** built and verified locally (fake model: route
+faults, caps, the whole reveal → preview → add → use → reload flow; real model:
+3 tiles written, used in a browser, data kept after reload). Live: the 8 tiles,
+the planted tile (direct and as a custom tile) and 1 real-model tile pass. Left:
+2 more real-model tiles live, blocked by the 3-builds-per-IP-per-UTC-day cap
+until 00:00 UTC. Then run, from the repo root:
+`node --use-system-ca scripts/check-ai.mjs realtiles <dir> https://pulse-ochre-zeta-49.vercel.app`
+and `GEN=<dir> CUSTOM=1 node --no-warnings scripts/check-tiles.mjs https://pulse-ochre-zeta-49.vercel.app`.
+One live run of the custom-lane check counted 1 request from the planted tile,
+before request details were logged; 6 reruns since showed 0. If it ever comes
+back, the log now names the URL, type and initiator.
+
 ### Stage 8 — Phone health coach (later, not planned yet)
 
 The owner wants a coach on the phone that sends the day's stats and answers
