@@ -28,7 +28,7 @@ What the owner wants instead:
 
 | Question | Answer |
 |---|---|
-| Phone coach bot | Later, its own stage (Stage 8). Not in this round. |
+| Phone coach bot | Its own stage (Stage 8), planned 2026-10-28: Grok first behind a probe, a Telegram bot only if the probe fails. |
 | AI model + cost | Sonnet 5.5 (`claude-sonnet-5-5`) on the owner's Anthropic key, with caps per visitor and per day. Over the cap gets the free rule-based board. |
 | How far the AI may go | It chooses, arranges and themes existing tiles, **and writes new tiles**. |
 | Intro style | Mix: a deep question form first, then the AI asks 0–2 follow-ups only where an answer was vague. |
@@ -333,17 +333,155 @@ One live run of the custom-lane check counted 1 request from the planted tile,
 before request details were logged; 6 reruns since showed 0. If it ever comes
 back, the log now names the URL, type and initiator.
 
-### Stage 8 — Phone health coach (later, not planned yet)
+### Stage 8 — Phone health coach
 
-The owner wants a coach on the phone that sends the day's stats and answers
-questions. This gets its own planning session when Stages 1–7 are done. Options
-to weigh then: a Telegram bot (it pushes messages, the strongest fit for "it
-sends me messages"), Grok through an MCP connector, or the Claude mobile app.
+_Planned 2026-10-28._ A coach on the owner's phone that **messages first** (a
+daily stats message nobody asked for), answers questions, and **logs** things
+said to it ("ate 600 kcal", "bench 80x5") into the board. **Owner only**: one
+person, one board, like the connector itself.
 
-**Shortcut that works today:** the board's Claude connector is already live in
-production with OAuth (`README.md`, "Connect from claude.ai"). Adding it in the
-Claude app on the phone gives a coach that can read the board right now, with
-nothing built. It just won't message first.
+**Owner's answers (2026-10-28):** must message first; pays for Claude Pro/Max
+and SuperGrok; read and log; just the owner.
+
+**What was found while planning:**
+
+- **The board's cloud store is empty.** The live connector
+  (`https://pulse-ochre-zeta-49.vercel.app/api/mcp/mcp`) answered "No saved data"
+  for train, fuel, vitals and walks. Tile data reaches Supabase only through the
+  sync in `lib/sync.ts`, for a signed-in user whose id is `OWNER_USER_ID`. Until
+  that holds, every coach below reads nothing. Stage 8a fixes this first.
+- The connector already has everything a coach needs to read and write
+  (`read_data`, `save_data`), OAuth with refresh tokens
+  (`app/api/mcp/oauth/token/route.ts`), and `summarize()` in
+  `lib/tiles/tileStats.ts` turns each tile's data into one headline.
+
+**Options weighed:**
+
+| Option | Messages first? | Build | Running cost | Verdict |
+|---|---|---|---|---|
+| **Grok**: custom connector (grok.com/connectors, "Bring your own MCP", mid-2026) plus a Grok **Automation** (scheduled prompt, pushes to the Grok app) | Yes, if an Automation may call a custom connector (unproven) | None beyond 8a | Already paid (SuperGrok) | **Chosen first**, behind the 8a probe |
+| **Telegram bot**: webhook route + Vercel cron + Sonnet 5.5 with the board as tools | Yes, we own the push | One session (8b) | Anthropic tokens, cents a day | **Fallback**: built only if the Grok probe fails |
+| **Claude app** + the existing connector | No: cloud scheduled tasks do not load custom connectors (open bug anthropics/claude-code#43397) | None | Already paid | **Rejected as the push channel.** Still works today for on-demand chat; 8a re-checks the bug, and if it is fixed this becomes an equal zero-build choice |
+
+Why Grok first: it is the only option that can message first with nothing
+built and nothing new paid. Why it is not simply chosen: two things are
+unproven (an Automation calling a custom connector, and Grok completing our
+OAuth flow), and a 20-minute probe settles both before any code depends on it.
+
+Privacy, said once: Grok sends board data to xAI; a Telegram bot's chat is not
+end-to-end encrypted. The owner accepted this by choosing the options.
+Revoking everything is the same as today: rotate `MCP_OAUTH_SECRET` and redeploy.
+
+#### Stage 8a — Real data in the cloud, a `today` tool, the Grok probe
+
+Steps, in order:
+
+1. **Why is the cloud empty.**
+   Goal: one thing the owner logs on the live board is readable through the
+   connector.
+   Where: the live board, `lib/sync.ts`, Vercel env `OWNER_USER_ID`.
+   Do: the owner signs in on the live board (phone and PC) and logs one Fuel
+   entry. If `read_data fuel` still says "No saved data", compare the signed-in
+   user id with `OWNER_USER_ID` (print only whether they match) and read
+   `lib/sync.ts` for why the slot did not mirror. Fix the root cause.
+   Verify: `read_data fuel` through the connector returns the entry just logged.
+   Fence: no change to the save shapes or to `save_data` / `read_data`.
+2. **A `today` tool on the connector.**
+   Goal: one small READ call that gives any coach the day at a glance, instead of
+   seven raw JSON dumps.
+   Where: `app/api/mcp/[transport]/route.ts` (reuse the existing data loader and
+   `summarize()` from `lib/tiles/tileStats.ts`; do not copy either).
+   Output: the date (Europe/Stockholm), the gold overall goal if stored, then one
+   line per data slot and custom tile: `Fuel: 1,840 kcal (target 2,400)`, or
+   `Fuel: no data yet`. A summarizer that returns null gives "no data yet",
+   never an error.
+   Verify: after the push, call `today` through the connector (the `pulse` MCP in
+   Claude Code) and see the Fuel line from step 1.
+   Fence: READ only. No new write tool in this stage.
+3. **The coach prompt, in the repo.**
+   Goal: one versioned text that any coach (Grok now, Telegram later) runs on.
+   Where: new `docs/coach-prompt.md` with two blocks: the **daily message**
+   prompt (call `today`, then 3 to 5 short lines: yesterday's numbers, one
+   thing to do today, tied to the overall goal) and the **chat rules** (read
+   before writing; `save_data` always merges, never `replace`; read the slot
+   first and append in the shape already there; confirm what was logged in one
+   line; numbers only from tools, never invented).
+   Verify: the owner reads it and says yes.
+   Fence: no medical advice beyond the board's own goals; the prompt says so.
+4. **The Grok probe (owner's hands, guided click by click).**
+   a. Copy `MCP_TOKEN` from `.env.local` to the clipboard without printing it
+      (PowerShell: read the line, `Set-Clipboard`, print only its length).
+   b. grok.com/connectors → **New Connector** → **Custom** → paste the MCP URL
+      above → Grok opens the board's authorize page → paste the token → Allow.
+   c. In the Grok app on the phone: "Use the Pulse connector: call today."
+      PASS if it quotes the Fuel line from step 1.
+   d. "Log a 500 kcal lunch in Fuel." PASS if the live board's Fuel face (Stage
+      3b) shows the new total after a reload, and `read_data fuel` still holds
+      the step-1 entry (nothing overwritten).
+   e. Create a Grok **Automation**: daily at 07:30, the daily-message prompt from
+      step 3, push notification on. Schedule a one-off run 5 minutes ahead to
+      test. PASS if the phone gets a push quoting a real board number.
+   f. Re-check anthropics/claude-code#43397. Note whether it is fixed.
+5. **Record the result** at the end of this section: which of c, d, e passed,
+   the date, and the decision.
+   - c, d and e pass → the Grok coach is live. Delete the test Automation, keep
+     the 07:30 one. Stage 8b is skipped.
+   - c passes, d fails (bad data shape or overwrite) → keep Grok for reading and
+     pushing; restore the slot from the step-1 read; logging moves to a narrow
+     typed `log` tool, planned as a new step before 8b.
+   - b, c or e fails → Stage 8b (Telegram).
+
+Stop when: the result line is written, and either the 07:30 push arrived on its
+own the next morning (Grok PASS) or Stage 8b is marked next.
+
+#### Stage 8b — Telegram coach (only if the 8a probe failed)
+
+**Before coding, load the `claude-api` skill** for the Sonnet 5.5 id, tool-use
+syntax and price, and check Vercel's current cron limits for this project's plan
+at the source (Hobby has historically allowed once-a-day jobs with loose
+timing). Do not write either from memory.
+
+- **Secrets, by script.** `scripts/set-telegram.ps1` asks for the BotFather token
+  with `Read-Host -AsSecureString`, generates `TELEGRAM_WEBHOOK_SECRET` and
+  `CRON_SECRET` itself, writes all to `.env.local` and Vercel production, and
+  prints only lengths. `TELEGRAM_CHAT_ID` is found in the session after the owner
+  sends `/start` (read it from `getUpdates`, store it the same way).
+- **Shared board access.** Move the connector's data helpers (load, save-merge,
+  the `today` digest) into `lib/server/boardData.ts`; the MCP route and the bot
+  both call it. The MCP tools' behaviour must not change (re-run step 2's verify).
+- **Webhook** `app/api/coach/telegram/route.ts`: rejects a missing or wrong
+  `X-Telegram-Bot-Api-Secret-Token` (constant-time compare) with 401; ignores
+  every chat id except `TELEGRAM_CHAT_ID`; **dedupes on `update_id`** (Telegram
+  retries a webhook that fails, and a retry must not log lunch twice; store the
+  last handled id in Supabase, service role only); runs Sonnet with three tools
+  (`today`, `read_data`, `save_data` merge-only) under the chat rules from
+  `docs/coach-prompt.md`; replies with `sendMessage`. Bounded `max_tokens`, at
+  most 5 tool rounds, a 30-second timeout. A failure replies "Coach is offline:
+  <one-line reason>", never silence.
+- **Daily push** `app/api/coach/daily/route.ts` plus a cron entry in
+  `vercel.json` (07:30 Stockholm, written in UTC): `Authorization: Bearer
+  CRON_SECRET` or 401; `today` → one Sonnet call with the daily-message prompt
+  → `sendMessage`. Telegram's answer is checked; a failed send is logged loudly.
+- **Cost guard.** A daily cap from env, `COACH_MESSAGES_PER_DAY` (default 60),
+  counted in the existing `ai_usage` table under a fixed key; over it, the bot
+  replies once that the cap is hit. The Anthropic console spend limit from Stage
+  5 still applies.
+- **Protected deployment.** Read the project's `ssoProtection` first. If
+  production is behind it, the webhook URL needs a Protection Bypass secret made
+  by script (see the owner's global rules), never printed.
+
+Verify, each actually run:
+- Wrong secret header → 401 and nothing sent. Another chat id → ignored. The same
+  `update_id` twice → one log. Anthropic key removed → the "offline" reply. Cron
+  without the secret → 401.
+- Live: "what did I log today" quotes a real number; "log a 500 kcal lunch" shows
+  on the board's Fuel face after a reload and the earlier entries survive;
+  calling the daily route by hand with the secret delivers a message; the next
+  morning one arrives on its own.
+- The `pulse` MCP tools still answer as before.
+
+Stop when: the morning message arrived on its own and every verify line passed
+live.
 
 ## Risks and open items
 
@@ -359,3 +497,10 @@ nothing built. It just won't message first.
   bed, so each stage keeps it working at every commit.
 - **The design pick is subjective.** Stage 2 exists so the owner chooses, rather
   than finding out at Stage 3.
+- **Stage 8: a coach that writes can damage the only copy of the data.** Tripwire:
+  8a step 4d reads the slot before and after the first write from the phone.
+  Fallback: Grok reads only, and logging goes through a narrow typed tool.
+- **Stage 8: Grok Automations may not call custom connectors.** Tripwire: 8a step
+  4e, before any code depends on it. Fallback: Stage 8b (Telegram).
+- **Stage 8: an empty cloud makes every coach useless.** Tripwire: 8a step 1, the
+  first thing the stage does.

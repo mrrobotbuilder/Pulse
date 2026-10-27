@@ -116,12 +116,46 @@ Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 7 (The AI writes new ti
 
 Done when: three generated tiles work on the live site, and the planted tile's network calls are blocked.
 
-## Session 8 — Plan the phone coach
+## Session 8 — Plan the phone coach (done 2026-10-28)
+
+Planned: Stage 8 in `docs/PLAN.md` (Grok first behind a probe, Telegram only if
+it fails). Run Session 8a next.
+
+## Before Session 8a (your hands, about 2 minutes)
+
+1. On your phone: the Grok app installed and signed in to the account with SuperGrok.
+2. On your phone and on the PC: be able to sign in to the live board
+   (https://pulse-ochre-zeta-49.vercel.app/app) with your own account.
+3. Keep the phone next to you for the whole session: steps happen on it.
+
+## Session 8a — Real data, the `today` tool, the Grok probe
 
 Paste:
 
 ```
-Read docs/PLAN.md, Stage 8. Help me plan the phone health coach: compare a Telegram bot, Grok through an MCP connector, and the Claude mobile app using the connector I already have. Ask me the questions that change the build, then write the plan as a new stage in docs/PLAN.md with its own session in docs/HOW-TO-RUN.md.
+Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 8a (Real data in the cloud, a today tool, the Grok probe) step by step. Step 1 first: find out why the connector reads no data and fix the root cause, guiding me through any sign-in on the phone. Then build the today tool, write docs/coach-prompt.md and wait for my OK on it, then walk me through the Grok probe one click at a time, waiting for me after each. Copy MCP_TOKEN to my clipboard without printing it. Record which probe steps passed and the decision in docs/PLAN.md, commit, push, and check the today tool on the live site.
 ```
 
-Done when: Stage 8 has a written plan and its own session here.
+Done when: the result line is written under Stage 8a in `docs/PLAN.md`. If Grok
+passed, the real proof comes the next morning: a 07:30 push from Grok with a
+real board number, and you skip Session 8b. If Grok failed, run Session 8b.
+Start a fresh session either way.
+
+## Before Session 8b (only if Grok failed; your hands, about 3 minutes)
+
+1. In Telegram, open a chat with **@BotFather** and send `/newbot`.
+2. Give it a name (for example `Pulse Coach`) and a username ending in `bot`.
+3. BotFather replies with a token. Leave that chat open; the session will ask
+   for the token through a hidden prompt, never in the chat.
+
+## Session 8b — Telegram coach (only if 8a's probe failed)
+
+Paste:
+
+```
+Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 8b (Telegram coach). The Grok probe in Stage 8a failed; read its result line first. Load the claude-api skill before writing code and check Vercel's cron limits for this project at the source. Write scripts/set-telegram.ps1 and walk me through running it for the BotFather token, then find my chat id after I send /start. Build the shared board helpers, the webhook with secret check, chat allow-list and update_id dedupe, the daily cron, and the message cap. Run every verify step including each fault injection, commit, push, and test it live from my phone.
+```
+
+Done when: the bot answered "what did I log today" with a real number on your
+phone, a logged lunch showed on the board, and the next morning's message
+arrived on its own.
