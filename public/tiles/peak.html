@@ -20,19 +20,19 @@
 -->
 <style>
   :root{
-    --fg:#ffffff;
-    --mint:#6EE7B7;
-    --mint-glow:rgba(110,231,183,0.5);
-    --muted:rgba(255,255,255,0.5);
-    --muted-strong:rgba(255,255,255,0.7);
-    --border:rgba(255,255,255,0.08);
-    --border-strong:rgba(255,255,255,0.14);
-    --card:rgba(255,255,255,0.02);
+    --fg:var(--pulse-text, #ffffff);
+    --mint:var(--pulse-accent, #6EE7B7);
+    --mint-glow:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 50%, transparent);
+    --muted:var(--pulse-muted, rgba(255,255,255,0.5));
+    --muted-strong:var(--pulse-muted, rgba(255,255,255,0.7));
+    --border:var(--pulse-line, rgba(255,255,255,0.08));
+    --border-strong:var(--pulse-line, rgba(255,255,255,0.14));
+    --card:color-mix(in srgb, var(--pulse-text, #fff) 2%, transparent);
     --ease-premium:cubic-bezier(0.16,1,0.3,1);
     --font-serif:Georgia,'Times New Roman',serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background:#050505;color:var(--fg);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  html,body{background:var(--pulse-bg, #050505);color:var(--fg);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
   body{padding:14px}
 
   /* ── chart card + entrance (peak.module.css, verbatim values) ── */
@@ -42,7 +42,7 @@
     animation:peakFadeUp 700ms var(--ease-premium) both;animation-delay:140ms;
     transition:border-color 200ms ease,box-shadow 200ms ease;
   }
-  .piChartCard:hover{border-color:rgba(110,231,183,0.25);box-shadow:0 0 32px -16px var(--mint-glow)}
+  .piChartCard:hover{border-color:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);box-shadow:0 0 32px -16px var(--mint-glow)}
   @media (max-width:800px){.piChartCard{padding:14px;gap:14px}}
   @keyframes peakFadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
@@ -70,14 +70,14 @@
   .modeBtn{padding:6px 14px;border-radius:999px;background:transparent;color:var(--muted);font-size:10px;font-weight:500;
     letter-spacing:0.16em;text-transform:uppercase;font-family:ui-monospace,Menlo,monospace;border:none;cursor:pointer;
     transition:background 180ms var(--ease-premium),color 180ms}
-  .modeBtn[aria-current="true"]{background:rgba(110,231,183,0.16);color:var(--mint)}
+  .modeBtn[aria-current="true"]{background:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 16%, transparent);color:var(--mint)}
 
   /* the ⚙ gear — how it plugs into existing data */
   .gearBtn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;
     border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;
     transition:color 180ms,border-color 180ms,transform 400ms var(--ease-premium)}
-  .gearBtn:hover{color:var(--mint);border-color:rgba(110,231,183,0.4);transform:rotate(40deg)}
-  .wireVeil{position:absolute;inset:0;z-index:30;border-radius:20px;background:rgba(4,7,6,0.96);
+  .gearBtn:hover{color:var(--mint);border-color:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 40%, transparent);transform:rotate(40deg)}
+  .wireVeil{position:absolute;inset:0;z-index:30;border-radius:20px;background:color-mix(in srgb, var(--pulse-surface, #040706) 96%, transparent);
     -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:26px 28px;overflow:auto;
     animation:piStageIn 260ms var(--ease-premium)}
   .wl{stroke:var(--mint);stroke-width:1.5;fill:none;stroke-dasharray:6 7;animation:wflow 1.4s linear infinite}
@@ -88,7 +88,7 @@
   @media (prefers-reduced-motion:reduce){
     .piChartCard,.piChartStage,.piLineDraw,.piAreaFade,.piWindowFade,.piNowFade,.piNowPulse,.piBarRise{animation:none !important;opacity:1;stroke-dashoffset:0}
   }
-  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid rgba(110,231,183,.25);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#84848c;text-align:center}
+  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--pulse-muted, #84848c);text-align:center}
   .starterTag,.starterTag *{line-height:1.6}
 </style>
 </head>
@@ -133,22 +133,22 @@
     </div>
     <svg viewBox="0 0 900 250" style="width:100%;display:block;margin-top:18px">
       <text class="wt" x="10" y="22">YOUR SAVED DATA</text>
-      <rect x="10" y="34"  width="230" height="30" rx="8" fill="none" stroke="#243c32"/><text class="wt wk" x="24" y="53">wearable · recovery + sleep</text>
-      <rect x="10" y="72"  width="230" height="30" rx="8" fill="none" stroke="#243c32"/><text class="wt wk" x="24" y="91">fuel · caffeine logs</text>
-      <rect x="10" y="110" width="230" height="30" rx="8" fill="none" stroke="#243c32"/><text class="wt wk" x="24" y="129">schedule · today&rsquo;s plan</text>
-      <rect x="10" y="148" width="230" height="30" rx="8" fill="none" stroke="#243c32"/><text class="wt wk" x="24" y="167">feel · your drag logs</text>
+      <rect x="10" y="34"  width="230" height="30" rx="8" fill="none" style="stroke:var(--pulse-line, #243c32)"/><text class="wt wk" x="24" y="53">wearable · recovery + sleep</text>
+      <rect x="10" y="72"  width="230" height="30" rx="8" fill="none" style="stroke:var(--pulse-line, #243c32)"/><text class="wt wk" x="24" y="91">fuel · caffeine logs</text>
+      <rect x="10" y="110" width="230" height="30" rx="8" fill="none" style="stroke:var(--pulse-line, #243c32)"/><text class="wt wk" x="24" y="129">schedule · today&rsquo;s plan</text>
+      <rect x="10" y="148" width="230" height="30" rx="8" fill="none" style="stroke:var(--pulse-line, #243c32)"/><text class="wt wk" x="24" y="167">feel · your drag logs</text>
       <path class="wl" d="M240 49  C 380 49,  420 58,  530 58"/>
       <path class="wl" d="M240 87  C 380 87,  420 98,  530 98"/>
       <path class="wl" d="M240 125 C 380 125, 430 138, 530 138"/>
       <path class="wl" d="M240 163 C 390 163, 440 142, 530 142"/>
       <text class="wt" x="530" y="22">THE PLUG&rsquo;S PANELS</text>
-      <rect x="530" y="42"  width="200" height="28" rx="8" fill="none" stroke="#4d5a52"/><text class="wt" x="544" y="60">The energy ring</text>
-      <rect x="530" y="84"  width="200" height="28" rx="8" fill="none" stroke="#4d5a52"/><text class="wt" x="544" y="102">The curve · 25 hours</text>
-      <rect x="530" y="126" width="200" height="28" rx="8" fill="none" stroke="#4d5a52"/><text class="wt" x="544" y="144">Today&rsquo;s plan strip</text>
+      <rect x="530" y="42"  width="200" height="28" rx="8" fill="none" style="stroke:var(--pulse-line, #4d5a52)"/><text class="wt" x="544" y="60">The energy ring</text>
+      <rect x="530" y="84"  width="200" height="28" rx="8" fill="none" style="stroke:var(--pulse-line, #4d5a52)"/><text class="wt" x="544" y="102">The curve · 25 hours</text>
+      <rect x="530" y="126" width="200" height="28" rx="8" fill="none" style="stroke:var(--pulse-line, #4d5a52)"/><text class="wt" x="544" y="144">Today&rsquo;s plan strip</text>
       <path class="wl" d="M730 56  C 800 56,  815 96,  840 96"/>
       <path class="wl" d="M730 98  H 840"/>
       <path class="wl" d="M730 140 C 800 140, 815 100, 840 100"/>
-      <rect x="840" y="80" width="44" height="36" rx="10" fill="none" stroke="#6EE7B7"/><text class="wt wk" x="852" y="103">y</text>
+      <rect x="840" y="80" width="44" height="36" rx="10" fill="none" style="stroke:var(--pulse-accent, #6EE7B7)"/><text class="wt wk" x="852" y="103">y</text>
       <text class="wt" x="10" y="215">CAFFEINE RUNS REAL PHARMACOKINETICS · ONSET → PEAK → HALF-LIFE DECAY, SHAPED BY YOUR BODYWEIGHT</text>
       <text class="wt" x="10" y="238">THE OUTPUT — YOUR PEAK WINDOWS — FEEDS YOUR GOAL (y). SAME STORE YOUR TILES ALREADY WRITE.</text>
     </svg>
@@ -295,7 +295,7 @@ function baselineCurve(){const wm=whoopMultiplier(D.whoop);return BASELINE.map((
    just be a generic baseline, so we honestly show nothing instead. */
 function hasSignal(){ return (D.whoop&&typeof D.whoop.recovery==='number') || (D.logs&&D.logs.length>0) || (D.events&&D.events.length>0) || (D.taps&&D.taps.length>0); }
 
-const TIER_COLOR_HEX={Peak:'#6EE7B7',Solid:'#6EE7B7',Tired:'#F59E0B',Low:'#d97706',Drained:'#EF4444'};
+const TIER_COLOR_HEX={Peak:'var(--pulse-accent, #6EE7B7)',Solid:'var(--pulse-accent, #6EE7B7)',Tired:'var(--pulse-gold, #F59E0B)',Low:'color-mix(in srgb, var(--pulse-gold, #d97706) 60%, #E5484D)',Drained:'color-mix(in srgb, #EF4444 65%, var(--pulse-text, #ededf0))'};
 function fmtTick(h){if(h===0||h===24)return'12A';if(h===12)return'12P';return h<12?h+'A':(h-12)+'P';}
 function fmtHour(h){const r=Math.round(h);if(r===0||r===24)return'12 AM';if(r===12)return'12 PM';return r<12?r+' AM':(r-12)+' PM';}
 function fmtHour12(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);const ap=hh<12?'AM':'PM';let d=hh%12;if(d===0)d=12;return mm?`${d}:${String(mm).padStart(2,'0')} ${ap}`:`${d} ${ap}`;}
@@ -327,8 +327,8 @@ function render(){
      because it is the HARDWIRED input: sleep + feel there reshape this curve
      on the next refresh, with no sweep and no connector. */
   if(!hasSignal()){ wrap.innerHTML='<div style="height:'+HEIGHT+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 24px">'
-    +'<div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted,#84848c);opacity:.55">nothing to plot yet</div>'
-    +'<div style="font-size:12.5px;line-height:1.65;color:var(--muted,#84848c);max-width:36ch">Log sleep and how you feel in <b style="color:var(--mint,#6EE7B7);font-weight:600">Vitals</b> — this curve builds itself from that. Caffeine logs and plans sharpen it.</div>'
+    +'<div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted,var(--pulse-muted, #84848c));opacity:.55">nothing to plot yet</div>'
+    +'<div style="font-size:12.5px;line-height:1.65;color:var(--muted,var(--pulse-muted, #84848c));max-width:36ch">Log sleep and how you feel in <b style="color:var(--mint,var(--pulse-accent, #6EE7B7));font-weight:600">Vitals</b> — this curve builds itself from that. Caffeine logs and plans sharpen it.</div>'
     +'</div>'; return; }
   width=Math.max(320,Math.round(wrap.clientWidth||stage.clientWidth||960));
   const det=curveDetailed(),sc=det.map(c=>c.score),base=baselineCurve();
@@ -340,14 +340,14 @@ function render(){
 
   /* tier band 80–100 + gridlines */
   svg+=`<rect x="${PAD.left}" y="${yForScore(100)}" width="${innerW()}" height="${yForScore(80)-yForScore(100)}" fill="url(#peak-tier-band)" opacity="0.5"/>`;
-  for(const s of[20,40,60,80])svg+=`<line x1="${PAD.left}" x2="${width-PAD.right}" y1="${yForScore(s)}" y2="${yForScore(s)}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 4"/>`;
+  for(const s of[20,40,60,80])svg+=`<line x1="${PAD.left}" x2="${width-PAD.right}" y1="${yForScore(s)}" y2="${yForScore(s)}" stroke="color-mix(in srgb, var(--pulse-text, #fff) 8%, transparent)" stroke-dasharray="2 4"/>`;
 
   /* peak windows */
   for(const w of windows){const x0=xForHour(w.start),x1=xForHour(w.end);
-    svg+=`<rect class="piWindowFade" x="${x0-2}" y="${PAD.top}" width="${x1-x0+4}" height="${innerH()}" fill="#6EE7B7" rx="3"/>`;}
+    svg+=`<rect class="piWindowFade" x="${x0-2}" y="${PAD.top}" width="${x1-x0+4}" height="${innerH()}" style="fill:var(--pulse-accent, #6EE7B7)" rx="3"/>`;}
 
   /* event bands behind the lower plot */
-  const BAND={mint:['#6EE7B7','rgba(110,231,183,0.12)'],amber:['#F59E0B','rgba(245,158,11,0.12)'],red:['#EF4444','rgba(239,68,68,0.12)'],muted:['rgba(255,255,255,0.5)','rgba(255,255,255,0.05)']};
+  const BAND={mint:['var(--pulse-accent, #6EE7B7)','color-mix(in srgb, var(--pulse-accent, #6EE7B7) 12%, transparent)'],amber:['var(--pulse-gold, #F59E0B)','color-mix(in srgb, var(--pulse-gold, #f59e0b) 12%, transparent)'],red:['color-mix(in srgb, #EF4444 65%, var(--pulse-text, #ededf0))','rgba(239,68,68,0.12)'],muted:['color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent)','color-mix(in srgb, var(--pulse-text, #fff) 5%, transparent)']};
   for(const e of D.events){
     const x0=xForHour(Math.max(0,e.startHour)),x1=xForHour(Math.min(24,e.endHour)),w=Math.max(2,x1-x0);
     const[c,bg]=BAND[e.tone]||BAND.muted;const bandH=innerH()*0.42,y=PAD.top+innerH()-bandH;
@@ -367,14 +367,14 @@ function render(){
   }
   if(mode==='bars')det.forEach((c,i)=>{
     const x=xForCol(i),barH=(c.score/100)*innerH(),y=PAD.top+innerH()-barH;
-    const glow=Math.abs(i-nowHour)<0.5?' filter="drop-shadow(0 0 6px rgba(110,231,183,0.45))"':'';
+    const glow=Math.abs(i-nowHour)<0.5?' filter="drop-shadow(0 0 6px color-mix(in srgb, var(--pulse-accent, #6EE7B7) 45%, transparent))"':'';
     svg+=`<rect class="piBarRise" x="${x}" y="${y}" width="${colW}" height="${barH}" fill="url(#peak-col)" rx="1.5" style="animation-delay:${i*22}ms"${glow}/>`;
   });
   if(mode==='stack')det.forEach((c,i)=>{
     const x=xForCol(i);let cursorY=PAD.top+innerH();let g=`<g class="piBarRise" style="animation-delay:${i*22}ms">`;
     for(const seg of c.segments){
       const segH=Math.max(0,(Math.abs(seg.value)/100)*innerH()*c.mult),top=cursorY-segH;cursorY=top;
-      const fill=seg.source==='baseline'?'rgba(110,231,183,0.35)':seg.value<0?'#EF4444':'#6EE7B7';
+      const fill=seg.source==='baseline'?'color-mix(in srgb, var(--pulse-accent, #6EE7B7) 35%, transparent)':seg.value<0?'color-mix(in srgb, #EF4444 65%, var(--pulse-text, #ededf0))':'var(--pulse-accent, #6EE7B7)';
       g+=`<rect x="${x}" y="${top}" width="${colW}" height="${segH}" fill="${fill}" opacity="${seg.value<0?0.45:0.9}" rx="1.5"/>`;
     }
     svg+=g+'</g>';
@@ -383,28 +383,28 @@ function render(){
   /* subjective tap dots */
   for(const t of D.taps){
     const x=xForHour(t.hour);
-    const c=t.value>=20?'#6EE7B7':t.value>=-20?'rgba(255,255,255,0.5)':t.value>=-60?'#F59E0B':'#EF4444';
+    const c=t.value>=20?'var(--pulse-accent, #6EE7B7)':t.value>=-20?'color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent)':t.value>=-60?'var(--pulse-gold, #F59E0B)':'color-mix(in srgb, #EF4444 65%, var(--pulse-text, #ededf0))';
     svg+=`<circle cx="${x}" cy="${HEIGHT-PAD.bottom+16}" r="4" fill="${c}"/>`;
   }
 
   /* now indicator */
   svg+=`<g class="piNowFade">
-    <line x1="${xForHour(nowHour)}" x2="${xForHour(nowHour)}" y1="${PAD.top}" y2="${PAD.top+innerH()}" stroke="rgba(255,255,255,0.32)" stroke-dasharray="2 3"/>
+    <line x1="${xForHour(nowHour)}" x2="${xForHour(nowHour)}" y1="${PAD.top}" y2="${PAD.top+innerH()}" stroke="color-mix(in srgb, var(--pulse-text, #fff) 32%, transparent)" stroke-dasharray="2 3"/>
     <circle class="piNowPulse" cx="${xForHour(nowHour)}" cy="${yForScore(nowScore)}" r="12" fill="${nowColor}" opacity="0.35"/>
     <circle cx="${xForHour(nowHour)}" cy="${yForScore(nowScore)}" r="5" fill="${nowColor}" style="filter:drop-shadow(0 0 10px ${nowColor})"/>
-    <circle cx="${xForHour(nowHour)}" cy="${yForScore(nowScore)}" r="2.5" fill="#fff"/>
+    <circle cx="${xForHour(nowHour)}" cy="${yForScore(nowScore)}" r="2.5" style="fill:var(--pulse-text, #fff)"/>
   </g>`;
 
   /* x axis */
   for(const t of[0,3,6,9,12,15,18,21,24])
-    svg+=`<text x="${xForHour(t)}" y="${HEIGHT-6}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.6)" letter-spacing="0.06em">${fmtTick(t)}</text>`;
+    svg+=`<text x="${xForHour(t)}" y="${HEIGHT-6}" text-anchor="middle" font-size="10" fill="color-mix(in srgb, var(--pulse-text, #fff) 60%, transparent)" letter-spacing="0.06em">${fmtTick(t)}</text>`;
 
   wrap.innerHTML=`<svg width="100%" height="${HEIGHT}" viewBox="0 0 ${width} ${HEIGHT}" preserveAspectRatio="none" style="display:block;overflow:visible">
     <defs>
-      <linearGradient id="peak-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6EE7B7" stop-opacity="0.45"/><stop offset="100%" stop-color="#6EE7B7" stop-opacity="0"/></linearGradient>
-      <linearGradient id="peak-stroke" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#d4fce8"/><stop offset="60%" stop-color="#6EE7B7"/><stop offset="100%" stop-color="#6EE7B7" stop-opacity="0.95"/></linearGradient>
-      <linearGradient id="peak-tier-band" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6EE7B7" stop-opacity="0.18"/><stop offset="100%" stop-color="#6EE7B7" stop-opacity="0"/></linearGradient>
-      <linearGradient id="peak-col" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6EE7B7" stop-opacity="0.95"/><stop offset="100%" stop-color="#6EE7B7" stop-opacity="0.25"/></linearGradient>
+      <linearGradient id="peak-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0.45"/><stop offset="100%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0"/></linearGradient>
+      <linearGradient id="peak-stroke" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" style="stop-color:var(--pulse-accent, #d4fce8)"/><stop offset="60%" style="stop-color:var(--pulse-accent, #6EE7B7)"/><stop offset="100%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0.95"/></linearGradient>
+      <linearGradient id="peak-tier-band" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0.18"/><stop offset="100%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0"/></linearGradient>
+      <linearGradient id="peak-col" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0.95"/><stop offset="100%" style="stop-color:var(--pulse-accent, #6EE7B7)" stop-opacity="0.25"/></linearGradient>
       <filter id="peak-line-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     </defs>${svg}</svg>
     <div id="hoverLayer" style="position:absolute;inset:0;pointer-events:none;z-index:6"></div>
@@ -423,8 +423,8 @@ function renderHover(){
   const pillLeft=Math.max(34,Math.min(width-34,x)),above=y>78;
   layer.innerHTML=`
     <div style="position:absolute;left:${x}px;top:14px;bottom:32px;width:1px;background:linear-gradient(${color}00,${color}66,${color}00)"></div>
-    <div style="position:absolute;left:${x-6}px;top:${y-6}px;width:12px;height:12px;border-radius:999px;background:${color};box-shadow:0 0 14px ${color};border:2px solid #000"></div>
-    <div style="position:absolute;left:${pillLeft}px;top:${above?y-64:y+16}px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;padding:7px 12px;border-radius:10px;background:rgba(8,8,8,0.92);border:1px solid ${color};box-shadow:0 6px 24px rgba(0,0,0,0.5),0 0 16px ${color}33;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);white-space:nowrap">
+    <div style="position:absolute;left:${x-6}px;top:${y-6}px;width:12px;height:12px;border-radius:999px;background:${color};box-shadow:0 0 14px ${color};border:2px solid var(--pulse-surface, #000)"></div>
+    <div style="position:absolute;left:${pillLeft}px;top:${above?y-64:y+16}px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;padding:7px 12px;border-radius:10px;background:color-mix(in srgb, var(--pulse-surface, #080808) 92%, transparent);border:1px solid ${color};box-shadow:0 6px 24px rgba(0,0,0,0.5),0 0 16px ${color}33;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);white-space:nowrap">
       <div style="display:flex;align-items:baseline;gap:5px">
         <span style="font-family:var(--font-serif);font-style:italic;font-size:24px;line-height:1;color:${color}">${Math.round(score)}</span>
         <span style="font-size:11px;color:var(--muted-strong)">${tier}</span>
@@ -443,7 +443,7 @@ stage.addEventListener('pointerleave',()=>{hoverHour=null;renderHover();renderGa
 let feelPct=100,feelDragging=false,feelLogged=false,feelTimer=null;
 function renderFeel(){
   const layer=document.getElementById('feelLayer'); if(!layer)return;
-  const REST='#6EE7B7';
+  const REST='var(--pulse-accent, #6EE7B7)';
   const resting=!feelDragging&&!feelLogged;
   const y=yForScore(feelPct);
   const color=resting?REST:scoreColorFor(feelPct);
@@ -454,9 +454,9 @@ function renderFeel(){
     :`height:0;border-top:2px dashed ${color}`;
   layer.innerHTML=`
     <div style="position:absolute;left:${PAD.left}px;right:${PAD.right}px;top:${y}px;${lineStyle};opacity:${feelDragging?1:resting?0.95:0.85};transition:${feelDragging?'none':ease}"></div>
-    <div style="position:absolute;left:${PAD.left+2}px;top:${y}px;transform:translateY(-50%);font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${resting?REST:'var(--muted)'};background:rgba(8,8,8,0.62);padding:2px 6px;border-radius:5px;white-space:nowrap;opacity:${feelLogged?0:1};transition:${feelDragging?'none':ease+',opacity 160ms'}">drag to log feel</div>
+    <div style="position:absolute;left:${PAD.left+2}px;top:${y}px;transform:translateY(-50%);font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${resting?REST:'var(--muted)'};background:color-mix(in srgb, var(--pulse-surface, #080808) 62%, transparent);padding:2px 6px;border-radius:5px;white-space:nowrap;opacity:${feelLogged?0:1};transition:${feelDragging?'none':ease+',opacity 160ms'}">drag to log feel</div>
     <div id="feelStrip" style="position:absolute;left:${PAD.left}px;right:${PAD.right}px;top:${y-14}px;height:28px;cursor:ns-resize;pointer-events:auto;touch-action:none;transition:${feelDragging?'none':ease}"></div>
-    <div id="feelHandle" style="position:absolute;left:${handleLeft}px;top:${y}px;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:rgba(8,8,8,0.92);border:1px solid ${color};box-shadow:${feelDragging?`0 4px 18px rgba(0,0,0,0.5),0 0 16px ${color}66`:resting?`0 2px 10px rgba(0,0,0,0.4),0 0 14px ${REST}55`:'0 2px 10px rgba(0,0,0,0.4)'};cursor:ns-resize;pointer-events:auto;touch-action:none;white-space:nowrap;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:${feelDragging?'none':ease+',box-shadow 160ms'}">
+    <div id="feelHandle" style="position:absolute;left:${handleLeft}px;top:${y}px;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:color-mix(in srgb, var(--pulse-surface, #080808) 92%, transparent);border:1px solid ${color};box-shadow:${feelDragging?`0 4px 18px rgba(0,0,0,0.5),0 0 16px ${color}66`:resting?`0 2px 10px rgba(0,0,0,0.4),0 0 14px ${REST}55`:'0 2px 10px rgba(0,0,0,0.4)'};cursor:ns-resize;pointer-events:auto;touch-action:none;white-space:nowrap;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:${feelDragging?'none':ease+',box-shadow 160ms'}">
       ${feelLogged
         ?`<span style="font-size:11px;font-weight:600;color:${color}">logged ✓</span>`
         :resting
@@ -493,7 +493,7 @@ function renderGauge(hh){
   el.innerHTML=`<div style="display:flex;align-items:center;gap:14px">
     <div style="position:relative;width:${size}px;height:${size}px;flex:none">
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg);overflow:visible">
-        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="${stroke}"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="color-mix(in srgb, var(--pulse-text, #fff) 7%, transparent)" stroke-width="${stroke}"/>
         <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c*pct} ${c}" style="filter:drop-shadow(0 0 6px ${color});transition:stroke-dasharray 220ms cubic-bezier(0.16,1,0.3,1),stroke 220ms linear"/>
       </svg>
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
@@ -516,8 +516,8 @@ function renderStrip(){
   if(!hasSignal()){ if(host)host.innerHTML=''; return; }
   const padX=PAD.left,iw=width-padX*2,hourW=iw/24;
   const headH=18,eventLaneH=30,logLaneH=16,eventTop=headH+8,logTop=eventTop+eventLaneH+8,totalH=logTop+logLaneH+4;
-  const TONE={mint:'#6EE7B7',amber:'#F59E0B',red:'#EF4444',muted:'rgba(255,255,255,0.5)'};
-  const TONE_BG={mint:'rgba(110,231,183,0.10)',amber:'rgba(245,158,11,0.10)',red:'rgba(239,68,68,0.10)',muted:'rgba(255,255,255,0.04)'};
+  const TONE={mint:'var(--pulse-accent, #6EE7B7)',amber:'var(--pulse-gold, #F59E0B)',red:'color-mix(in srgb, #EF4444 65%, var(--pulse-text, #ededf0))',muted:'color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent)'};
+  const TONE_BG={mint:'color-mix(in srgb, var(--pulse-accent, #6EE7B7) 10%, transparent)',amber:'color-mix(in srgb, var(--pulse-gold, #f59e0b) 10%, transparent)',red:'rgba(239,68,68,0.10)',muted:'color-mix(in srgb, var(--pulse-text, #fff) 4%, transparent)'};
   let ev='';
   for(const e of D.events){
     const x=e.startHour*hourW,w=Math.max(10,(e.endHour-e.startHour)*hourW);
@@ -531,17 +531,17 @@ function renderStrip(){
   let pips='';
   for(const l of D.logs){
     const x=l.takenHour*hourW;
-    pips+=`<div title="${SUBSTANCES[l.key].name} · ${fmtHour12(l.takenHour)}" style="position:absolute;left:${x-8}px;top:0;width:16px;height:16px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid #6EE7B755;display:flex;align-items:center;justify-content:center;font-size:9.5px">☕</div>`;
+    pips+=`<div title="${SUBSTANCES[l.key].name} · ${fmtHour12(l.takenHour)}" style="position:absolute;left:${x-8}px;top:0;width:16px;height:16px;border-radius:999px;background:color-mix(in srgb, var(--pulse-text, #fff) 4%, transparent);border:1px solid #6EE7B755;display:flex;align-items:center;justify-content:center;font-size:9.5px">☕</div>`;
   }
   for(const t of D.taps){
-    const c=t.value>=20?'#6EE7B7':t.value>=-20?'rgba(255,255,255,0.5)':t.value>=-60?'#F59E0B':'#EF4444';
+    const c=t.value>=20?'var(--pulse-accent, #6EE7B7)':t.value>=-20?'color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent)':t.value>=-60?'var(--pulse-gold, #F59E0B)':'color-mix(in srgb, #EF4444 65%, var(--pulse-text, #ededf0))';
     pips+=`<div title="Mood · ${fmtHour12(t.hour)}" style="position:absolute;left:${t.hour*hourW-4}px;top:4px;width:8px;height:8px;border-radius:999px;background:${c};box-shadow:0 0 6px ${c}"></div>`;
   }
   host.innerHTML=`<div style="position:relative;width:100%;height:${totalH}px">
     <div style="position:absolute;top:0;left:${padX}px;right:${padX}px;display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);font-weight:500">Today's plan</span>
     </div>
-    <div style="position:absolute;left:${padX+nowHour*hourW}px;top:${headH+2}px;bottom:0;width:1px;background:rgba(110,231,183,0.4);box-shadow:0 0 8px rgba(110,231,183,0.5)"></div>
+    <div style="position:absolute;left:${padX+nowHour*hourW}px;top:${headH+2}px;bottom:0;width:1px;background:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 40%, transparent);box-shadow:0 0 8px color-mix(in srgb, var(--pulse-accent, #6EE7B7) 50%, transparent)"></div>
     <div style="position:absolute;top:${eventTop}px;left:${padX}px;right:${padX}px;height:${eventLaneH}px">${ev}</div>
     <div style="position:absolute;top:${logTop}px;left:${padX}px;right:${padX}px;height:${logLaneH}px">${pips}</div>
   </div>`;

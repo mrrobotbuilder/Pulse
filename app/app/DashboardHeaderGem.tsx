@@ -32,6 +32,7 @@ const HeroCrystal = dynamic(() => import('@/components/HeroCrystal'), {
 
 type PulseKind = 'rings' | 'particles' | 'sparkles'
 const PULSE_KINDS: PulseKind[] = ['rings', 'particles', 'sparkles']
+const PAUSE_KEY = 'pulse:gem-paused'
 
 interface DashboardHeaderGemProps {
   /** CSS pixel size of the gem stage. Default 200px. */
@@ -48,10 +49,34 @@ export default function DashboardHeaderGem({
   // HeroCrystal assigns its move-trigger here so the dashboard can play
   // scripted moods on a slow timer (below).
   const gemControl = useRef<((move: string) => void) | null>(null)
+  // The gem moves on its own forever, so it carries a visible pause (WCAG
+  // 2.2.2). The choice is remembered per browser.
+  const [paused, setPaused] = useState(false)
+  const pausedRef = useRef(false)
+  useEffect(() => {
+    try {
+      const p = window.localStorage.getItem(PAUSE_KEY) === '1'
+      setPaused(p)
+      pausedRef.current = p
+    } catch {
+      /* storage blocked: the gem plays */
+    }
+  }, [])
+  const togglePause = () => {
+    const next = !paused
+    setPaused(next)
+    pausedRef.current = next
+    try {
+      window.localStorage.setItem(PAUSE_KEY, next ? '1' : '0')
+    } catch {
+      /* storage blocked: the pause still holds for this page view */
+    }
+  }
 
   // Fire a random different-than-last burst. Called from the gem's
   // autonomous happy event so every happyHello also carries a burst.
   function firePulse() {
+    if (pausedRef.current) return
     let pick: PulseKind = PULSE_KINDS[Math.floor(Math.random() * PULSE_KINDS.length)]
     while (pick === lastKindRef.current && PULSE_KINDS.length > 1) {
       pick = PULSE_KINDS[Math.floor(Math.random() * PULSE_KINDS.length)]
@@ -87,7 +112,7 @@ export default function DashboardHeaderGem({
       const delay = (20 + Math.random() * 18) * 1000
       id = setTimeout(() => {
         if (cancelled) return
-        gemControl.current?.(MOODS[Math.floor(Math.random() * MOODS.length)])
+        if (!pausedRef.current) gemControl.current?.(MOODS[Math.floor(Math.random() * MOODS.length)])
         schedule()
       }, delay)
     }
@@ -105,12 +130,8 @@ export default function DashboardHeaderGem({
   const sizeStyle = className ? undefined : { width: size, height: size }
 
   return (
-    <div
-      className={className}
-      style={{ ...sizeStyle, pointerEvents: 'none' }}
-      aria-hidden
-    >
-      <div className={styles.gemStage} style={sizeStyle}>
+    <div className={`${styles.wrap} ${className ?? ''}`} style={sizeStyle}>
+      <div className={styles.gemStage} style={sizeStyle} aria-hidden>
         {pulse.tick > 0 && pulse.kind === 'rings' && (
           <div key={`rings-${pulse.tick}`} className={styles.pulseLayer} aria-hidden>
             <span className={`${styles.pulseRing} ${styles.pulseRing1}`} />
@@ -145,8 +166,23 @@ export default function DashboardHeaderGem({
           mode="character"
           onHappyStart={firePulse}
           controlRef={gemControl}
+          paused={paused}
         />
       </div>
+      <button
+        type="button"
+        className={styles.pause}
+        onClick={togglePause}
+        aria-pressed={paused}
+        aria-label={paused ? 'Play the gem' : 'Pause the gem'}
+        title={paused ? 'Play the gem' : 'Pause the gem'}
+      >
+        {paused ? (
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5 L10.5 6 L3 10.5 Z" fill="currentColor" /></svg>
+        ) : (
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+        )}
+      </button>
     </div>
   )
 }

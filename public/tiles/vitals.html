@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#050506" />
+<meta name="theme-color" content="var(--pulse-bg, #050506)" />
 <title>Vitals</title>
 <!--
   VITALS — bone-simple. One recovery number, from two inputs you bring: how you
@@ -18,10 +18,10 @@
 -->
 <style>
   :root{
-    --bg:#050506;--fg:#ededf0;--brand:#6EE7B7;
-    --muted:#84848c;--muted-strong:#a8a8b0;--border:#1d1d22;--border-strong:#2a2a33;
-    --good:#6EE7B7;--watch:#E8C878;--low:#ff8b8b;
-    --whoop:#00E5A0;
+    --bg:var(--pulse-bg, #050506);--fg:var(--pulse-text, #ededf0);--brand:var(--pulse-accent, #6EE7B7);
+    --muted:var(--pulse-muted, #84848c);--muted-strong:var(--pulse-muted, #a8a8b0);--border:var(--pulse-line, #1d1d22);--border-strong:var(--pulse-line, #2a2a33);
+    --good:var(--pulse-accent, #6EE7B7);--watch:var(--pulse-gold, #E8C878);--low:color-mix(in srgb, #ff8b8b 65%, var(--pulse-text, #ededf0));
+    --whoop:var(--pulse-signal, #00E5A0);
     --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
     --serif:Georgia,'Times New Roman',serif;
     --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
@@ -31,15 +31,15 @@
   html,body{height:100%}
   body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font);display:flex;justify-content:center;padding:40px 20px;-webkit-font-smoothing:antialiased;position:relative}
   body::before{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;background:
-    radial-gradient(58% 44% at 50% -6%, rgba(110,231,183,.13), transparent 62%),
-    radial-gradient(1.5px 1.5px at 14% 16%, rgba(255,255,255,.5), transparent 100%),
-    radial-gradient(1px 1px at 76% 10%, rgba(255,255,255,.4), transparent 100%),
-    radial-gradient(1.5px 1.5px at 52% 6%, rgba(255,255,255,.32), transparent 100%),
-    radial-gradient(1px 1px at 30% 28%, rgba(255,255,255,.28), transparent 100%)}
+    radial-gradient(58% 44% at 50% -6%, color-mix(in srgb, var(--pulse-accent, #6EE7B7) 13%, transparent), transparent 62%),
+    radial-gradient(1.5px 1.5px at 14% 16%, color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent), transparent 100%),
+    radial-gradient(1px 1px at 76% 10%, color-mix(in srgb, var(--pulse-text, #fff) 40%, transparent), transparent 100%),
+    radial-gradient(1.5px 1.5px at 52% 6%, color-mix(in srgb, var(--pulse-text, #fff) 32%, transparent), transparent 100%),
+    radial-gradient(1px 1px at 30% 28%, color-mix(in srgb, var(--pulse-text, #fff) 28%, transparent), transparent 100%)}
   body::after{content:'';position:fixed;left:0;right:0;bottom:0;height:32vh;z-index:-1;pointer-events:none;background:
-    linear-gradient(to top, rgba(8,19,14,.85), transparent 80%),
-    linear-gradient(115deg, transparent 42%, rgba(13,26,23,.75) 43%, rgba(13,26,23,.75) 58%, transparent 59%),
-    linear-gradient(245deg, transparent 38%, rgba(10,18,16,.9) 39%, rgba(10,18,16,.9) 62%, transparent 63%);
+    linear-gradient(to top, color-mix(in srgb, var(--pulse-surface, #08130e) 85%, transparent), transparent 80%),
+    linear-gradient(115deg, transparent 42%, color-mix(in srgb, var(--pulse-surface, #0d1a17) 75%, transparent) 43%, color-mix(in srgb, var(--pulse-surface, #0d1a17) 75%, transparent) 58%, transparent 59%),
+    linear-gradient(245deg, transparent 38%, color-mix(in srgb, var(--pulse-surface, #0a1210) 90%, transparent) 39%, color-mix(in srgb, var(--pulse-surface, #0a1210) 90%, transparent) 62%, transparent 63%);
     -webkit-mask-image:linear-gradient(to top,#000 55%,transparent);mask-image:linear-gradient(to top,#000 55%,transparent)}
   .shell{width:100%;max-width:520px}
   h1{font-size:24px;font-weight:600;letter-spacing:-.01em}
@@ -48,7 +48,7 @@
   /* recovery hero */
   .hero{margin-top:34px;text-align:center}
   .kick{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--brand)}
-  .rec{font-family:var(--serif);font-style:italic;font-size:clamp(66px,16vw,104px);line-height:1;color:#fff;margin-top:8px;text-shadow:0 0 44px rgba(110,231,183,.22)}
+  .rec{font-family:var(--serif);font-style:italic;font-size:clamp(66px,16vw,104px);line-height:1;color:var(--pulse-text, #fff);margin-top:8px;text-shadow:0 0 44px color-mix(in srgb, var(--pulse-accent, #6EE7B7) 22%, transparent)}
   .rec.good{color:var(--good)} .rec.watch{color:var(--watch)} .rec.low{color:var(--low)}
   .recLab{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:8px}
 
@@ -62,18 +62,18 @@
   .whoopNote b{color:var(--whoop)}
 
   /* manual check-in */
-  .card{margin-top:26px;border:1px solid var(--border);border-radius:16px;background:rgba(14,14,17,.5);padding:20px 18px}
+  .card{margin-top:26px;border:1px solid var(--border);border-radius:16px;background:color-mix(in srgb, var(--pulse-surface, #0e0e11) 50%, transparent);padding:20px 18px}
   .q{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-strong);margin-bottom:12px}
   .q2{margin-top:22px}
   .sleepRow{display:flex;align-items:center;justify-content:center;gap:18px}
   .step{width:44px;height:44px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);font-size:22px;cursor:pointer;transition:all .15s;font-family:inherit}
-  .step:hover{color:#fff;border-color:var(--muted)}
-  .sleepVal{font-family:var(--serif);font-style:italic;font-size:34px;color:#fff;min-width:120px;text-align:center}
+  .step:hover{color:var(--pulse-text, #fff);border-color:var(--muted)}
+  .sleepVal{font-family:var(--serif);font-style:italic;font-size:34px;color:var(--pulse-text, #fff);min-width:120px;text-align:center}
   .feelRow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
   .feel{padding:12px 4px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-  .feel:hover{color:#fff;border-color:var(--muted)}
-  .feel.on{color:#04140d;background:var(--brand);border-color:var(--brand)}
-  .saveBtn{margin-top:20px;width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(180deg,#8df0c9,var(--brand));color:#04140d;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 28px -10px var(--brand);transition:transform .15s}
+  .feel:hover{color:var(--pulse-text, #fff);border-color:var(--muted)}
+  .feel.on{color:var(--pulse-accent-ink, #04140d);background:var(--brand);border-color:var(--brand)}
+  .saveBtn{margin-top:20px;width:100%;padding:14px;border-radius:12px;border:none;background:var(--brand);color:var(--pulse-accent-ink, #04140d);font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 28px -10px var(--brand);transition:transform .15s}
   .saveBtn:hover{transform:translateY(-1px)}
   .saveBtn:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
 
@@ -82,7 +82,7 @@
   .trendHd{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
   .tEmpty{padding:20px 0;text-align:center;color:var(--muted);font-size:12px}
   .foot{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:24px;text-align:center}
-  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid rgba(110,231,183,.25);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#84848c;text-align:center}
+  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--pulse-muted, #84848c);text-align:center}
   .starterTag,.starterTag *{line-height:1.6}
 </style>
 </head>
@@ -136,7 +136,7 @@ function trend(){
   for(let i=0;i<pts.length-1;i++){const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
     path+=' C '+(p1[0]+(p2[0]-p0[0])/6)+' '+(p1[1]+(p2[1]-p0[1])/6)+', '+(p2[0]-(p3[0]-p1[0])/6)+' '+(p2[1]-(p3[1]-p1[1])/6)+', '+p2[0]+' '+p2[1];}
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block;opacity:.6" preserveAspectRatio="none">'
-    +'<path d="'+path+'" fill="none" stroke="#6EE7B7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    +'<path d="'+path+'" fill="none" style="stroke:var(--pulse-accent, #6EE7B7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
 
 function render(){

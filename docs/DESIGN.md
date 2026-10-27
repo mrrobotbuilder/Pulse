@@ -188,3 +188,39 @@ sees the math and the board, cleanly and simply explained.
   number, the weight strip and a few tiles, as in the mockup's board section)
   so a visitor sees what they get before opening it.
 - Copy stays plain and short. The current wording is the starting point.
+
+## Stage 3: applied (2026-10-27)
+
+Direction A is live in the app, not only in the mockup.
+
+- **Tokens and presets:** `app/globals.css`. One `[data-theme]` block per preset
+  (`vellum` default, `blueprint`, `pencil`, `sage`, `night`), plus `--signal`
+  (the gem's green: mint on dark papers, a darker green on light ones) and
+  `--gem-edge` (the gem's wireframe: ink on paper, pale mint on dark).
+- **The choice:** `lib/theme.ts`. Saved per user (scoped key `theme`), with a
+  browser-wide copy (`pulse:theme`) that an inline script in `app/layout.tsx`
+  reads before first paint. The gear has a **Theme** room; the intro's "look"
+  step picks a preset too (it rides along in the personalization result, so it
+  follows the account through the `_config` mirror).
+- **Tiles:** `withBridge` (`lib/tiles/tileBridge.ts`) writes the active tokens
+  into every tile as `--pulse-*` variables. All 15 tile files read them with
+  their old colour as the fallback, so a tile opened on its own looks as before.
+- **The gem:** kept, with a visible pause button (WCAG 2.2.2); the halo glows in
+  once instead of looping. It draws its edges in ink on light papers.
+- **Checks:** `node scripts/check-contrast.mjs` (every preset, 13 pairs, including
+  `--signal`), `node scripts/shoot-app.mjs [url]` (every route x 375/1440 x every
+  preset, plus every tile on vellum and night: overflow, fonts, console errors, and
+  that each tile received that preset's accent), `node scripts/check-flows.mjs [url]`
+  (first-visit intro builds a board, every preset paints and survives a reload,
+  gem pause, focus ring).
+
+Two departures from the notes above, on purpose:
+
+- **The landing page has no 3D gem.** Add-on 1 says "keep the gem in the hero on
+  the landing page", but the landing page never had one (the gem lived on the
+  board and the Mentor page only). Adding it would put Three.js on the front door.
+  Say the word and it goes in.
+- **The board tiles show each tile's weight, not a live stat.** The mockup's
+  "12.4k subs" numbers were made up; the board has no per-tile summary data yet.
+  Each tile shows its share of y and what it measures. Real stats need each tile
+  to publish a one-line summary, which is its own piece of work.

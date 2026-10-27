@@ -64,9 +64,23 @@ const SHIM = `<script>
 })();
 </script>`
 
-/** Prepend the bridge shim so window.Vitality exists inside the sealed tile. */
-export function withBridge(html: string): string {
-  if (html.includes('<head>')) return html.replace('<head>', '<head>' + SHIM)
-  if (html.includes('<body>')) return html.replace('<body>', '<body>' + SHIM)
-  return SHIM + html
+/**
+ * The board's theme as CSS variables (--pulse-bg, --pulse-text, --pulse-accent,
+ * …), so a tile written as `var(--pulse-accent, #6EE7B7)` recolours with the
+ * board and still looks right on its own. Only #hex / rgb() values pass:
+ * anything else is dropped rather than written into the tile's stylesheet.
+ */
+function themeStyle(tokens: Record<string, string>): string {
+  const decls = Object.entries(tokens)
+    .filter(([k, v]) => /^[a-z-]+$/.test(k) && /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(v))
+    .map(([k, v]) => `--pulse-${k}:${v}`)
+  return decls.length ? `<style>:root{${decls.join(';')}}</style>` : ''
+}
+
+/** Prepend the bridge shim (and the theme) so window.Vitality exists inside the sealed tile. */
+export function withBridge(html: string, tokens: Record<string, string> = {}): string {
+  const head = themeStyle(tokens) + SHIM
+  if (html.includes('<head>')) return html.replace('<head>', '<head>' + head)
+  if (html.includes('<body>')) return html.replace('<body>', '<body>' + head)
+  return head + html
 }

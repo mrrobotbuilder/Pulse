@@ -172,3 +172,5 @@ the living road checklist, and carries the staged plan to a paid service.
 **Known scope not yet touched:** the peak and fuel tiles still render their
 template demo contents. The interview personalizes the board *around* them;
 rebuilding each tile's interior per user is separate per-tile work.
+
+**2026-10-27 — Stage 3 (redesign) applied.** Direction A "Drafting Table" on the board, intro, mentor and landing page; five theme presets with a picker in the gear; every tile follows the theme through `withBridge`. Details in `docs/DESIGN.md`, "Stage 3: applied".

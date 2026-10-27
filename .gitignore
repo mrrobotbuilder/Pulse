@@ -94,3 +94,6 @@ public/*-preview.html
 /explain-*.png
 /pol-*.png
 .env*
+
+# screenshots from scripts/shoot-app.mjs
+shots-app/

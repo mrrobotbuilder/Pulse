@@ -142,6 +142,9 @@ interface HeroCrystalProps {
    *  it instantly. Pass a custom list to flavor a gem (e.g. a coach), or `null`
    *  to disable autonomous moves (host drives everything). Character mode only. */
   ambient?: string[] | null
+  /** Freeze the gem on its current frame (the visible pause control, WCAG
+   *  2.2.2). Read live in the loop, so toggling it never remounts the gem. */
+  paused?: boolean
 }
 
 /**
@@ -168,6 +171,7 @@ export default function HeroCrystal({
   loading = false,
   onLoadingBeat,
   ambient,
+  paused = false,
 }: HeroCrystalProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   // Bridge the latest onHappyStart into the Three.js loop without
@@ -186,6 +190,8 @@ export default function HeroCrystal({
   // undefined → default pool; null → autonomous moves off.
   const ambientRef = useRef<string[] | null>(ambient === undefined ? AMBIENT_DEFAULT : ambient)
   useEffect(() => { ambientRef.current = ambient === undefined ? AMBIENT_DEFAULT : ambient }, [ambient])
+  const pausedRef = useRef(paused)
+  useEffect(() => { pausedRef.current = paused }, [paused])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -294,6 +300,17 @@ export default function HeroCrystal({
     wire.renderOrder = 2
     wire.scale.setScalar(1.001)
     mesh.add(wire)
+
+    // The mint gem's edges follow the page theme (--gem-edge in globals.css):
+    // ink on light paper so the gem reads as part of the drawing, pale mint on
+    // the dark presets. Re-read whenever the theme changes.
+    const syncEdge = () => {
+      const v = getComputedStyle(canvas).getPropertyValue('--gem-edge').trim()
+      if (tint === 'mint' && v) wireMat.color.set(v)
+    }
+    syncEdge()
+    const themeObserver = new MutationObserver(syncEdge)
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 
     /* ── Per-face flickering V engraving ─────────────────────────
        The Vitality V appears on whichever face is currently dead-on
@@ -1198,6 +1215,11 @@ export default function HeroCrystal({
     if (controlRef) controlRef.current = triggerMove
 
     function tick() {
+      if (pausedRef.current) {
+        clock.getDelta()
+        rafId = requestAnimationFrame(tick)
+        return
+      }
       const dt = Math.min(clock.getDelta(), 0.05)
       const t = clock.getElapsedTime()
 
@@ -1875,6 +1897,7 @@ export default function HeroCrystal({
       window.removeEventListener('mousemove', handleMouse)
       window.removeEventListener('touchmove', handleTouch)
       mesh.removeFromParent()
+      themeObserver.disconnect()
       edgesGeo.dispose()
       wireMat.dispose()
       vGeo.dispose()

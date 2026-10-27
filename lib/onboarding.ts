@@ -23,6 +23,7 @@ import { saveProfile, type Profile } from '@/lib/tiles/profile'
 import { dashboardChrome, WALLPAPER_ACCENTS } from '@/lib/tiles/dashboardChrome'
 import { syncEnabled, syncSave, syncLoad } from '@/lib/sync'
 import { writeScoped, readScoped, removeScoped } from '@/lib/localScope'
+import { isThemeId, saveTheme, type ThemeId } from '@/lib/theme'
 
 /** Scoped-key name, not a full key: reads/writes go through lib/localScope. */
 export const ONBOARDED_NAME = 'onboarded'
@@ -49,6 +50,7 @@ export interface InterviewAnswers {
   priorityDomain: string // which area matters most right now
   accent: string // hex from WALLPAPER_ACCENTS
   greeting?: string // optional custom greeting line
+  theme?: ThemeId // a preset from lib/theme.ts
 }
 
 export interface PersonalizationResult {
@@ -58,6 +60,7 @@ export interface PersonalizationResult {
   profile: Profile
   chromeAccent: string
   greeting?: string
+  theme?: ThemeId
   notices: Notice[]
   ideas: Record<string, TileIdea[]>
 }
@@ -209,7 +212,7 @@ export function mapAnswersDeterministic(a: InterviewAnswers): PersonalizationRes
   })
   ideas.overall = DOMAIN_IDEAS[a.priorityDomain] ?? []
 
-  return { goals, overall, activeId: 'overall', profile, chromeAccent: a.accent, greeting: a.greeting, notices, ideas }
+  return { goals, overall, activeId: 'overall', profile, chromeAccent: a.accent, greeting: a.greeting, theme: a.theme, notices, ideas }
 }
 
 /**
@@ -236,6 +239,8 @@ export function applyPersonalization(userId: string, result: PersonalizationResu
         scale: 1,
       },
     })
+
+    if (isThemeId(result.theme)) saveTheme(userId, result.theme)
 
     writeScoped(userId, ONBOARDED_NAME, '1')
     // re-tint the room live (Dashboard listens for this)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#050506" />
+<meta name="theme-color" content="var(--pulse-bg, #050506)" />
 <title>Brand</title>
 <!--
   BRAND — bare minimum, built to be built on.
@@ -21,10 +21,10 @@
 -->
 <style>
   :root{
-    --bg:#050506;--surface:#0e0e11;--fg:#ededf0;
-    --brand:#6EE7B7;--brand-soft:rgba(110,231,183,.08);
-    --muted:#84848c;--muted-strong:#a8a8b0;
-    --border:#1d1d22;--border-strong:#2a2a33;
+    --bg:var(--pulse-bg, #050506);--surface:var(--pulse-surface, #0e0e11);--fg:var(--pulse-text, #ededf0);
+    --brand:var(--pulse-accent, #6EE7B7);--brand-soft:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 8%, transparent);
+    --muted:var(--pulse-muted, #84848c);--muted-strong:var(--pulse-muted, #a8a8b0);
+    --border:var(--pulse-line, #1d1d22);--border-strong:var(--pulse-line, #2a2a33);
     --radius:14px;--pill:999px;
     --ease:cubic-bezier(.16,1,.3,1);
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
@@ -41,7 +41,7 @@
   /* connect row — the whole empty state */
   .connect{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
   .cbtn{display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 12px;border-radius:var(--pill);
-    border:1px solid rgba(255,255,255,.14);font-weight:700;font-size:13.5px;
+    border:1px solid color-mix(in srgb, var(--pulse-text, #fff) 14%, transparent);font-weight:700;font-size:13.5px;
     cursor:pointer;transition:transform .18s var(--ease),box-shadow .18s;font-family:inherit}
   .cbtn:hover{transform:translateY(-1px);box-shadow:0 6px 22px -8px var(--pc,var(--brand))}
   .lg{display:inline-flex;width:17px;height:17px;flex:none}
@@ -53,7 +53,7 @@
   .ask input{flex:1;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--pill);
     padding:11px 16px;color:var(--fg);font:inherit;outline:none}
   .ask input:focus{border-color:var(--brand)}
-  .ask button{padding:11px 20px;border-radius:var(--pill);border:none;background:var(--brand);color:#04140d;font-weight:700;cursor:pointer}
+  .ask button{padding:11px 20px;border-radius:var(--pill);border:none;background:var(--brand);color:var(--pulse-accent-ink, #04140d);font-weight:700;cursor:pointer}
 
   /* connected: account card = header row + THE GRAPH */
   .acct{margin-top:18px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:16px 16px 8px;animation:up .5s var(--ease) both}
@@ -65,11 +65,11 @@
   .aCount:hover{color:var(--brand)}
   .aUnit{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   .aX{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;opacity:.5}
-  .aX:hover{opacity:1;color:#ff6b6b}
+  .aX:hover{opacity:1;color:color-mix(in srgb, #ff6b6b 65%, var(--pulse-text, #ededf0))}
   .gwrap{margin-top:8px}
   .gEmpty{padding:26px 0 30px;text-align:center;color:var(--muted);font-size:12.5px}
   .gEmpty b{color:var(--brand);font-weight:600}
-  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid rgba(110,231,183,.25);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#84848c;text-align:center}
+  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--pulse-muted, #84848c);text-align:center}
   .starterTag,.starterTag *{line-height:1.6}
 </style>
 </head>
@@ -149,7 +149,7 @@ function emptyMsg(a){
 /* smooth area graph from history (same curve style as the Peak page) */
 function graph(a){
   const h=(a.history||[]).filter(s=>typeof s.count==='number');
-  const pc=(PLATFORMS[a.platform]||{}).color||'#6EE7B7';
+  const pc=(PLATFORMS[a.platform]||{}).color||'var(--pulse-accent, #6EE7B7)';
   if(h.length<2)return '<div class="gEmpty">'+emptyMsg(a)+'</div>';
   const W=560,H=120,P=8;
   const t0=h[0].t,t1=h[h.length-1].t||t0+1;
@@ -178,7 +178,7 @@ function render(){
 
   /* the accounts — each one: chip · count · graph */
   for(const a of state.accounts){
-    const P2=PLATFORMS[a.platform]||{label:a.platform,color:'#6EE7B7',unit:'followers'};
+    const P2=PLATFORMS[a.platform]||{label:a.platform,color:'var(--pulse-accent, #6EE7B7)',unit:'followers'};
     html+='<div class="acct" style="--pc:'+P2.color+'">'
       +'<div class="aHead">'
       +'<span class="aChip"><span class="lg" style="color:'+P2.color+'">'+(LOGOS[a.platform]||'')+'</span>'+esc(P2.label)+' · '+esc(a.handle)+'</span>'

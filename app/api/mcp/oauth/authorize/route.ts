@@ -85,25 +85,27 @@ function consentPage(p: Params, opts: { error?: string } = {}): Response {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Connect to Vitality</title>
 <style>
-  :root { --bg:#04060a; --mint:#6ee7b7; --ink:#e9efe9; --dim:rgba(233,239,233,.62);
-    --line:rgba(110,231,183,.25); --err:#ff8a8a; }
+  /* The board's default theme (vellum, app/globals.css); this page is served
+     on its own, so the values are written out. */
+  :root { --bg:#EEF1F4; --surface:#FFFFFF; --accent:#C2271D; --ink:#16233B; --dim:#4F5B6D;
+    --line:#16233B; --err:#C2271D; }
   * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink);
     font-family:Inter,-apple-system,system-ui,sans-serif; display:flex; min-height:100vh;
     align-items:center; justify-content:center; padding:24px; }
-  .card { width:100%; max-width:420px; border:1px solid var(--line); border-radius:16px;
-    padding:32px; background:rgba(110,231,183,.04); }
+  .card { width:100%; max-width:420px; border:1.5px solid var(--line); border-radius:3px;
+    padding:32px; background:var(--surface); }
   h1 { font-size:20px; margin:0 0 8px; }
   p { color:var(--dim); font-size:14px; line-height:1.6; margin:0 0 16px; }
-  .host { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--mint); }
+  .host { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--ink); font-weight:600; }
   label { display:block; font-size:13px; color:var(--dim); margin:0 0 8px; }
   input[type=password] { width:100%; font:inherit; font-size:15px; padding:12px;
-    border-radius:10px; border:1px solid var(--line); background:#0b0f14; color:var(--ink);
+    border-radius:3px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink);
     margin:0 0 20px; }
   .err { color:var(--err); font-size:13px; margin:0 0 16px; }
   .row { display:flex; gap:12px; } button, a.deny { flex:1; font:inherit; font-size:15px;
-    font-weight:600; padding:12px; border-radius:999px; cursor:pointer; text-align:center;
-    text-decoration:none; border:1px solid var(--line); }
-  .allow { background:var(--mint); color:#04060a; border:none; }
+    font-weight:600; padding:12px; border-radius:3px; cursor:pointer; text-align:center;
+    text-decoration:none; border:1.5px solid var(--line); }
+  .allow { background:var(--accent); color:#FFFFFF; border-color:var(--accent); }
   a.deny { background:transparent; color:var(--ink); line-height:1.4; }
 </style></head><body>
 <div class="card">

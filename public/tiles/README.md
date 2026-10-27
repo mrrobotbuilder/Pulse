@@ -26,8 +26,8 @@ shows the "how to build this" panel instead.
 
 Each slot file is **one self-contained HTML file**: all CSS and JS inline, no
 external requests. It runs in a sandboxed frame with `allow-scripts` and no
-same-origin access, so it has no network and cannot use localStorage. Match the
-look: dark background, mint accent `#6EE7B7`.
+same-origin access, so it has no network and cannot use localStorage. To match the
+look, colour it with the board's theme variables, always with a fallback, so the tile follows the board's theme preset: `var(--pulse-bg, #EEF1F4)` page, `var(--pulse-surface, #FFFFFF)` panels, `var(--pulse-text, #16233B)` text, `var(--pulse-muted, #4F5B6D)` secondary text, `var(--pulse-line, #C3CCD8)` lines, `var(--pulse-accent, #C2271D)` accent with `var(--pulse-accent-ink, #FFFFFF)` on it, `var(--pulse-gold, #855600)` for the main goal, `var(--pulse-signal, #08734A)` for live details. Never hardcode a colour (the board injects these at mount; see `lib/tiles/tileBridge.ts`).
 
 ### Saving data
 

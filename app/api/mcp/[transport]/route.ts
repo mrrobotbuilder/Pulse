@@ -194,7 +194,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Create or replace a tile',
         description:
-          'WRITE. Put a sealed, self-contained HTML tile into a dashboard slot, replacing any existing tile there (use this to edit too). The HTML MUST be one complete standalone document — all CSS and JS inline, no external requests, no network calls (it runs sandboxed with allow-scripts only). Match the look: near-black background, mint accent #6EE7B7, clean sans headings. To persist data it may call window.Vitality.save(data) / window.Vitality.load(). The tile appears on the dashboard on next reload.',
+          'WRITE. Put a sealed, self-contained HTML tile into a dashboard slot, replacing any existing tile there (use this to edit too). The HTML MUST be one complete standalone document — all CSS and JS inline, no external requests, no network calls (it runs sandboxed with allow-scripts only). Match the look by colouring it ONLY with the board theme variables, each with a fallback: var(--pulse-bg, #EEF1F4) page, var(--pulse-surface, #FFFFFF) panels, var(--pulse-text, #16233B) text, var(--pulse-muted, #4F5B6D) secondary text, var(--pulse-line, #C3CCD8) lines, var(--pulse-accent, #C2271D) accent with var(--pulse-accent-ink, #FFFFFF) on it. The tile then follows the theme preset of the board. To persist data it may call window.Vitality.save(data) / window.Vitality.load(). The tile appears on the dashboard on next reload.',
         inputSchema: {
           slot: z.enum(SLOTS),
           html: z.string().min(1).max(MAX_TILE_HTML).describe('The complete sealed tile HTML document'),
