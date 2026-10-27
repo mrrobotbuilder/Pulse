@@ -176,3 +176,5 @@ rebuilding each tile's interior per user is separate per-tile work.
 **2026-10-27 — Stage 3 (redesign) applied.** Direction A "Drafting Table" on the board, intro, mentor and landing page; five theme presets with a picker in the gear; every tile follows the theme through `withBridge`. Details in `docs/DESIGN.md`, "Stage 3: applied".
 
 **2026-10-27 — Stage 3b (live numbers) applied.** Each tile face shows its live number from its own saved data (`lib/tiles/tileStats.ts`, check: `node --test lib/tiles/tileStats.test.mjs`); the weight lives in the corner mark. Peak shows none by choice (no score of its own).
+
+**2026-10-27 — Stage 4 (deep intro) applied.** Nine-step interview with big free-text boxes (2,000 characters each, 8,000 in total), saved as you type. Answers are `InterviewAnswersV2`; the rule-based mapper (`mapAnswersV2` in `lib/onboarding.ts`) picks the areas, the main focus (keyword match on the goal), the tile order and, for "tiny and focused", the hidden tiles. Check: `node scripts/check-flows.mjs` (three personas, reload mid-intro, caps, skip, redo, keyboard only).

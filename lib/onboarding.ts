@@ -53,6 +53,53 @@ export interface InterviewAnswers {
   theme?: ThemeId // a preset from lib/theme.ts
 }
 
+/** The life areas a person switches on in the "rest of life" step. */
+export type LifeArea = 'money' | 'content' | 'learning' | 'mind'
+
+/**
+ * The deep interview (Stage 4). Free text is capped per box and in total
+ * (MAX_FIELD / MAX_TOTAL) so a single answer can never blow an AI budget later.
+ * Unanswered choices are '' (or 0 for the 1–5 scales).
+ */
+export interface InterviewAnswersV2 {
+  version: 2
+  name: string
+  age?: number
+  heightCm?: number
+  weightKg?: number
+  sex?: 'male' | 'female'
+  units?: 'metric' | 'imperial'
+  goal: string // the big "write everything" box
+  otherGoals: string
+  wake: string // 'HH:MM' or ''
+  sleep: string
+  work: '' | 'desk' | 'feet' | 'shifts' | 'student' | 'other'
+  day: string
+  trainFreq: '' | 'never' | '1-2' | '3-4' | '5+'
+  trainKinds: string[]
+  trainNotes: string
+  injuries: string
+  eating: string
+  sleepQuality: number // 0 = not answered, else 1–5
+  energy: number
+  devices: string[]
+  life: Partial<Record<LifeArea, string>> // a key present = that area is switched on
+  logMinutes: 0 | 1 | 5 | 15
+  hateTracking: string
+  boardSize: 'focused' | 'everything'
+  vibes: string[]
+  theme: ThemeId | 'auto'
+  greeting: string
+}
+
+export const MAX_FIELD = 2000
+export const MAX_TOTAL = 8000
+
+/** Every free-text answer, for the total cap. */
+export function answerText(a: Pick<InterviewAnswersV2, 'goal' | 'otherGoals' | 'day' | 'trainNotes' | 'injuries' | 'eating' | 'hateTracking' | 'life'>): string[] {
+  return [a.goal, a.otherGoals, a.day, a.trainNotes, a.injuries, a.eating, a.hateTracking, ...Object.values(a.life)].map((s) => s ?? '')
+}
+
 export interface PersonalizationResult {
   goals: Goal[]
   overall: Goal
@@ -63,6 +110,10 @@ export interface PersonalizationResult {
   theme?: ThemeId
   notices: Notice[]
   ideas: Record<string, TileIdea[]>
+  /** Tile order for `eq:order` (V2 only; V1 results leave the layout alone). */
+  order?: string[]
+  /** Hidden tiles for `eq:removed` (V2 only). */
+  removed?: string[]
 }
 
 /** The pickable focus areas. Each maps to how much the six tiles move it. */
@@ -215,6 +266,91 @@ export function mapAnswersDeterministic(a: InterviewAnswers): PersonalizationRes
   return { goals, overall, activeId: 'overall', profile, chromeAccent: a.accent, greeting: a.greeting, theme: a.theme, notices, ideas }
 }
 
+// ── V2: the deep interview, mapped by rules ──
+
+// Words that point the main goal at an area. Each match scores 1; the area with
+// the most matches wins, ties go to the earlier row.
+// ponytail: keyword scoring, English only; the Stage 5 AI reads the text properly.
+const GOAL_KEYWORDS: [string, RegExp][] = [
+  ['content', /\b(subscri\w*|followers?|audience|youtube|tiktok|instagram|channel|creator|views|content|podcast|newsletter|videos?)\b/gi],
+  ['money', /\b(money|income|salary|sav(e|ing|ings)|debt|invest\w*|business|revenue|earn\w*|financ\w*|career|promotion|rent)\b/gi],
+  ['strength', /\b(lift\w*|strong\w*|strength|muscle\w*|bench|squat|deadlift|gym|lean|bulk|marathon|running|5k|10k|fit|fitness|abs|kg|lbs?)\b/gi],
+  ['health', /\b(sleep\w*|energy|tired|health\w*|diet|nutrition|recover\w*|weight)\b/gi],
+  ['learning', /\b(learn\w*|study\w*|language|guitar|piano|coding|code|exam|degree|skill|practi[cs]e)\b/gi],
+  ['mind', /\b(focus\w*|calm\w*|discipline|meditat\w*|anxi\w*|stress\w*|mind\w*|habits?|procrastinat\w*|doomscroll\w*)\b/gi],
+]
+
+const WEARABLES = ['whoop', 'apple-watch', 'garmin', 'oura']
+const ROW_SLOTS = ['train', 'fuel', 'vitals', 'peak', 'brand', 'finance', 'walks']
+const VIBE_THEME: [string, ThemeId][] = [
+  ['minimal', 'pencil'],
+  ['calm', 'sage'],
+  ['intense', 'blueprint'],
+  ['data-heavy', 'blueprint'],
+  ['playful', 'vellum'],
+]
+
+function firstSentence(s: string): string {
+  return (s.trim().split(/(?<=[.!?])\s|\n/)[0] ?? '').trim()
+}
+
+/** The goal area the text talks about most, or null when nothing matches. */
+export function goalDomain(text: string): string | null {
+  let best: string | null = null
+  let bestScore = 0
+  for (const [domain, re] of GOAL_KEYWORDS) {
+    const score = text.match(re)?.length ?? 0
+    if (score > bestScore) {
+      best = domain
+      bestScore = score
+    }
+  }
+  return best
+}
+
+/** V2 → the V1 shape the mapper (and today's /api/personalize) reads. */
+export function answersV2ToV1(a: InterviewAnswersV2): InterviewAnswers {
+  const on = new Set<string>()
+  if (a.trainFreq && a.trainFreq !== 'never') on.add('strength')
+  const low = (n: number) => n > 0 && n <= 3
+  if (low(a.sleepQuality) || low(a.energy) || a.devices.some((d) => WEARABLES.includes(d))) on.add('health')
+  for (const area of Object.keys(a.life)) on.add(area)
+  const main = goalDomain(a.goal)
+  if (main) on.add(main)
+  if (on.size === 0) on.add('health') // nothing to go on: a health board is the safe default
+
+  const ordered = DOMAINS.map((d) => d.id).filter((id) => on.has(id))
+  const areas: FocusArea[] = ordered.map((domain) => ({
+    domain,
+    target: firstSentence(a.life[domain as LifeArea] ?? ''),
+  }))
+
+  return {
+    name: a.name,
+    age: a.age,
+    heightCm: a.heightCm,
+    weightKg: a.weightKg,
+    sex: a.sex,
+    units: a.units,
+    dream: firstSentence(a.goal),
+    areas,
+    priorityDomain: main ?? ordered[0],
+    accent: WALLPAPER_ACCENTS[0].hex,
+    greeting: a.greeting.trim() || undefined,
+    theme: a.theme === 'auto' ? VIBE_THEME.find(([v]) => a.vibes.includes(v))?.[1] : a.theme,
+  }
+}
+
+/** Rule-based board from the deep interview: V1 mapping plus order and hidden tiles. */
+export function mapAnswersV2(a: InterviewAnswersV2): PersonalizationResult {
+  const result = mapAnswersDeterministic(answersV2ToV1(a))
+  const w = result.overall.weights
+  // Heaviest first; the sort is stable, so ties keep the seeded order.
+  const order = [...ROW_SLOTS].sort((x, y) => (w[y] ?? 0) - (w[x] ?? 0))
+  const removed = a.boardSize === 'focused' ? ROW_SLOTS.filter((id) => !((w[id] ?? 0) > 0)) : []
+  return { ...result, order, removed }
+}
+
 /**
  * Write a personalization result into the localStorage overrides the board
  * reads. Does NOT reload — the caller decides (the interview reloads; the
@@ -241,6 +377,9 @@ export function applyPersonalization(userId: string, result: PersonalizationResu
     })
 
     if (isThemeId(result.theme)) saveTheme(userId, result.theme)
+    // A V2 build lays the row out too; a V1 result (old cloud copy) leaves it alone.
+    if (Array.isArray(result.order)) writeScoped(userId, 'eq:order', JSON.stringify(result.order))
+    if (Array.isArray(result.removed)) writeScoped(userId, 'eq:removed', JSON.stringify(result.removed))
 
     writeScoped(userId, ONBOARDED_NAME, '1')
     // re-tint the room live (Dashboard listens for this)
@@ -251,7 +390,7 @@ export function applyPersonalization(userId: string, result: PersonalizationResu
 }
 
 /** Fire-and-forget cloud mirror of the answers + result, so it follows the account. */
-export function mirrorPersonalization(answers: InterviewAnswers, result: PersonalizationResult): void {
+export function mirrorPersonalization(answers: InterviewAnswers | InterviewAnswersV2, result: PersonalizationResult): void {
   if (!syncEnabled()) return
   void syncSave(CONFIG_TILE_ID, { answers, result }, new Date().toISOString())
 }

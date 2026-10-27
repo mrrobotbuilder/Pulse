@@ -483,7 +483,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
               const info = tileInfo(id)
               const st = stats[id]
               return (
-                <div key={id} className={styles.tile} {...dragProps(id)}>
+                <div key={id} data-slot={id} className={styles.tile} {...dragProps(id)}>
                   <div className={styles.tileTop}>
                     <i className={`sw ${info.hatch}`} />
                     <span className={`ann ${info.live ? styles.live : ''}`}>w {weights[id]}</span>
@@ -544,7 +544,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
             <div className={styles.tray}>
               <p className="ann">Not in this goal · w 0</p>
               {offIds.map((id) => (
-                <div key={id} className={styles.off} {...dragProps(id)}>
+                <div key={id} data-slot={id} className={styles.off} {...dragProps(id)}>
                   <i className={`sw ${tileInfo(id).hatch}`} />
                   <b>{labelFor(id)}</b>
                   <span>{stats[id] ? `${stats[id]!.value} ${stats[id]!.unit}` : tileInfo(id).measures}</span>

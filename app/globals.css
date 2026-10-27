@@ -255,8 +255,8 @@ textarea.input { resize: vertical; }
   text-align: left;
 }
 .chip::before { content: ''; flex: none; width: 12px; height: 12px; border: 1.5px solid var(--text); }
-.chip[aria-pressed='true'] { border-color: var(--text); font-weight: 700; }
-.chip[aria-pressed='true']::before { background: var(--text); }
+.chip[aria-pressed='true'], .chip[aria-checked='true'] { border-color: var(--text); font-weight: 700; }
+.chip[aria-pressed='true']::before, .chip[aria-checked='true']::before { background: var(--text); }
 
 /* A prompt the visitor copies into Claude Code. */
 .prompt-box {
