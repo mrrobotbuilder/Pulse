@@ -77,10 +77,27 @@ function themeStyle(tokens: Record<string, string>): string {
   return decls.length ? `<style>:root{${decls.join(';')}}</style>` : ''
 }
 
-/** Prepend the bridge shim (and the theme) so window.Vitality exists inside the sealed tile. */
+/**
+ * The tile's network lock. The opaque-origin sandbox stops a tile reading the
+ * board's storage or cookies, but it can still SEND requests (fetch, an image,
+ * a font). This policy allows only the tile's own inline code and styles and
+ * data: images, so nothing leaves the frame. Exported for the checks.
+ */
+export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:"
+
+/**
+ * Prepend the network lock, the theme and the bridge shim so window.Vitality
+ * exists inside the sealed tile.
+ *
+ * The CSP meta has to come before ANY of the tile's own markup: a policy only
+ * covers what the parser meets after it, so a tile that put a <script> before
+ * its <head> would otherwise run unlocked. It goes right after the doctype (kept,
+ * so the tile's rendering mode does not change); the parser files everything
+ * here into the head it opens implicitly, and the tile's own <html>/<head> tags
+ * merge into it.
+ */
 export function withBridge(html: string, tokens: Record<string, string> = {}): string {
-  const head = themeStyle(tokens) + SHIM
-  if (html.includes('<head>')) return html.replace('<head>', '<head>' + head)
-  if (html.includes('<body>')) return html.replace('<body>', '<body>' + head)
-  return head + html
+  const doctype = html.match(/^\s*<!doctype[^>]*>/i)?.[0] ?? ''
+  const lock = `<meta http-equiv="Content-Security-Policy" content="${TILE_CSP}">`
+  return doctype + lock + themeStyle(tokens) + SHIM + html.slice(doctype.length)
 }
