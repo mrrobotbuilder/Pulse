@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import DashboardHeaderGem from '@/app/app/DashboardHeaderGem'
 import WeightStrip from '@/app/app/WeightStrip'
+import GoalsEditor from '@/app/app/GoalsEditor'
 import styles from '@/app/app/dashboard.module.css'
 import { CORE_TILES } from '@/lib/tiles/coreTiles'
 import { tileInfo, setCustomTileIds } from '@/lib/tiles/tileInfo'
@@ -12,8 +13,6 @@ import {
   allGoals,
   activeGoalId,
   setActiveGoalId,
-  goals,
-  saveGoals,
   noticedFeed,
   tileIdeas,
   type Goal,
@@ -57,7 +56,7 @@ export default function MentorPage({
   const [mounted, setMounted] = useState(false)
   const [list, setList] = useState<Goal[]>([])
   const [active, setActive] = useState('')
-  const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState(false) // the goals sheet
   const [ideasOpen, setIdeasOpen] = useState(false) // the +: blueprints for tiles you're missing
   const gemRef = useRef<HTMLDivElement | null>(null)
 
@@ -89,6 +88,8 @@ export default function MentorPage({
   const customs = listCustomTiles(userId)
   setCustomTileIds(customs.map((t) => t.id))
   const label = (tile: string) => CORE_TILES[tile as keyof typeof CORE_TILES]?.label ?? customs.find((t) => t.id === tile)?.name ?? tile
+  // The tiles a goal can weigh here: every core tile and every custom tile in this browser.
+  const editorTiles = [...Object.keys(CORE_TILES), ...customs.map((t) => t.id)]
 
   const act = list.find((g) => g.id === active) ?? list[0]
   const entries = Object.entries(act?.weights ?? {}).sort((a, b) => b[1] - a[1])
@@ -101,14 +102,6 @@ export default function MentorPage({
     setActive(id)
   }
 
-  const addGoal = () => {
-    const raw = draft.trim()
-    if (!raw) return
-    const id = 'g-' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)
-    saveGoals(userId, [...goals(userId), { id, title: raw, weights: {}, pending: true } as Goal])
-    setList(allGoals(userId))
-    setDraft('')
-  }
 
   return (
     <main style={{ minHeight: '100vh' }}>
@@ -265,22 +258,28 @@ export default function MentorPage({
           </p>
         </section>
 
-        {/* write a new goal — the mentor shapes it */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            addGoal()
-          }}
-          style={{ display: 'flex', gap: 10, flexWrap: 'wrap', maxWidth: 620, marginTop: 48 }}
-        >
-          <label htmlFor="mentor-goal" className="field-label" style={{ width: '100%', margin: 0 }}>
-            A new goal <small>(write it raw; the mentor shapes and weighs it)</small>
-          </label>
-          <input id="mentor-goal" className="input" style={{ flex: '1 1 260px' }} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="e.g. Run a half marathon in May" />
-          <button type="submit" className="btn">
-            Give it to the mentor
+        {/* edit, add or delete goals: the same sheet as on the board */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 48 }}>
+          <button type="button" className="btn" onClick={() => setEditing(true)}>
+            ✎ Edit, add or delete goals
           </button>
-        </form>
+          <span className="muted" style={{ fontSize: 14 }}>
+            Rename a goal, set how much each tile counts, or start a new one.
+          </span>
+        </div>
+        {editing && (
+          <GoalsEditor
+            userId={userId}
+            tileIds={editorTiles}
+            labelFor={label}
+            onClose={() => setEditing(false)}
+            onSaved={(activeId) => {
+              setEditing(false)
+              setList(allGoals(userId))
+              setActive(activeId)
+            }}
+          />
+        )}
       </div>
     </main>
   )

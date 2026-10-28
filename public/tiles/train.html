@@ -15,13 +15,23 @@
       routines: [{ name, exercises }], unit: 'kg' | 'lb', rest: seconds }
 -->
 <style>
+  /* The exercise pictures: a filled figure (a soft outline under a solid body), its
+     equipment in the tile colour, a floor and a shadow, on a lit backdrop. */
   .fig{display:block;width:100%;height:auto}
-  .fig .p{stroke:var(--k-text);stroke-width:6;stroke-linecap:round;stroke-linejoin:round;fill:none}
+  .fig .p{stroke:var(--k-text);stroke-width:8.5;stroke-linecap:round;stroke-linejoin:round;fill:none}
+  .fig .halo .p{stroke:var(--k-surface);stroke-width:13}
+  .fig .halo .hd{fill:var(--k-surface);r:9.5}
   .fig .hd{fill:var(--k-text)}
-  .fig .eq{fill:var(--k-tint);stroke:none}
+  .fig .eq{fill:var(--k-tint);stroke:color-mix(in srgb,var(--k-tint) 70%,var(--k-text));stroke-width:1}
   .fig .eqs{stroke:var(--k-tint);stroke-linecap:round;fill:none}
-  .fig .gr{stroke:var(--k-hair);stroke-width:1.5}
-  .pic{border-radius:12px;background:color-mix(in srgb,var(--k-tint) 9%,var(--k-surface));display:grid;place-items:center;overflow:hidden}
+  .fig .gr{stroke:color-mix(in srgb,var(--k-text) 22%,transparent);stroke-width:2}
+  .fig .sh{fill:color-mix(in srgb,var(--k-text) 12%,transparent)}
+  .pic{border-radius:12px;background:radial-gradient(120% 90% at 50% 15%,var(--k-surface),color-mix(in srgb,var(--k-tint) 16%,var(--k-surface)));display:grid;place-items:center;overflow:hidden}
+  /* In the how-to sheet the weight moves through three reps, then rests (no endless motion). */
+  .demo .fig{width:auto;height:100%;max-width:100%}
+  .demo .lift{animation:rep 1.6s ease-in-out 3}
+  @keyframes rep{50%{transform:translateY(-4px)}}
+  @media (prefers-reduced-motion:reduce){.demo .lift{animation:none}}
   .lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   .ex{display:grid;gap:8px;padding:10px;border-radius:16px;border:1px solid var(--k-hair);background:var(--k-card);text-align:left;color:inherit;transition:transform .12s}
   .ex:active{transform:scale(.98)}
@@ -125,7 +135,13 @@ var FIG={
   rower:function(){return Ln(8,80,112,80,4)+'<circle class="eqs" cx="100" cy="62" r="12" stroke-width="4"/>'+Ln(88,62,72,56,2)+Hd(38,38)+F([40,45,44,72])+F([44,72,64,56,80,74])+F([42,50,60,56,72,56])},
   rope:function(){return '<ellipse class="eqs" cx="60" cy="46" rx="34" ry="40" stroke-width="3"/>'+Hd(60,16)+F([60,23,60,50])+F([60,50,54,74,58,80])+F([60,50,66,74,62,80])+F([60,28,48,44])+F([60,28,72,44])}
 };
-function fig(ex,cls){var f=FIG[ex.pat]||FIG.curl;return '<svg class="fig '+(cls||'')+'" viewBox="0 0 120 90" role="img" aria-label="'+K.esc(ex.name)+'"><line class="gr" x1="6" y1="86" x2="114" y2="86"/>'+f(ex.eq)+'</svg>'}
+function fig(ex,cls){
+  var f=FIG[ex.pat]||FIG.curl,body=f(ex.eq);
+  // the figure's own strokes again, wider and in the backdrop colour, so limbs that cross read as separate shapes
+  var people=(body.match(/<path class="p"[^>]*\/>|<circle class="hd"[^>]*\/>/g)||[]).join('');
+  var gear=body.replace(/<path class="p"[^>]*\/>|<circle class="hd"[^>]*\/>/g,'');
+  return '<svg class="fig '+(cls||'')+'" viewBox="0 0 120 90" role="img" aria-label="'+K.esc(ex.name)+'"><ellipse class="sh" cx="60" cy="86" rx="40" ry="3.5"/><line class="gr" x1="8" y1="86" x2="112" y2="86"/><g class="halo">'+people+'</g><g class="lift">'+gear+'</g>'+people+'</svg>';
+}
 
 /* ── the body map: front and back, primary muscles solid, helpers lighter ── */
 function bodymap(pri,sec){
@@ -367,7 +383,7 @@ function info(name){
   var e=find(name),b=best(name),list=sets(name),c=isCardio(name),inS=state.session&&state.session.exercises.indexOf(name)>-1;
   var byDay={};list.forEach(function(x){var d=dayOf(x.at);byDay[d]=Math.max(byDay[d]||0,c?x.w:e1rm(x.w,x.r))});var ks=Object.keys(byDay).sort().slice(-20);
   K.sheet(name,
-    '<div class="pic" style="aspect-ratio:16/9">'+fig(e)+'</div>'
+    '<div class="pic demo" style="aspect-ratio:16/9">'+fig(e)+'</div>'
     +'<div class="k-chips"><span class="k-tag">'+K.esc(e.group)+'</span><span class="k-tag k-neutral">'+K.esc(e.eq)+'</span>'+e.pri.map(function(m){return '<span class="k-tag">'+K.esc(m.replace('-',' '))+'</span>'}).join('')+'</div>'
     +(e.pri.length?'<section class="k-card"><div class="k-label" style="margin-bottom:6px">Muscles worked · solid = main, light = helpers</div>'+bodymap(e.pri,e.sec)+'</section>':'')
     +(e.steps.length?'<section><div class="k-label" style="margin-bottom:10px">How to do it</div><ol class="steps">'+e.steps.map(function(s){return '<li>'+K.esc(s)+'</li>'}).join('')+'</ol>'+(e.tip?'<p class="k-sub" style="margin-top:12px">'+K.icon('star')+' '+K.esc(e.tip)+'</p>':'')+'</section>':'')
@@ -408,9 +424,14 @@ function viewProgress(){
   var month=new Date();month.setDate(month.getDate()-30);var mk=K.dayKey(month),split={};
   Object.keys(state.log).forEach(function(n){var g=find(n).group;sets(n).forEach(function(x){if(dayOf(x.at)>=mk)split[g]=(split[g]||0)+1})});
   var gs=Object.keys(split).sort(function(a,b){return split[b]-split[a]}),mx=gs.length?split[gs[0]]:1;
+  // muscles trained in the last 7 days: main movers solid, helpers light (like Hevy's body graph)
+  var w7=new Date();w7.setDate(w7.getDate()-6);var w7k=K.dayKey(w7),wk={pri:[],sec:[]};
+  Object.keys(state.log).forEach(function(n){if(!sets(n).some(function(x){return dayOf(x.at)>=w7k}))return;var e=find(n);e.pri.forEach(function(m){if(wk.pri.indexOf(m)<0)wk.pri.push(m)});e.sec.forEach(function(m){if(wk.sec.indexOf(m)<0)wk.sec.push(m)})});
+  wk.sec=wk.sec.filter(function(m){return wk.pri.indexOf(m)<0});
   var lifts=Object.keys(state.log).filter(function(n){return !isCardio(n)&&sets(n).length}).map(function(n){return {n:n,b:best(n),c:sets(n).length}}).sort(function(a,b){return b.c-a.c}).slice(0,8);
   return '<div class="k-grid k-3"><div class="k-stat"><div class="k-label">This week</div><div class="k-mid">'+counts[7]+'</div><div class="k-sub">training days</div></div><div class="k-stat"><div class="k-label">Volume</div><div class="k-mid">'+K.fmt(weeks[7]/1000,1)+'<small>t</small></div><div class="k-sub">'+(weeks[6]?(weeks[7]>=weeks[6]?'<span class="k-up">▲ ':'<span class="k-down">▼ ')+K.fmt(Math.abs(weeks[7]-weeks[6])/Math.max(1,weeks[6])*100,0)+'%</span> vs last week':'this week')+'</div></div><div class="k-stat"><div class="k-label">All time</div><div class="k-mid">'+state.sessions.length+'</div><div class="k-sub">workouts finished</div></div></div>'
     +'<h2 class="k-title">Weekly volume<span class="k-label">'+state.unit+' × reps</span></h2><section class="k-card">'+K.bars(weeks,{labels:labels,now:7,height:150,fmt:function(v){return K.fmt(v,0)+' '+state.unit},label:'Volume per week'})+'</section>'
+    +'<h2 class="k-title">Muscles this week<span class="k-label">last 7 days</span></h2><section class="k-card">'+(wk.pri.length?bodymap(wk.pri,wk.sec):'<p class="k-sub" style="margin:0">Log a workout and the muscles you trained light up here.</p>')+'</section>'
     +'<h2 class="k-title">Muscle balance<span class="k-label">sets, last 30 days</span></h2><section class="k-card">'+(gs.length?'<div class="split">'+gs.map(function(g){return '<div><span>'+g+'</span><i style="width:'+(split[g]/mx*100).toFixed(0)+'%"></i><em>'+split[g]+'</em></div>'}).join('')+'</div>':'<p class="k-sub" style="margin:0">Log a few workouts to see which muscles get the most work.</p>')+'</section>'
     +'<h2 class="k-title">Your lifts<span class="k-label">best set · est. 1RM</span></h2>'
     +(lifts.length?'<div class="k-list">'+lifts.map(function(l){return '<button class="k-row" data-info="'+K.esc(l.n)+'"><span class="pic" style="width:52px;height:40px;flex:none">'+fig(find(l.n))+'</span><span class="k-main"><b>'+K.esc(l.n)+'</b><span>'+fmtW(l.b.w)+' × '+l.b.r+' · '+l.c+' sets logged</span></span><span class="k-end pr">'+K.fmt(l.b.v,1)+'<small>'+state.unit+' 1RM</small></span>'+K.icon('chev','k-chev')+'</button>'}).join('')+'</div>'
