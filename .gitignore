@@ -97,3 +97,6 @@ public/*-preview.html
 
 # screenshots from scripts/shoot-app.mjs
 shots-app/
+
+# Old copies of the owner's own tiles (personal text), kept locally only
+docs/tile-backups/

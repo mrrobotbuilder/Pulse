@@ -58,6 +58,24 @@ Fallback without the connector: the board shows **✦ Redesign** on every
 AI-written tile. One tap rebuilds it with the AI (about 7 cents each), keeps the
 data, and **Undo redesign** restores the old one.
 
+## Status (2026-10-28, later the same day)
+
+- Caffeine: no remake needed (the owner confirmed it was listed by mistake; the
+  stored copy already runs the ready-made kit template).
+- Sugar-free streak, Deep work, Morning routine, X followers: rebuilt by hand on
+  the kit and saved through the connector. Old HTML is in `docs/tile-backups/`
+  (gitignored: it holds personal text and the repo is public).
+- Deep work became a daily yes/no streak (the `check` shape), not the `count`
+  kind suggested above: the owner's tile asks one yes/no question and saved
+  `value` 1/0, which a count tile would misread as hours.
+- None of the four carries the ready-made template signature, so
+  `upgradeReadyTiles` cannot replace `custom-deep-work` with the stock hours tile.
+- Verified: all four pass `checkTileHtml`; in headless Chromium with the real kit
+  and old-shape data (plus an unknown key) the old entries show, one action
+  saves, every old key and entry is kept, and a reload from the saved data shows
+  the new entry; the stored HTML read back through the connector is
+  byte-identical to the tested files. Not yet seen on the owner's real board.
+
 ## Done when
 
 All five open on the board in the kit look (same family as Fuel, Protein, No
