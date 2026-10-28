@@ -411,6 +411,12 @@ const readJson = (userId: string, name: string): unknown => {
   }
 }
 
+/** The greeting as the board stores it in the cloud copy: the custom line, or undefined for the automatic one. */
+const greetingLine = (userId: string): string | undefined => {
+  const g = dashboardChrome.get(userId).greeting
+  return g.mode === 'custom' && g.text.trim() ? g.text.trim() : undefined
+}
+
 /**
  * After a change to a built board on this device (the reasoning room): rewrite
  * the cloud copy's layout, weights, ideas and AI record from local state, so a
@@ -433,6 +439,7 @@ export function mirrorBoardChange(userId: string): Promise<void> {
       order: list('eq:order') ?? blob.result.order,
       removed: list('eq:removed') ?? blob.result.removed,
       ideas: ideas && typeof ideas === 'object' ? ideas : blob.result.ideas,
+      greeting: greetingLine(userId),
     }
     if (!(await syncSave(CONFIG_TILE_ID, { ...blob, result, aiBoard: readJson(userId, 'ai:board') }, new Date().toISOString()))) throw new Error('syncSave failed')
   })

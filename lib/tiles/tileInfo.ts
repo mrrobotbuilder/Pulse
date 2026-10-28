@@ -13,11 +13,11 @@ export interface TileInfo {
 
 export const TILE_INFO: Record<string, TileInfo> = {
   train: { hatch: 'h1', measures: 'Every session, every best, every kilo.', fedBy: 'You, after the set' },
-  fuel: { hatch: 'h2', measures: 'What you ate against what your body needs.', fedBy: 'You' },
+  fuel: { hatch: 'h2', measures: 'Glasses of water a day, against a goal of 8.', fedBy: 'You' },
   walks: { hatch: 'h7', measures: 'Distance, steps and where you went.', fedBy: 'Your phone, on the move', live: true },
   vitals: { hatch: 'h4', measures: 'Sleep and recovery.', fedBy: 'You, by hand' },
   peak: { hatch: 'h6', measures: 'The curve you are on: compounding, or stalled.', fedBy: 'Your Train log' },
-  brand: { hatch: 'h3', measures: 'Views, subscribers, followers.', fedBy: 'TikTok, no key · YouTube, your key', live: true },
+  brand: { hatch: 'h3', measures: 'Your audience: views, subscribers, followers.', fedBy: 'TikTok, no key · YouTube, your key', live: true },
   finance: { hatch: 'h5', measures: 'What comes in, what leaves.', fedBy: 'You · live prices with your key' },
   vee: { hatch: 'h0', measures: 'Reads every tile, notices patterns, retunes the weights.', fedBy: 'Claude, on your computer' },
 }

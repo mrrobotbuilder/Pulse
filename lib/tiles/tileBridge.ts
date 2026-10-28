@@ -99,5 +99,21 @@ export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-s
 export function withBridge(html: string, tokens: Record<string, string> = {}): string {
   const doctype = html.match(/^\s*<!doctype[^>]*>/i)?.[0] ?? ''
   const lock = `<meta http-equiv="Content-Security-Policy" content="${TILE_CSP}">`
-  return doctype + lock + themeStyle(tokens) + SHIM + html.slice(doctype.length)
+  return doctype + lock + themeStyle(tokens) + FRAME + SHIM + html.slice(doctype.length)
 }
+
+/**
+ * The board frames every open tile the same way (its name and what it tracks
+ * sit in the board's own header, the tile in one card), so each tile's own
+ * page chrome is clutter there: the template's "starter" pill, the glow and
+ * star-field layers, the repeated title and tagline, the full-page background
+ * and the per-tile widths. `!important` because these must beat the tile's
+ * own stylesheet whatever order it comes in.
+ */
+const FRAME = `<style>
+.starterTag,.shell>h1,.shell>h1+.sub{display:none!important}
+body::before,body::after{display:none!important}
+html,body{background:transparent!important;height:auto!important;min-height:0!important}
+body{padding:28px 24px 40px!important}
+.shell{max-width:640px!important;margin:0 auto!important}
+</style>`

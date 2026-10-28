@@ -17,7 +17,7 @@ import { THEMES, readTheme, applyTheme, saveTheme, type ThemeId } from '@/lib/th
 import Onboarding from './Onboarding'
 import { BoardReasoning, RevealSheet } from './BoardReasoning'
 import { readAiBoard, undoAiBoard, type AiBoard } from '@/lib/aiBoard'
-import { onboardingState, hydratePersonalizationFromCloud, resetOnboarding } from '@/lib/onboarding'
+import { onboardingState, hydratePersonalizationFromCloud, resetOnboarding, mirrorBoardChange } from '@/lib/onboarding'
 
 interface DashboardProps {
   firstName: string | null
@@ -459,7 +459,19 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
         <header className={styles.bhead}>
           {showGem && <DashboardHeaderGem className={styles.headerGem} />}
           {showGreeting ? (
-            <DashboardHeader firstName={resolvedFirstName} greeting={chrome?.greeting} date={chrome?.date} />
+            <DashboardHeader
+              firstName={resolvedFirstName}
+              greeting={chrome?.greeting}
+              date={chrome?.date}
+              onGreeting={(text) => {
+                const g = (chrome ?? DEFAULT_CHROME).greeting
+                // Empty brings back the automatic line. The name rule stays the
+                // interview's (added only when the line does not hold it), so the
+                // cloud copy renders the same on the owner's other devices.
+                setChrome(dashboardChrome.update(userId, { greeting: { ...g, mode: text ? 'custom' : 'auto', text, showName: true } }))
+                mirrorBoardChange(userId).catch((e) => console.error('[sync] greeting not mirrored', e))
+              }}
+            />
           ) : (
             <div className={styles.header} />
           )}

@@ -13,7 +13,10 @@ import { summarize, type TileStat } from '@/lib/tiles/tileStats'
 import { withBridge } from '@/lib/tiles/tileBridge'
 import { themeTokens } from '@/lib/theme'
 import { syncEnabled, syncLoadTiles } from '@/lib/sync'
-import { foldRemoteCustomTiles, listCustomTiles } from '@/lib/tiles/customTiles'
+import { foldRemoteCustomTiles, listCustomTiles, saveCustomTile } from '@/lib/tiles/customTiles'
+import { READY_TILES, readyTileHtml, type ReadyTile } from '@/lib/tiles/readyTiles'
+import { showOnBoard } from '@/lib/aiBoard'
+import { mirrorBoardChange } from '@/lib/onboarding'
 import type { DashboardChrome } from '@/lib/tiles/dashboardChrome'
 
 // Lazy: the board never pays for the mentor (Three.js gem included) until it
@@ -69,7 +72,7 @@ function OpenTileOverlay({
   unregister,
   onClose,
 }: {
-  slot: { id: string; name: string; html: string }
+  slot: { id: string; name: string; html: string; measures: string }
   register: (w: Window | null, id: string) => void
   unregister: (w: Window | null) => void
   onClose: () => void
@@ -86,12 +89,18 @@ function OpenTileOverlay({
   return (
     <div className={styles.openFull} role="dialog" aria-modal="true" aria-label={slot.name}>
       <div className={styles.openTop}>
-        <button type="button" className="btn ghost" onClick={onClose}>
-          <span aria-hidden="true">←</span> Board
-        </button>
-        <span className="ann">{slot.name}</span>
+        <div className={styles.openHead}>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            <span aria-hidden="true">←</span> Board
+          </button>
+          <div className={styles.openTitle}>
+            <h2>{slot.name}</h2>
+            <p>{slot.measures}</p>
+          </div>
+        </div>
       </div>
       <div className={styles.openStage}>
+        <div className={styles.openCard}>
         <iframe
           ref={(el) => {
             if (el) {
@@ -111,6 +120,7 @@ function OpenTileOverlay({
           sandbox="allow-scripts"
           title={slot.name}
         />
+        </div>
       </div>
     </div>
   )
@@ -168,22 +178,98 @@ function ConnectorOverlay({ id, label, onClose }: { id: string; label: string; o
   )
 }
 
-/* ── the "+ New tile" panel: dead simple — start with /tile ── */
-function NewTileOverlay({ onClose }: { onClose: () => void }) {
+/* ── the "+ New tile" picker: put a hidden tile back, or add a ready-made one ── */
+function NewTileOverlay({
+  userId,
+  hidden,
+  onBoard,
+  labelFor,
+  onClose,
+}: {
+  userId: string
+  /** Tiles that exist but are hidden from the board (the interview or Edit removed them). */
+  hidden: string[]
+  /** Every tile id currently on the board. */
+  onBoard: Set<string>
+  labelFor: (id: string) => string
+  onClose: () => void
+}) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // Show (or create, then show) a tile, keep the weights at 100, redraw, and
+  // mirror the layout so the owner's other devices get it too.
+  const add = async (id: string, ready?: ReadyTile) => {
+    setBusy(id)
+    setError(null)
+    try {
+      let synced = true
+      if (ready && !hidden.includes(id)) synced = await saveCustomTile(userId, { id, name: ready.name, html: readyTileHtml(ready), tracks: ready.tracks })
+      showOnBoard(userId, id, true)
+      window.dispatchEvent(new CustomEvent('pulse:layout'))
+      // The tile is on this board now; a failed mirror only means other devices lag.
+      synced = (await mirrorBoardChange(userId).then(() => true, () => false)) && synced
+      if (!synced) setError(`${ready?.name ?? labelFor(id)} is on this board, but it did not reach your other devices. Try again later.`)
+    } catch (e) {
+      setError(`Could not add ${ready?.name ?? labelFor(id)}: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const groups = [...new Set(READY_TILES.map((t) => t.group))]
   return (
     <div className="veil" role="dialog" aria-modal="true" aria-label="New tile" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet">
+      <div className="sheet" style={{ width: 'min(720px, 100%)' }}>
         <div className="sheet-head">
           <span className="ann">New tile</span>
           <CloseButton onClose={onClose} />
         </div>
         <div className="sheet-body">
-          <h2>
-            Start with <code>/tile</code>
-          </h2>
-          <p className="muted">
-            In Claude Code, run <code>/tile train</code> (or any slot: fuel, vitals, brand, peak, finance). It builds the tile and drops it straight onto your board.
-          </p>
+          {error && (
+            <p className={styles.pickError} role="alert">
+              {error}
+            </p>
+          )}
+          {hidden.length > 0 && (
+            <section className={styles.pickGroup}>
+              <h3>Put back on your board</h3>
+              <ul className={styles.pickList}>
+                {hidden.map((id) => (
+                  <li key={id}>
+                    <div>
+                      <b>{labelFor(id)}</b>
+                      <span>{tileInfo(id).measures}</span>
+                    </div>
+                    <button type="button" className="btn" disabled={busy !== null} onClick={() => add(id)}>
+                      {busy === id ? 'Adding…' : 'Add back'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {groups.map((g) => (
+            <section key={g} className={styles.pickGroup}>
+              <h3>{g}</h3>
+              <ul className={styles.pickList}>
+                {READY_TILES.filter((t) => t.group === g).map((t) => {
+                  const there = onBoard.has(t.id)
+                  return (
+                    <li key={t.id}>
+                      <div>
+                        <b>{t.name}</b>
+                        <span>{t.tracks}</span>
+                      </div>
+                      <button type="button" className="btn ghost" disabled={there || busy !== null} onClick={() => add(t.id, t)}>
+                        {there ? 'On your board' : busy === t.id ? 'Adding…' : 'Add'}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
       </div>
     </div>
@@ -617,7 +703,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
       {openId && filled[openId] && (
         <OpenTileOverlay
           key={openId}
-          slot={{ id: openId, name: labelFor(openId), html: filled[openId] }}
+          slot={{ id: openId, name: labelFor(openId), html: filled[openId], measures: info(openId).measures }}
           register={register}
           unregister={unregister}
           onClose={() => setOpenId(null)}
@@ -626,7 +712,15 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
       {connectId && <ConnectorOverlay id={connectId} label={labelFor(connectId)} onClose={() => setConnectId(null)} />}
 
-      {newOpen && <NewTileOverlay onClose={() => setNewOpen(false)} />}
+      {newOpen && (
+        <NewTileOverlay
+          userId={userId}
+          hidden={removed.filter((id) => id !== 'vee' && filled[id])}
+          onBoard={new Set(rowIds)}
+          labelFor={labelFor}
+          onClose={() => setNewOpen(false)}
+        />
+      )}
 
       {showWelcome && <EmptyCanvas onBack={() => setShowWelcome(false)} />}
 

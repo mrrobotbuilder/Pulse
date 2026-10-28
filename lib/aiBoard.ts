@@ -101,7 +101,7 @@ export function chooseTile(userId: string, rec: AiBoard, id: PlanTile, show: boo
 }
 
 /** Show or hide tile `id` (a fixed one or custom-*) with the weights kept at 100. */
-function showOnBoard(userId: string, id: string, show: boolean, share?: number): void {
+export function showOnBoard(userId: string, id: string, show: boolean, share?: number): void {
   const ov = overallGoal(userId)
   const gs = goals(userId)
   const next = setTileShown({ removed: hiddenTiles(userId), overall: ov.weights, goals: gs.map((g) => g.weights) }, id, show, share)
