@@ -82,6 +82,12 @@ body::before,body::after{display:none!important}
 .k-stat .k-mid{margin-top:4px;font-size:26px}
 .k-stat .k-sub{margin-top:2px;font-size:13px}
 .k-up{color:var(--k-signal)}.k-down{color:var(--k-accent)}
+/* Apple Fitness touches (checked against the Fitness app's Summary, 2026-10-28):
+   stat values in the metric's colour, and one bold sentence under the hero ring. */
+.k-stat .k-mid{color:var(--k-tint)}
+.k-stat .k-mid small{color:var(--k-muted)}
+.k-hero>.k-sub,.k-hero>p.k-sub{font:700 18px/1.3 var(--k-display);letter-spacing:-.01em;color:var(--k-text);max-width:34ch;text-wrap:balance}
+.k-hero>.k-sub svg{width:18px;height:18px}
 .k-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 22px;border:0;border-radius:14px;background:var(--k-tint);color:var(--k-ink);font:700 16px var(--k-body);text-decoration:none;transition:transform .12s,opacity .12s;-webkit-user-select:none;user-select:none}
 .k-btn:active{transform:scale(.97)}
 .k-btn:disabled{opacity:.42;cursor:not-allowed;transform:none}
@@ -228,7 +234,7 @@ const JS = `
     return '<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+w+'" stroke-linecap="round" stroke-dasharray="'+(C*f).toFixed(2)+' '+C.toFixed(2)+'" transform="rotate(-90 '+cx+' '+cx+')"'+(op?' opacity="'+op+'"':'')+(f<=0?' stroke-opacity="0"':'')+'/>';
   }
   function rings(list,o){
-    o=o||{};var S=o.size||220,w=o.stroke||Math.max(10,Math.round(S/11)),gap=o.gap==null?3:o.gap,cx=S/2,out='';
+    o=o||{};var S=o.size||220,w=o.stroke||Math.max(12,Math.round(S/7.5)),gap=o.gap==null?3:o.gap,cx=S/2,out='';
     for(var i=0;i<list.length;i++){
       var it=list[i],r=cx-w/2-i*(w+gap),col=it.color||'var(--k-tint)',v=it.value||0;
       out+='<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-opacity=".16" stroke-width="'+w+'"/>';

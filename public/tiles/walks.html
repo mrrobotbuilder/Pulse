@@ -41,7 +41,8 @@ function render(walks,syncedAt){
   document.getElementById('app').innerHTML=
     '<section class="k-card k-hero"><div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('walk')+'This week</span><span class="k-time">'+(syncedAt?'synced '+new Date(syncedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'from STEGA')+'</span></div>'
       +'<div class="k-ringbox">'+K.rings([{value:wk.steps/goal},{value:today/DAY_GOAL,color:'var(--k-gold)'}],{size:210,label:steps(wk.steps)+' steps this week'})+'<div class="k-in"><div class="k-big" style="font-size:44px">'+steps(wk.steps)+'</div><div class="k-sub">of '+steps(goal)+' steps</div></div></div>'
-      +'<p class="k-sub" style="margin:0">Outer ring: the week against 10,000 a day. Inner ring: today, '+steps(today)+' steps.</p></section>'
+      +'<p class="k-sub" style="margin:0">'+K.esc(today>=DAY_GOAL?'10,000 steps today. Goal done.':today?steps(DAY_GOAL-today)+' steps to go today. A 20-minute walk is about 2,000.':'No steps logged today yet. A 20-minute walk is about 2,000.')+'</p>'
+      +'<p class="k-note" style="margin:0">Outer ring: this week against 10,000 a day. Inner ring: today.</p></section>'
     +'<div class="k-grid">'
       +'<div class="k-stat"><div class="k-label">Walks</div><div class="k-mid">'+wk.walks+'</div><div class="k-sub">this week</div></div>'
       +'<div class="k-stat"><div class="k-label">Distance</div><div class="k-mid">'+K.fmt(wk.dist/1000,1)+'<small>km</small></div><div class="k-sub">this week</div></div>'

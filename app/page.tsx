@@ -105,8 +105,10 @@ export default function Page() {
           <p className="ann">Parts list</p>
         </div>
         <p className={styles.body}>
-          The board ships whole: you do not assemble it. Then you reshape it: rebuild a tile, wipe one, reorder them,
-          or add an input nobody else would think to track.
+          The board ships whole: you do not assemble it. Open a tile and it is a full app: Train has 60 exercises with
+          photos and muscle maps, routines, a rest timer and your records; Vitals scores your recovery; Finance follows
+          every account. Then reshape it: write and re-weigh your own goals, add any of 16 ready-made tiles in one tap
+          (protein, mood, reading, a no-sugar streak…), reorder, wipe, or add an input nobody else would think to track.
         </p>
         <table className={styles.parts}>
           <thead>
