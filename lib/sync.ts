@@ -2,6 +2,7 @@
 
 import { supabase } from './supabaseClient'
 import { isSignedIn, supabaseConfigured } from './auth'
+import { tileStore } from './tiles/tileStore'
 
 /**
  * Optional cross-device cloud backup for tile data.
@@ -34,6 +35,43 @@ export async function syncSave(tileId: string, data: unknown, isoNow: string): P
   } catch {
     return false
   }
+}
+
+/**
+ * Upload this device's tile data for every tile the cloud has no row for yet.
+ *
+ * Why: a tile only mirrors on its next save, so data logged before signing in
+ * (or before sync existed) never reached the cloud, and the connector and any
+ * coach reading it saw an empty board. Insert-only (`ignoreDuplicates` is ON
+ * CONFLICT DO NOTHING), so an existing cloud row, written by another device,
+ * always wins and is never overwritten. Empty stores are skipped: an empty
+ * cloud row would hide another device's real local data.
+ *
+ * Waits for the session itself instead of the isSignedIn() cache, which is
+ * still empty during the board's first effects. Returns the ids it uploaded.
+ */
+export async function syncBackfill(userId: string): Promise<string[]> {
+  const c = supabase()
+  if (!c) return []
+  const { data: s } = await c.auth.getSession()
+  if (!s.session || s.session.user.id !== userId) return []
+  const { data: rows, error } = await c.from('tile_data').select('tile_id')
+  if (error) throw new Error(`backfill: could not list cloud rows (${error.message})`)
+  const inCloud = new Set((rows ?? []).map((r: { tile_id: string }) => r.tile_id))
+  const now = new Date().toISOString()
+  const missing: { tile_id: string; data: unknown; updated_at: string }[] = []
+  for (const id of tileStore.listDataIds(userId)) {
+    if (inCloud.has(id)) continue
+    const data = await tileStore.loadData(userId, id)
+    const empty = Array.isArray(data) ? data.length === 0 : !data || (typeof data === 'object' && !Object.keys(data).length)
+    if (!empty) missing.push({ tile_id: id, data, updated_at: now })
+  }
+  if (!missing.length) return []
+  const { error: upErr } = await c
+    .from('tile_data')
+    .upsert(missing, { onConflict: 'user_id,tile_id', ignoreDuplicates: true })
+  if (upErr) throw new Error(`backfill: upload failed (${upErr.message})`)
+  return missing.map((m) => m.tile_id)
 }
 
 /** Read a tile's data from Supabase, or null if unconfigured / signed out / missing / offline. */

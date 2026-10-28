@@ -8,10 +8,10 @@ import DashboardGrid from './DashboardGrid'
 import AuthPanel from './AuthPanel'
 import { dashboardChrome, DEFAULT_CHROME, type DashboardChrome } from '@/lib/tiles/dashboardChrome'
 import { profile } from '@/lib/tiles/profile'
-import { readScoped } from '@/lib/localScope'
+import { DEMO_USER_ID, readScoped } from '@/lib/localScope'
 import { prepareLocalNamespace } from '@/lib/migrateLocal'
 import { tileStore } from '@/lib/tiles/tileStore'
-import { syncClearTile, syncWipe } from '@/lib/sync'
+import { syncBackfill, syncClearTile, syncWipe } from '@/lib/sync'
 import { site } from '@/content/site'
 import { THEMES, readTheme, applyTheme, saveTheme, type ThemeId } from '@/lib/theme'
 import Onboarding from './Onboarding'
@@ -357,6 +357,18 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   const [resolvedFirstName, setResolvedFirstName] = useState<string | null>(firstName)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [reveal, setReveal] = useState<AiBoard | null>(null) // the AI build's reveal, once
+
+  useEffect(() => {
+    // Signed in: send this device's earlier logs to the cloud for any tile the
+    // cloud has nothing for yet, so the connector sees the whole board. Retries
+    // on the next load if it fails; the error goes to the console, not a toast.
+    if (userId !== DEMO_USER_ID) {
+      syncBackfill(userId).then(
+        (ids) => ids.length && console.info('[sync] uploaded earlier data for', ids.join(', ')),
+        (e) => console.error('[sync]', e),
+      )
+    }
+  }, [userId])
 
   useEffect(() => {
     // The pre-paint script painted this browser's last theme; correct it to
