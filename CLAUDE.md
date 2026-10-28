@@ -213,7 +213,10 @@ built-in tiles and `lib/tiles/readyTiles.ts` are the examples. Ready-made tiles
 are upgraded to the current template on load (`upgradeReadyTiles`); AI-written
 tiles get a "Redesign" button that rebuilds them and keeps their data. Every
 tile owns a different hatch (`lib/tiles/tileInfo.ts`, `.h1`–`.h43`). Goals are
-edited on the board (`app/app/GoalsEditor.tsx`). After changing a built-in
+edited on the board and the Mentor page (`app/app/GoalsEditor.tsx`). Train's
+exercise photos (free-exercise-db, public domain) live in
+`public/tiles/assets/train-photos.json`; a tile asks the board for an asset with
+`window.Pulse.asset(name)`. After changing a built-in
 tile, copy it to `tiles-library/` too.
 
 Note: `npm run build` reports a pre-existing prerender error on `/icon` and

@@ -137,6 +137,25 @@ export function useTileHost(
 
       // Stock price — routed through /api/finance/quote so the Finnhub key stays
       // server-side. Returns the latest price for one symbol.
+      // A static asset a built-in tile ships with (public/tiles/assets/<name>.json),
+      // e.g. Train's exercise photos. The tile has no network, so the board fetches
+      // it and hands the JSON in. Names are plain slugs, so nothing else is reachable.
+      if (msg.type === 'asset') {
+        const name = String(msg.name || '')
+        if (!/^[a-z0-9-]{1,40}$/.test(name)) {
+          src.postMessage({ source: 'vitality-host', type: 'asset:error', id: msg.id, reason: 'bad_name' }, '*')
+          return
+        }
+        try {
+          const r = await fetch(`/tiles/assets/${name}.json`)
+          if (!r.ok) throw new Error(String(r.status))
+          src.postMessage({ source: 'vitality-host', type: 'asset:result', id: msg.id, data: await r.json() }, '*')
+        } catch (e) {
+          src.postMessage({ source: 'vitality-host', type: 'asset:error', id: msg.id, reason: 'fetch_failed ' + (e instanceof Error ? e.message : '') }, '*')
+        }
+        return
+      }
+
       if (msg.type === 'stock') {
         const symbol = String(msg.symbol || '').toUpperCase().replace(/[^A-Z0-9.:\-]/g, '').trim()
         if (!symbol) {

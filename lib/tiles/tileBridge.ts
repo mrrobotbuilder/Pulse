@@ -27,6 +27,8 @@ const SHIM = `<script>
     else if (m.type === 'youtube:result') p.resolve(m.count);
     else if (m.type === 'youtube:error') p.reject(new Error(m.reason || 'youtube_failed'));
     else if (m.type === 'stock:result') p.resolve(m.price);
+    else if (m.type === 'asset:result') p.resolve(m.data);
+    else if (m.type === 'asset:error') p.reject(new Error(m.reason || 'asset_failed'));
     else if (m.type === 'stock:error') p.reject(new Error(m.reason || 'stock_failed'));
   });
   function call(type, extra) {
@@ -52,6 +54,7 @@ const SHIM = `<script>
     tiktok: function (handle) { return call('tiktok', { handle: handle }); },
     youtube: function (handle) { return call('youtube', { handle: handle }); },
     stock: function (symbol) { return call('stock', { symbol: symbol }); },
+    asset: function (name) { return call('asset', { name: name }); },
     read: function (slot) { return call('read', { slot: slot }); },
     report: function (stream) {
       parent.postMessage({ source: 'vitality-tile', type: 'report', stream: stream }, '*');
@@ -84,9 +87,9 @@ function themeStyle(tokens: Record<string, string>): string {
  * The tile's network lock. The opaque-origin sandbox stops a tile reading the
  * board's storage or cookies, but it can still SEND requests (fetch, an image,
  * a font). This policy allows only the tile's own inline code and styles and
- * data: images, so nothing leaves the frame. Exported for the checks.
+ * data: and blob: images (made inside the frame), so nothing leaves it. Exported for the checks.
  */
-export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:"
+export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:"
 
 /**
  * Prepend the network lock, the theme, `head` (the tile kit and fonts, see

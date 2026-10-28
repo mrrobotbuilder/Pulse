@@ -26,6 +26,10 @@
   .fig .eqs{stroke:var(--k-tint);stroke-linecap:round;fill:none}
   .fig .gr{stroke:color-mix(in srgb,var(--k-text) 22%,transparent);stroke-width:2}
   .fig .sh{fill:color-mix(in srgb,var(--k-text) 12%,transparent)}
+  .pic img.photo{width:100%;height:100%;object-fit:cover;display:block}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pair figure{margin:0;position:relative;aspect-ratio:3/2}
+  .pair figcaption{position:absolute;left:8px;bottom:8px;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--k-text) 70%,transparent);color:var(--k-surface);font:600 12px var(--k-body)}
   .pic{border-radius:12px;background:radial-gradient(120% 90% at 50% 15%,var(--k-surface),color-mix(in srgb,var(--k-tint) 16%,var(--k-surface)));display:grid;place-items:center;overflow:hidden}
   /* In the how-to sheet the weight moves through three reps, then rests (no endless motion). */
   .demo .fig{width:auto;height:100%;max-width:100%}
@@ -135,7 +139,20 @@ var FIG={
   rower:function(){return Ln(8,80,112,80,4)+'<circle class="eqs" cx="100" cy="62" r="12" stroke-width="4"/>'+Ln(88,62,72,56,2)+Hd(38,38)+F([40,45,44,72])+F([44,72,64,56,80,74])+F([42,50,60,56,72,56])},
   rope:function(){return '<ellipse class="eqs" cx="60" cy="46" rx="34" ry="40" stroke-width="3"/>'+Hd(60,16)+F([60,23,60,50])+F([60,50,54,74,58,80])+F([60,50,66,74,62,80])+F([60,28,48,44])+F([60,28,72,44])}
 };
+/* Real photos (free-exercise-db, public domain): two frames per exercise, start and finish.
+   They arrive from the board as data: URLs and become short blob: URLs once, so a
+   re-render never copies the image bytes. The drawings stay as the fallback. */
+var PHOTOS={};
+function loadPhotos(){
+  if(!window.Pulse||typeof window.Pulse.asset!=='function')return;
+  window.Pulse.asset('train-photos').then(function(d){
+    Object.keys(d||{}).forEach(function(n){PHOTOS[n]=(d[n]||[]).map(function(u){var b=atob(u.split(',')[1]),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return URL.createObjectURL(new Blob([a],{type:'image/jpeg'}))})});
+    render();
+  },function(e){console.warn('exercise photos did not load; showing drawings',e)});
+}
+function photo(ex,i){var ph=PHOTOS[ex.name];return ph&&ph[i]?'<img class="photo" src="'+ph[i]+'" alt="'+K.esc(ex.name)+(i?' (finish)':' (start)')+'">':''}
 function fig(ex,cls){
+  if(PHOTOS[ex.name]&&cls!=='draw')return photo(ex,0);
   var f=FIG[ex.pat]||FIG.curl,body=f(ex.eq);
   // the figure's own strokes again, wider and in the backdrop colour, so limbs that cross read as separate shapes
   var people=(body.match(/<path class="p"[^>]*\/>|<circle class="hd"[^>]*\/>/g)||[]).join('');
@@ -376,14 +393,16 @@ function viewLibrary(){
     +'<div class="k-chips k-scroll" role="group" aria-label="Equipment">'+EQUIP.map(function(g){return '<button class="k-chip" data-eqf="'+g+'" aria-pressed="'+(filt.eq===g)+'">'+g+'</button>'}).join('')+'</div>'
     +(list.length?'<div class="lib">'+list.map(function(e){var on=inS.indexOf(e.name)>-1;return '<button class="ex" data-info="'+K.esc(e.name)+'"><div class="pic">'+fig(e)+'</div><b>'+K.esc(e.name)+'</b><span>'+(on?'<span class="in">'+K.icon('check')+'In workout</span>':K.esc((e.pri[0]||e.group).replace('-',' ')+' · '+e.eq))+'</span></button>'}).join('')+'</div>'
       :'<div class="k-card k-empty">'+K.icon('search')+'<b>Nothing matches</b><span>Add it as your own exercise.</span></div>')
-    +'<button class="k-btn k-ghost k-wide" data-own>'+K.icon('plus')+'Create your own exercise</button>';
+    +'<button class="k-btn k-ghost k-wide" data-own>'+K.icon('plus')+'Create your own exercise</button>'
+    +'<p class="k-note">Exercise photos: free-exercise-db, public domain.</p>';
 }
 
 function info(name){
   var e=find(name),b=best(name),list=sets(name),c=isCardio(name),inS=state.session&&state.session.exercises.indexOf(name)>-1;
   var byDay={};list.forEach(function(x){var d=dayOf(x.at);byDay[d]=Math.max(byDay[d]||0,c?x.w:e1rm(x.w,x.r))});var ks=Object.keys(byDay).sort().slice(-20);
   K.sheet(name,
-    '<div class="pic demo" style="aspect-ratio:16/9">'+fig(e)+'</div>'
+    (PHOTOS[e.name]?'<div class="pair"><figure class="pic">'+photo(e,0)+'<figcaption>Start</figcaption></figure><figure class="pic">'+photo(e,1)+'<figcaption>Finish</figcaption></figure></div>'
+      :'<div class="pic demo" style="aspect-ratio:16/9">'+fig(e)+'</div>')
     +'<div class="k-chips"><span class="k-tag">'+K.esc(e.group)+'</span><span class="k-tag k-neutral">'+K.esc(e.eq)+'</span>'+e.pri.map(function(m){return '<span class="k-tag">'+K.esc(m.replace('-',' '))+'</span>'}).join('')+'</div>'
     +(e.pri.length?'<section class="k-card"><div class="k-label" style="margin-bottom:6px">Muscles worked · solid = main, light = helpers</div>'+bodymap(e.pri,e.sec)+'</section>':'')
     +(e.steps.length?'<section><div class="k-label" style="margin-bottom:10px">How to do it</div><ol class="steps">'+e.steps.map(function(s){return '<li>'+K.esc(s)+'</li>'}).join('')+'</ol>'+(e.tip?'<p class="k-sub" style="margin-top:12px">'+K.icon('star')+' '+K.esc(e.tip)+'</p>':'')+'</section>':'')
@@ -482,6 +501,7 @@ setInterval(function(){var el=document.getElementById('elapsed');if(el&&state&&s
   var raw=null;
   try{raw=await window.Pulse.load()}catch(e){K.toast('Could not load your training log: '+(e&&e.message||e))}
   state=norm(raw);
+  loadPhotos();
   if(state.session&&!state.session.startedAt)state.session.startedAt=Date.now();
   render();
 })();
