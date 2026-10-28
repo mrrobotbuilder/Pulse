@@ -247,6 +247,34 @@ function custom(d: unknown, now: Date): TileStat | null {
   return { value: compact(Math.round((last.value as number) * 10) / 10), unit, sub: `${list.length} logged${when ? ' · last ' + when : ''}` }
 }
 
+/**
+ * The connector's `today` digest: the date, the gold goal if stored, then one
+ * line per data slot and custom tile, each from summarize(). A slot with no
+ * row, empty data or an unreadable shape says "no data yet", never an error.
+ * `now` must carry the owner's wall clock in its local fields (the route
+ * builds it from Europe/Stockholm), because the tiles key their days that way.
+ */
+export function todayDigest(
+  slots: string[],
+  custom: { id: string; name: string | null }[],
+  data: Record<string, unknown>,
+  goal: string | null,
+  now: Date,
+): string {
+  const date = `${DAYS[now.getDay()]} ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`
+  const lines = [`Today: ${date} (Europe/Stockholm)`]
+  if (goal) lines.push(`Overall goal: ${goal}`)
+  const rows = [
+    ...slots.map((id) => [id, id[0].toUpperCase() + id.slice(1)] as const),
+    ...custom.map((c) => [c.id, c.name || c.id] as const),
+  ]
+  for (const [id, label] of rows) {
+    const s = summarize(id, data[id], now)
+    lines.push(s ? `${label}: ${s.value}${s.unit ? ' ' + s.unit : ''}${s.sub ? ` (${s.sub})` : ''}` : `${label}: no data yet`)
+  }
+  return lines.join('\n')
+}
+
 /** The face number for tile `id`, or null (nothing saved, an unknown tile, or a shape we cannot read). */
 export function summarize(id: string, data: unknown, now: Date = new Date()): TileStat | null {
   const read = READERS[id] ?? (id.startsWith('custom-') ? custom : undefined)

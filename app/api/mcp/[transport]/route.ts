@@ -2,6 +2,7 @@ import { createMcpHandler } from 'mcp-handler'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { CUSTOM_TILE_RE, checkTileHtml, isCustomTileId } from '@/lib/tiles/tileCheck'
+import { todayDigest } from '@/lib/tiles/tileStats'
 
 import { constantTimeEquals, looksLikeJwt, verifyAccessToken } from '../oauth/crypto'
 import { MCP_SCOPE, mcpResourceUrl, oauthSecret, originOf, resourceMetadataUrl } from '../oauth/shared'
@@ -99,7 +100,23 @@ async function loadTileData(
   return { ok: true, value: data ? (data.data ?? null) : undefined }
 }
 
-type ToolResult = { content: { type: 'text'; text: string }[]; isError?: boolean }
+/** A Date whose local fields hold the owner's wall clock in Stockholm, whatever
+ *  the server's time zone (Vercel runs UTC). The tiles key their days in local
+ *  time, so summarize() must see Stockholm's "today", not UTC's. */
+function stockholmNow(): Date {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Stockholm',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    })
+      .formatToParts(new Date())
+      .map((x) => [x.type, x.value]),
+  )
+  return new Date(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+}
+
+type ToolResult ={ content: { type: 'text'; text: string }[]; isError?: boolean }
 const text = (t: string): ToolResult => ({ content: [{ type: 'text', text: t }] })
 const fail = (t: string): ToolResult => ({ content: [{ type: 'text', text: t }], isError: true })
 
@@ -255,6 +272,36 @@ const mcpHandler = createMcpHandler(
           .eq('slot', slot)
         if (error) return fail('Could not clear that slot.')
         return text(`Cleared the "${slot}" slot.`)
+      },
+    )
+
+    server.registerTool(
+      'today',
+      {
+        title: 'The day at a glance',
+        description:
+          "READ. One short digest of the owner's board: today's date (Europe/Stockholm), the gold overall goal if one is stored, then one line per data slot and AI-written tile with its headline number, or \"no data yet\". Call this first for a daily summary instead of read_data on every slot; use read_data for the raw history behind a line.",
+        inputSchema: {},
+      },
+      async (): Promise<ToolResult> => {
+        const o = open()
+        if ('err' in o) return o.err
+        const { client, ownerId } = o.conn
+        // Same owner filter and same rows loadTileData reads, fetched in one go.
+        const [rows, tiles] = await Promise.all([
+          client.from('tile_data').select('tile_id, data').eq('user_id', ownerId),
+          client.from('tiles').select('slot, name').eq('user_id', ownerId),
+        ])
+        if (rows.error) return fail('Could not read tile_data. Did you run supabase/sync.sql?')
+        if (tiles.error) return fail('Could not read the tiles table. Did you run supabase/tiles.sql?')
+        const data: Record<string, unknown> = {}
+        for (const r of rows.data as { tile_id: string; data: unknown }[]) data[r.tile_id] = r.data
+        const names = new Map<string, string | null>()
+        for (const t of tiles.data as { slot: string; name: string | null }[]) if (isCustomTileId(t.slot)) names.set(t.slot, t.name)
+        for (const id of Object.keys(data)) if (isCustomTileId(id) && !names.has(id)) names.set(id, null)
+        const config = data._config as { result?: { overall?: { title?: unknown } } } | undefined
+        const goal = typeof config?.result?.overall?.title === 'string' ? config.result.overall.title : null
+        return text(todayDigest([...DATA_SLOTS], [...names].map(([id, name]) => ({ id, name })), data, goal, stockholmNow()))
       },
     )
 
