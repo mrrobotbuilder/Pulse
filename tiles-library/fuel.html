@@ -74,7 +74,7 @@ function render(){
       +'<div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('drop')+'Water</span><span class="k-time">'+(T.length?'last '+T[T.length-1]:'nothing yet today')+'</span></div>'
       +'<div class="k-ringbox">'+K.ring(n/g,{size:220,label:n+' of '+g+' glasses'})
         +'<div class="k-in"><div class="k-big">'+n+'<small>/ '+g+'</small></div><div class="k-sub">glasses · '+liters(n)+'</div></div></div>'
-      +'<div class="pace k-sub">'+K.icon(n>=g?'check':'clock','')+'<span>'+paceLine+'</span></div>'
+      +'<p class="k-sub" style="margin:0">'+K.icon(n>=g?'check':'clock','')+' '+paceLine+'</p>'
     +'</section>'
     +'<div class="quick">'
       +'<button class="k-btn" data-add="1">'+K.icon('plus')+'Glass<small>'+ml()+' ml</small></button>'
