@@ -17,7 +17,7 @@ Rules (the Sealed Tile Contract):
 1. One file. All CSS and JS inline. No external requests, no imports, no CDN links, no fonts
    over the network. The tile runs in a sandboxed iframe with no network, so anything not inline
    will not load.
-2. Match the look: colour it with the board's theme variables, always with a fallback, so the tile follows the board's theme preset: `var(--pulse-bg, #EEF1F4)` page, `var(--pulse-surface, #FFFFFF)` panels, `var(--pulse-text, #16233B)` text, `var(--pulse-muted, #4F5B6D)` secondary text, `var(--pulse-line, #C3CCD8)` lines, `var(--pulse-accent, #C2271D)` accent with `var(--pulse-accent-ink, #FFFFFF)` on it, `var(--pulse-gold, #855600)` for the main goal, `var(--pulse-signal, #08734A)` for live details. Never hardcode a colour. System font,
+2. Build it on the board's design kit (cards, rings, charts, sheets; see "The design kit" in `public/tiles/README.md`, and copy the structure of `public/tiles/fuel.html`), so it looks like every other tile. Where you still need your own CSS, colour it with the board's theme variables, always with a fallback, so the tile follows the board's theme preset: `var(--pulse-bg, #EEF1F4)` page, `var(--pulse-surface, #FFFFFF)` panels, `var(--pulse-text, #16233B)` text, `var(--pulse-muted, #4F5B6D)` secondary text, `var(--pulse-line, #C3CCD8)` lines, `var(--pulse-accent, #C2271D)` accent with `var(--pulse-accent-ink, #FFFFFF)` on it, `var(--pulse-gold, #855600)` for the main goal, `var(--pulse-signal, #08734A)` for live details. Never hardcode a colour. System font,
    minimal and precise. No emojis in the UI.
 3. Save data through the host bridge, never localStorage (localStorage is blocked inside the
    sealed tile). The dashboard provides `window.Vitality` for you:

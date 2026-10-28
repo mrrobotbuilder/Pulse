@@ -1,252 +1,141 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="var(--pulse-bg, #050506)" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Brand</title>
 <!--
-  BRAND — bare minimum, built to be built on.
-  One screen: CONNECT buttons. Connected: a graph. That's the whole tile.
-
-  Sealed tile — it can't reach the network itself. TWO ways data lands:
-   • TikTok: LIVE, zero setup. window.Vitality.tiktok(handle) asks the host
-     to fetch the public keyless endpoint (tikwm) and returns the follower
-     count. Pulled on connect + on load. No API key, no /sweep, no backend.
-   • Everything else (YouTube, IG, X): the mentor files snapshots on its
-     rounds (/sweep → save_data), or tap a count to log it by hand any time.
-
-  Store: { accounts:[{id,platform,handle,history:[{t,count}]}] }
-  (append-only {t,count} snapshots; everything renders from history.)
+  Brand: your audience and your output. Built on the tile kit
+  (lib/tiles/tileKit.ts). Sealed: no network; saves through window.Vitality.
+  Live counts come through the host bridge: window.Vitality.tiktok(handle) is
+  keyless, window.Vitality.youtube(handle) uses the owner's own YouTube key.
+  Instagram, X and LinkedIn are logged by hand.
+  Saved shape (lib/tiles/tileStats.ts reads accounts[].history):
+    { accounts: [{ id, platform, handle, history: [{ t, count }] }],
+      posts: [{ id, at, platform, title?, views? }], goal?: { count }, postGoal?: number }
 -->
 <style>
-  :root{
-    --bg:var(--pulse-bg, #050506);--surface:var(--pulse-surface, #0e0e11);--fg:var(--pulse-text, #ededf0);
-    --brand:var(--pulse-accent, #6EE7B7);--brand-soft:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 8%, transparent);
-    --muted:var(--pulse-muted, #84848c);--muted-strong:var(--pulse-muted, #a8a8b0);
-    --border:var(--pulse-line, #1d1d22);--border-strong:var(--pulse-line, #2a2a33);
-    --radius:14px;--pill:999px;
-    --ease:cubic-bezier(.16,1,.3,1);
-    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-    --serif:Georgia,"Times New Roman",serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font);display:flex;justify-content:center;padding:40px 20px;-webkit-font-smoothing:antialiased}
-  .shell{width:100%;max-width:620px}
-  h1{font-size:24px;font-weight:600;letter-spacing:-.01em}
-  .sub{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:6px 0 0}
-
-  /* connect row — the whole empty state */
-  .connect{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-  .cbtn{display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 12px;border-radius:var(--pill);
-    border:1px solid color-mix(in srgb, var(--pulse-text, #fff) 14%, transparent);font-weight:700;font-size:13.5px;
-    cursor:pointer;transition:transform .18s var(--ease),box-shadow .18s;font-family:inherit}
-  .cbtn:hover{transform:translateY(-1px);box-shadow:0 6px 22px -8px var(--pc,var(--brand))}
-  .lg{display:inline-flex;width:17px;height:17px;flex:none}
-  .lg svg{width:100%;height:100%}
-  .hint{margin-top:18px;color:var(--muted);font-size:12.5px;text-align:center}
-
-  /* handle input, inline */
-  .ask{margin-top:22px;display:flex;gap:8px}
-  .ask input{flex:1;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--pill);
-    padding:11px 16px;color:var(--fg);font:inherit;outline:none}
-  .ask input:focus{border-color:var(--brand)}
-  .ask button{padding:11px 20px;border-radius:var(--pill);border:none;background:var(--brand);color:var(--pulse-accent-ink, #04140d);font-weight:700;cursor:pointer}
-
-  /* connected: account card = header row + THE GRAPH */
-  .acct{margin-top:18px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:16px 16px 8px;animation:up .5s var(--ease) both}
-  @keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
-  .aHead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-  .aChip{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-strong)}
-  .aChip .dot{width:8px;height:8px;border-radius:99px;background:var(--pc,var(--brand))}
-  .aCount{margin-left:auto;font-family:var(--serif);font-style:italic;font-size:30px;line-height:1;color:var(--fg);cursor:pointer}
-  .aCount:hover{color:var(--brand)}
-  .aUnit{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-  .aX{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;opacity:.5}
-  .aX:hover{opacity:1;color:color-mix(in srgb, #ff6b6b 65%, var(--pulse-text, #ededf0))}
-  .gwrap{margin-top:8px}
-  .gEmpty{padding:26px 0 30px;text-align:center;color:var(--muted);font-size:12.5px}
-  .gEmpty b{color:var(--brand);font-weight:600}
-  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--pulse-muted, #84848c);text-align:center}
-  .starterTag,.starterTag *{line-height:1.6}
+  .lg{display:inline-grid;place-items:center;width:20px;height:20px}
+  .lg svg{width:18px;height:18px}
+  .acct .k-head .k-cat{color:var(--pc)}
+  .acct .count{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .plat{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+  .plat button{display:flex;align-items:center;gap:8px;min-height:52px;padding:0 14px;border-radius:14px;border:1px solid var(--k-line);background:var(--k-surface);font:700 15px var(--k-body);color:var(--k-text)}
+  .plat button[aria-pressed=true]{border-color:var(--k-text);box-shadow:inset 0 0 0 1.5px var(--k-text)}
+  .plat button .lg{color:var(--pc)}
 </style>
 </head>
-<body>
-<div class="shell">
-<div class="starterTag">✦ starter — the value is what you build · the videos show how</div>
-  <h1>Brand</h1>
-  <p class="sub">Connect a social &middot; watch it grow</p>
-  <div id="app"></div>
-</div>
-
+<body class="k-hue-magenta">
+<main class="k-page" id="app"></main>
 <script>
-/* ── platforms (add more = one line each) ── */
-/* real logos inline (sealed tile — no external assets), OneUp-style fills */
-const LOGOS={
-  tiktok:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
+var K=window.PulseKit;
+var LOGOS={
+  tiktok:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.920-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.070-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
   instagram:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="2.5" width="19" height="19" rx="5.2"/><circle cx="12" cy="12" r="4.4"/><circle cx="17.4" cy="6.6" r="1.15" fill="currentColor" stroke="none"/></svg>',
   youtube:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.11-2.12C19.51 3.55 12 3.55 12 3.55s-7.51 0-9.39.53A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.11 2.12c1.88.53 9.39.53 9.39.53s7.51 0 9.39-.53a3 3 0 0 0 2.11-2.12A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8zM9.6 15.6V8.4L15.83 12 9.6 15.6z"/></svg>',
   x:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.59-6.64 7.59H.46l8.6-9.83L0 1.15h7.59l5.24 6.93 6.07-6.93z"/></svg>',
+  linkedin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>'
 };
-const PLATFORMS={
-  tiktok:{label:'TikTok',color:'#25F4EE',unit:'followers',btn:'#161823',ink:'#fff'},
-  instagram:{label:'Instagram',color:'#E1306C',unit:'followers',btn:'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',ink:'#fff'},
-  youtube:{label:'YouTube',color:'#FF0033',unit:'subs',btn:'#FF0000',ink:'#fff'},
-  x:{label:'X',color:'#e7e9ea',unit:'followers',btn:'#000',ink:'#fff'},
+var PLATFORMS={
+  tiktok:{label:'TikTok',color:'color-mix(in srgb,#00B8B0 75%,var(--k-text))',unit:'followers',live:'keyless'},
+  instagram:{label:'Instagram',color:'color-mix(in srgb,#E1306C 80%,var(--k-text))',unit:'followers'},
+  youtube:{label:'YouTube',color:'color-mix(in srgb,#E00022 85%,var(--k-text))',unit:'subscribers',live:'key'},
+  x:{label:'X',color:'var(--k-text)',unit:'followers'},
+  linkedin:{label:'LinkedIn',color:'color-mix(in srgb,#0A66C2 85%,var(--k-text))',unit:'followers'}
 };
+var state={accounts:[],posts:[]},fetching={},keyNote={};
+var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-let state={accounts:[]};
-let asking=null; /* platform id while typing a handle */
-const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function save(){window.Vitality.save(state)}
-function fmt(n){if(n==null)return '—';if(n>=1e6)return (n/1e6).toFixed(n>=1e7?0:1)+'M';if(n>=1e4)return Math.round(n/1e3)+'K';return n.toLocaleString()}
-function last(a){const h=a.history||[];for(let i=h.length-1;i>=0;i--)if(typeof h[i].count==='number')return h[i].count;return null}
+function persist(){return Promise.resolve(window.Vitality.save(state)).catch(function(e){K.toast('Could not save: '+(e&&e.message||e))})}
+function compact(n){if(n==null)return '—';if(n>=1e6)return (n/1e6).toFixed(n>=1e7?0:1)+'M';if(n>=1e4)return Math.round(n/1e3)+'K';return n.toLocaleString('en-US')}
+function hist(a){return (a.history||[]).filter(function(p){return typeof p.count==='number'&&typeof p.t==='number'})}
+function last(a){var h=hist(a);return h.length?h[h.length-1].count:null}
+function at(a,t){var h=hist(a),v=null;h.forEach(function(p){if(p.t<=t)v=p.count});return v}
+function weekDelta(a){var l=last(a),b=at(a,Date.now()-7*864e5);return l!=null&&b!=null?l-b:null}
+function total(){return state.accounts.reduce(function(s,a){return s+(last(a)||0)},0)}
+function uid(p){return p+Math.random().toString(36).slice(2,8)}
+function plat(p){return PLATFORMS[p]||{label:p,color:'var(--k-tint)',unit:'followers'}}
 
-const fetching=new Set(); /* account ids mid-refresh → the … loading state */
-const noteById={};        /* transient per-account status (e.g. 'key' = add a key) */
-/* which platforms have a live lane, and how to pull them via the host bridge:
-   tiktok = keyless (tikwm); youtube = your free key (server-routed). ig/x have
-   no lane → manual tap only. */
-function liveFn(a){
-  const V=window.Vitality||{};
-  if(a.platform==='tiktok'&&V.tiktok)return function(){return V.tiktok(a.handle)};
-  if(a.platform==='youtube'&&V.youtube)return function(){return V.youtube(a.handle)};
-  return null;
-}
-/* live pull — appends one snapshot; skips if the last point is <6h old and
-   unchanged. Fails quietly (APIs hiccup; manual tap always works). YouTube with
-   no key set surfaces a 'key' note so the tile can tell the user. */
+function liveFn(a){var V=window.Vitality||{};if(a.platform==='tiktok'&&V.tiktok)return function(){return V.tiktok(a.handle)};if(a.platform==='youtube'&&V.youtube)return function(){return V.youtube(a.handle)};return null}
 async function refreshLive(a){
-  const fn=liveFn(a);
-  if(!fn)return;
-  if(fetching.has(a.id))return;
-  fetching.add(a.id);delete noteById[a.id];render();
-  try{
-    const count=await fn();
-    if(typeof count==='number'&&count>=0){
-      const h=(a.history=a.history||[]);
-      const prev=h[h.length-1],now=Date.now();
-      if(!(prev&&prev.count===count&&now-prev.t<6*3600e3)){h.push({t:now,count});save();}
-    }
-  }catch(e){
-    if(a.platform==='youtube'&&String(e&&e.message||'')==='no_key')noteById[a.id]='key';
-  }
-  finally{fetching.delete(a.id);render();}
-}
-/* honest empty-graph copy — never promise a pull that can't happen */
-function emptyMsg(a){
-  if((a.history||[]).length)return '<b>live count in</b> — the line draws as your following moves · tap to log by hand';
-  if(a.platform==='tiktok')return 'pulling your live count…';
-  if(a.platform==='youtube')return noteById[a.id]==='key'
-    ? 'add a free <b>YouTube API key</b> to auto-pull · or tap the number to log'
-    : 'pulling your live count…';
-  return 'tap the number to log · your mentor files the rest';
+  var fn=liveFn(a);if(!fn||fetching[a.id])return;
+  fetching[a.id]=1;render();
+  try{var c=await fn();if(typeof c==='number'&&c>=0){var h=(a.history=a.history||[]),p=h[h.length-1],now=Date.now();if(!(p&&p.count===c&&now-p.t<6*3600e3)){h.push({t:now,count:c});persist()}}}
+  catch(e){if(a.platform==='youtube'&&String(e&&e.message||'')==='no_key')keyNote[a.id]=1}
+  finally{delete fetching[a.id];render()}
 }
 
-/* smooth area graph from history (same curve style as the Peak page) */
-function graph(a){
-  const h=(a.history||[]).filter(s=>typeof s.count==='number');
-  const pc=(PLATFORMS[a.platform]||{}).color||'var(--pulse-accent, #6EE7B7)';
-  if(h.length<2)return '<div class="gEmpty">'+emptyMsg(a)+'</div>';
-  const W=560,H=120,P=8;
-  const t0=h[0].t,t1=h[h.length-1].t||t0+1;
-  const lo=Math.min(...h.map(s=>s.count)),hi=Math.max(...h.map(s=>s.count));
-  const x=t=>P+((t-t0)/Math.max(1,t1-t0))*(W-2*P);
-  const y=c=>hi===lo?H/2:P+(1-(c-lo)/(hi-lo))*(H-2*P);
-  const pts=h.map(s=>[x(s.t),y(s.count)]);
-  let d='M '+pts[0][0]+' '+pts[0][1];
-  for(let i=0;i<pts.length-1;i++){
-    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
-    d+=' C '+(p1[0]+(p2[0]-p0[0])/6)+' '+(p1[1]+(p2[1]-p0[1])/6)+', '+(p2[0]-(p3[0]-p1[0])/6)+' '+(p2[1]-(p3[1]-p1[1])/6)+', '+p2[0]+' '+p2[1];
-  }
-  const area=d+' L '+pts[pts.length-1][0]+' '+(H-P)+' L '+pts[0][0]+' '+(H-P)+' Z';
-  const gid='g'+a.id;
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block" preserveAspectRatio="none">'
-    +'<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+pc+'" stop-opacity=".28"/><stop offset="100%" stop-color="'+pc+'" stop-opacity="0"/></linearGradient></defs>'
-    +'<path d="'+area+'" fill="url(#'+gid+')"/>'
-    +'<path d="'+d+'" fill="none" stroke="'+pc+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
-    +'<circle cx="'+pts[pts.length-1][0]+'" cy="'+pts[pts.length-1][1]+'" r="4" fill="'+pc+'"/></svg>';
+/* Weeks to the goal at the pace of the last 30 days (or since the first count). */
+function eta(){
+  var g=state.goal&&state.goal.count;if(!g)return null;var now=total();if(now>=g)return 'Goal reached. Time to set a bigger one.';
+  var back=Date.now()-30*864e5,then=0,span=0;
+  state.accounts.forEach(function(a){var h=hist(a);if(!h.length)return;var b=at(a,back);if(b==null){b=h[0].count;span=Math.max(span,Date.now()-h[0].t)}else span=Math.max(span,Date.now()-back);then+=b});
+  var gain=now-then;if(gain<=0||span<864e5)return 'Log a few days of counts and I can tell you when you get there.';
+  var perWeek=gain/(span/(7*864e5)),weeks=Math.ceil((g-now)/perWeek);
+  return 'At +'+compact(Math.round(perWeek))+' a week, you reach it in about '+(weeks>104?Math.round(weeks/52)+' years':weeks>8?Math.round(weeks/4.3)+' months':weeks+' weeks')+'.';
 }
 
 function render(){
-  const app=$('#app');
-  const free=Object.keys(PLATFORMS).filter(p=>!state.accounts.some(a=>a.platform===p));
-  let html='';
+  var t=total(),wd=state.accounts.map(weekDelta).filter(function(x){return x!=null}),wsum=wd.reduce(function(s,x){return s+x},0);
+  var g=state.goal&&state.goal.count,posts=Array.isArray(state.posts)?state.posts:(state.posts=[]);
+  var week=[],labels=[];for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=K.dayKey(d);week.push(posts.filter(function(p){return K.dayKey(new Date(p.at))===k}).length);labels.push(i===0?'Today':DAYS[d.getDay()])}
+  var wposts=week.reduce(function(s,x){return s+x},0),pg=state.postGoal||0;
+  var html='<section class="k-card k-hero"><div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('globe')+'Audience</span><span class="k-time">'+state.accounts.length+' account'+(state.accounts.length===1?'':'s')+'</span></div>'
+    +(g?'<div class="k-ringbox">'+K.ring(t/g,{size:200,label:compact(t)+' of '+compact(g)})+'<div class="k-in"><div class="k-big" style="font-size:48px">'+compact(t)+'</div><div class="k-sub">of '+compact(g)+' goal</div></div></div>':'<div class="k-big">'+(state.accounts.length?compact(t):'—')+'</div><div class="k-sub">followers and subscribers, all platforms</div>')
+    +'<div>'+(wd.length?'<span class="'+(wsum>=0?'k-up':'k-down')+'">'+(wsum>=0?'▲ +':'▼ ')+compact(Math.abs(wsum))+'</span> <span class="k-sub">this week</span>':'<span class="k-sub">weekly growth shows after a week of counts</span>')+'</div>'
+    +(g?'<p class="k-sub" style="margin:4px 0 0">'+K.esc(eta())+'</p>':'')
+    +'<div class="k-row-btns" style="width:100%;margin-top:6px"><button class="k-btn k-ghost k-sm" data-goal>'+K.icon('target')+(g?'Change goal':'Set an audience goal')+'</button></div></section>';
 
-  /* the accounts — each one: chip · count · graph */
-  for(const a of state.accounts){
-    const P2=PLATFORMS[a.platform]||{label:a.platform,color:'var(--pulse-accent, #6EE7B7)',unit:'followers'};
-    html+='<div class="acct" style="--pc:'+P2.color+'">'
-      +'<div class="aHead">'
-      +'<span class="aChip"><span class="lg" style="color:'+P2.color+'">'+(LOGOS[a.platform]||'')+'</span>'+esc(P2.label)+' · '+esc(a.handle)+'</span>'
-      +'<span class="aCount" data-log="'+a.id+'" title="Tap to log today\'s count">'+(fetching.has(a.id)?'…':fmt(last(a)))+'</span>'
-      +'<span class="aUnit">'+P2.unit+'</span>'
-      +'<button class="aX" data-del="'+a.id+'" title="Disconnect">&times;</button>'
-      +'</div><div class="gwrap">'+graph(a)+'</div></div>';
-  }
+  state.accounts.forEach(function(a){
+    var P=plat(a.platform),h=hist(a),d=weekDelta(a),l=last(a);
+    html+='<section class="k-card acct" style="--pc:'+P.color+'"><div class="k-head"><span class="k-cat"><span class="lg">'+(LOGOS[a.platform]||'')+'</span>'+P.label+'</span><span class="k-time">'+K.esc(a.handle)+'</span></div>'
+      +'<div class="count"><div class="k-mid" style="font-size:38px">'+(fetching[a.id]?'…':compact(l))+'</div><span class="k-sub">'+P.unit+'</span>'+(d!=null?'<span class="k-tag" style="--k-tint:'+(d>=0?'var(--k-signal)':'var(--k-accent)')+'">'+(d>=0?'+':'−')+compact(Math.abs(d))+' this week</span>':'')+'</div>'
+      +'<div style="margin-top:10px">'+K.line(h.map(function(p){return p.count}),{height:110,color:P.color,label:P.label+' growth',labels:h.length>1?[new Date(h[0].t).toLocaleDateString(undefined,{month:'short',day:'numeric'}),'Now']:null,empty:P.live==='keyless'?'Pulling your live count. The line draws as your following moves.':P.live==='key'&&keyNote[a.id]?'Add your own free YouTube key to auto-pull, or log the count by hand.':'Log your count every few days and the growth line draws itself.'})+'</div>'
+      +'<div class="k-row-btns" style="margin-top:10px"><button class="k-btn k-soft k-sm" data-log="'+a.id+'">'+K.icon('edit')+'Log count</button>'+(liveFn(a)?'<button class="k-btn k-ghost k-sm" data-refresh="'+a.id+'">'+K.icon('up')+'Refresh</button>':'')+'<button class="k-btn k-ghost k-sm" data-manage="'+a.id+'" aria-label="Manage '+K.esc(P.label)+'">'+K.icon('list')+'Manage</button></div></section>';
+  });
+  html+='<button class="k-btn k-ghost k-wide" data-connect>'+K.icon('plus')+(state.accounts.length?'Connect another account':'Connect your first account')+'</button>';
 
-  /* the connect row */
-  if(free.length){
-    html+='<div class="connect">'+free.map(p=>{
-      const P2=PLATFORMS[p];
-      return '<button class="cbtn" style="--pc:'+P2.color+';background:'+P2.btn+';color:'+P2.ink+'" data-connect="'+p+'"><span class="lg">'+LOGOS[p]+'</span>Connect '+P2.label+'</button>';
-    }).join('')+'</div>';
-    if(!state.accounts.length)html+='<p class="hint">That&rsquo;s the whole tile. Connect one — the graph does the rest.</p>';
-  }
-
-  /* the handle ask */
-  if(asking){
-    const P2=PLATFORMS[asking];
-    html+='<div class="ask"><input id="handleIn" placeholder="your '+P2.label+' handle — e.g. @you" autocomplete="off"/><button data-save-handle>Connect</button></div>';
-  }
-
-  app.innerHTML=html;
-  if(asking){const i=$('#handleIn');i.focus();i.addEventListener('keydown',e=>{if(e.key==='Enter')addAccount()})}
+  html+='<h2 class="k-title">Posting<button data-post>+ I posted</button></h2>'
+    +'<section class="k-card"><div class="k-grid k-3" style="margin-bottom:12px"><div><div class="k-label">This week</div><div class="k-mid">'+wposts+(pg?'<small>/ '+pg+'</small>':'')+'</div></div><div><div class="k-label">All time</div><div class="k-mid">'+posts.length+'</div></div><div><div class="k-label">Last post</div><div class="k-mid" style="font-size:20px">'+(posts.length?new Date(posts[posts.length-1].at).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—')+'</div></div></div>'
+    +K.bars(week,{labels:labels,now:6,height:110,goal:pg?pg/7:0,label:'Posts per day this week'})+'</section>'
+    +(posts.length?'<div class="k-list">'+posts.slice(-8).reverse().map(function(p){var P=plat(p.platform);return '<div class="k-row"><span class="k-ico lg" style="color:'+P.color+'">'+(LOGOS[p.platform]||K.icon('send'))+'</span><span class="k-main"><b>'+K.esc(p.title||'Post on '+P.label)+'</b><span>'+P.label+' · '+new Date(p.at).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+(p.views?' · '+compact(p.views)+' views':'')+'</span></span><button class="k-x" data-delpost="'+p.id+'" aria-label="Delete post">'+K.icon('trash')+'</button></div>'}).join('')+'</div>':'')
+    +'<div class="k-list"><button class="k-row" data-postgoal><span class="k-ico">'+K.icon('calendar')+'</span><span class="k-main"><b>Posts a week</b><span>Your publishing target</span></span><span class="k-end">'+(pg||'not set')+'</span>'+K.icon('chev','k-chev')+'</button></div>'
+    +'<p class="k-note">TikTok pulls live with no setup. YouTube pulls live with your own free key. Instagram, X and LinkedIn: log the count by hand.</p>';
+  document.getElementById('app').innerHTML=html;
 }
 
-function addAccount(){
-  const i=$('#handleIn');if(!i)return;
-  const handle=i.value.trim();if(!handle)return;
-  const acct={id:'a'+Math.random().toString(36).slice(2,8),platform:asking,handle,history:[]};
-  state.accounts.push(acct);
-  asking=null;save();render();
-  refreshLive(acct); /* live pull the moment you connect (TikTok keyless · YouTube w/ key) */
+function pickPlatform(cb,title,taken){
+  var choice=null;
+  K.sheet(title,'<div class="plat">'+Object.keys(PLATFORMS).map(function(p){var P=PLATFORMS[p],dis=taken&&taken.indexOf(p)>-1;return '<button type="button" data-p="'+p+'" style="--pc:'+P.color+'" aria-pressed="false"'+(dis?' disabled':'')+'><span class="lg">'+LOGOS[p]+'</span>'+P.label+(dis?' ✓':'')+'</button>'}).join('')+'</div><div id="rest"></div>',function(el,close){
+    el.addEventListener('click',function(e){var b=e.target.closest('[data-p]');if(!b||b.disabled)return;choice=b.getAttribute('data-p');el.querySelectorAll('[data-p]').forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});cb(choice,el.querySelector('#rest'),close)});
+  });
 }
 
-document.addEventListener('click',e=>{
-  const c=e.target.closest('[data-connect]');
-  if(c){asking=c.getAttribute('data-connect');render();return}
-  if(e.target.closest('[data-save-handle]')){addAccount();return}
-  const d=e.target.closest('[data-del]');
-  if(d){state.accounts=state.accounts.filter(a=>a.id!==d.getAttribute('data-del'));save();render();return}
-  const l=e.target.closest('[data-log]');
-  if(l){
-    const a=state.accounts.find(x=>x.id===l.getAttribute('data-log'));if(!a)return;
-    const v=prompt('Today\'s count for '+a.handle+':',last(a)??'');
-    const n=Number(String(v).replace(/[,\s]/g,''));
-    if(v!=null&&isFinite(n)&&n>=0){(a.history=a.history||[]).push({t:Date.now(),count:Math.round(n)});save();render();}
-  }
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b||b.closest('.k-sheet'))return;var a=function(n){return b.getAttribute(n)};
+  var acct=function(id){return state.accounts.filter(function(x){return x.id===id})[0]};
+  if(b.hasAttribute('data-connect')){pickPlatform(function(p,rest,close){var P=PLATFORMS[p];rest.innerHTML='<label class="k-field"><span>Your '+P.label+' handle</span><input class="k-input" id="hn" placeholder="@you" maxlength="60"></label><label class="k-field"><span>Current '+P.unit+' (optional'+(P.live?', it pulls live':'')+')</span><input class="k-input" id="hc" inputmode="numeric" placeholder="e.g. 1250"></label><button class="k-btn k-wide" id="go">Connect '+P.label+'</button>';var hn=rest.querySelector('#hn');hn.focus();rest.querySelector('#go').onclick=function(){var h=hn.value.trim();if(!h){hn.focus();return}var c=parseInt(String(rest.querySelector('#hc').value).replace(/[^0-9]/g,''),10);var ac={id:uid('a'),platform:p,handle:h.slice(0,60),history:isFinite(c)?[{t:Date.now(),count:c}]:[]};state.accounts.push(ac);persist();close();render();refreshLive(ac)}},'Connect an account',state.accounts.map(function(x){return x.platform}));return}
+  if(a('data-log')){var ac=acct(a('data-log'));K.sheet('Log '+plat(ac.platform).label+' count','<input class="k-input" id="lc" inputmode="numeric" value="'+(last(ac)==null?'':last(ac))+'" style="font:700 32px var(--k-display);text-align:center;min-height:64px"><p class="k-note">Today’s '+plat(ac.platform).unit+' for '+K.esc(ac.handle)+'.</p><button class="k-btn k-wide" data-ok>Save</button>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var n=parseInt(String(el.querySelector('#lc').value).replace(/[^0-9]/g,''),10);if(!isFinite(n)){el.querySelector('#lc').focus();return}(ac.history=ac.history||[]).push({t:Date.now(),count:n});persist();close();render()}});return}
+  if(a('data-refresh')){refreshLive(acct(a('data-refresh')));return}
+  if(a('data-manage')){var m=acct(a('data-manage'));K.sheet(plat(m.platform).label,'<label class="k-field"><span>Handle</span><input class="k-input" id="mh" value="'+K.esc(m.handle)+'" maxlength="60"></label><p class="k-sub" style="margin:0">'+hist(m).length+' counts logged since '+(hist(m).length?new Date(hist(m)[0].t).toLocaleDateString():'—')+'.</p><div class="k-row-btns"><button class="k-btn k-danger" data-rm>Disconnect</button><button class="k-btn" data-ok>Save</button></div>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var h=el.querySelector('#mh').value.trim();if(h)m.handle=h.slice(0,60);persist();close();render()};el.querySelector('[data-rm]').onclick=function(){K.sheet('Disconnect '+plat(m.platform).label+'?','<p style="margin:0">Its count history is deleted too.</p><div class="k-row-btns"><button class="k-btn k-ghost" data-k-close>Keep it</button><button class="k-btn" data-yes>Disconnect</button></div>',function(el2,close2){el2.querySelector('[data-yes]').onclick=function(){state.accounts=state.accounts.filter(function(x){return x!==m});persist();close2();close();render()}})}});return}
+  if(b.hasAttribute('data-post')){pickPlatform(function(p,rest,close){rest.innerHTML='<label class="k-field"><span>What was it? (optional)</span><input class="k-input" id="pt" maxlength="80" placeholder="e.g. Day in my life vlog"></label><label class="k-field"><span>Views so far (optional)</span><input class="k-input" id="pv" inputmode="numeric" placeholder="e.g. 3400"></label><button class="k-btn k-wide" id="go">'+K.icon('check')+'Log the post</button>';rest.querySelector('#go').onclick=function(){var v=parseInt(String(rest.querySelector('#pv').value).replace(/[^0-9]/g,''),10);state.posts.push({id:uid('p'),at:Date.now(),platform:p,title:rest.querySelector('#pt').value.trim().slice(0,80)||undefined,views:isFinite(v)?v:undefined});persist();close();K.toast('Logged. '+state.posts.filter(function(x){return Date.now()-x.at<7*864e5}).length+' posts this week.');render()}},'Where did you post?');return}
+  if(a('data-delpost')){state.posts=state.posts.filter(function(p){return p.id!==a('data-delpost')});persist();render();return}
+  if(b.hasAttribute('data-goal')){K.sheet('Audience goal','<input class="k-input" id="gv" inputmode="numeric" value="'+(state.goal&&state.goal.count||'')+'" placeholder="e.g. 100000" style="font:700 32px var(--k-display);text-align:center;min-height:64px"><p class="k-note">Followers and subscribers across every platform, added up.</p><button class="k-btn k-wide" data-ok>Save goal</button>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var n=parseInt(String(el.querySelector('#gv').value).replace(/[^0-9]/g,''),10);state.goal=n>0?{count:n}:undefined;persist();close();render()}});return}
+  if(b.hasAttribute('data-postgoal')){K.sheet('Posts a week','<div class="k-chips">'+[1,2,3,5,7,14].map(function(n){return '<button class="k-chip" data-n="'+n+'" aria-pressed="'+(state.postGoal===n)+'">'+n+'</button>'}).join('')+'</div><p class="k-note">Consistency beats volume. Pick what you can keep for months.</p>',function(el,close){el.addEventListener('click',function(ev){var x=ev.target.closest('[data-n]');if(x){state.postGoal=Number(x.getAttribute('data-n'));persist();close();render()}})});return}
 });
 
-/* boot — accounts carry over from the old brand tile's store untouched */
-if(!window.Vitality){window.Vitality={save:function(d){try{localStorage.setItem('v:prev:brand',JSON.stringify(d));}catch(e){}return Promise.resolve(true);},load:function(){try{return Promise.resolve(JSON.parse(localStorage.getItem('v:prev:brand')||'{}'));}catch(e){return Promise.resolve({});}},read:function(){return Promise.resolve(null);},tiktok:function(){return Promise.reject(new Error('na'));},youtube:function(){return Promise.reject(new Error('no_key'));}};}
-(async()=>{
-  const d=await window.Vitality.load();
-  if(d&&typeof d==='object'&&!Array.isArray(d)&&Array.isArray(d.accounts)){
-    state.accounts=d.accounts.filter(a=>a&&a.platform&&a.handle).map(a=>({id:a.id||'a'+Math.random().toString(36).slice(2,8),platform:a.platform,handle:a.handle,history:Array.isArray(a.history)?a.history:[]}));
-  }
+(async function(){
+  try{
+    var d=await window.Vitality.load();
+    if(d&&typeof d==='object'&&!Array.isArray(d)){
+      if(Array.isArray(d.accounts))state.accounts=d.accounts.filter(function(a){return a&&a.platform&&a.handle}).map(function(a){return Object.assign({},a,{id:a.id||uid('a'),history:Array.isArray(a.history)?a.history:[]})});
+      if(Array.isArray(d.posts))state.posts=d.posts;
+      if(d.goal&&typeof d.goal.count==='number')state.goal=d.goal;
+      if(typeof d.postGoal==='number')state.postGoal=d.postGoal;
+    }
+  }catch(e){K.toast('Could not load your accounts: '+(e&&e.message||e))}
   render();
-  /* live-refresh on load — one at a time (APIs rate-limit ~1/sec) */
-  for(const a of state.accounts){
-    if(a.platform!=='tiktok'&&a.platform!=='youtube')continue;
-    const h=a.history||[],prev=h[h.length-1];
-    if(prev&&Date.now()-prev.t<6*3600e3)continue; /* still fresh */
-    await refreshLive(a);
-    await new Promise(r=>setTimeout(r,1200));
-  }
+  for(var i=0;i<state.accounts.length;i++){await refreshLive(state.accounts[i]);await new Promise(function(r){setTimeout(r,1200)})}
 })();
 </script>
 </body>

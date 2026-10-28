@@ -64,5 +64,7 @@ export function themeTokens(): Record<string, string> {
     const v = cs.getPropertyValue(`--${k}`).trim()
     if (v) out[k] = v
   }
+  const scheme = cs.colorScheme.trim()
+  if (scheme === 'light' || scheme === 'dark') out['color-scheme'] = scheme
   return out
 }

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { CORE_TILES } from '@/lib/tiles/coreTiles'
 import { tileInfo } from '@/lib/tiles/tileInfo'
 import { withBridge } from '@/lib/tiles/tileBridge'
+import { kitHead } from '@/lib/tiles/tileKit'
+import { tileFontCss } from '@/lib/tiles/tileFonts'
 import { THEMES, themeTokens } from '@/lib/theme'
 import { planIdeas, type PlanTile } from '@/lib/boardPlan'
 import { acceptTile, building, buildTile, chooseIdea, chooseTile, declineTile, hiddenTiles, readAiBoard, saveAiBoard, startAutoBuilds, type AiBoard } from '@/lib/aiBoard'
@@ -47,7 +49,7 @@ function TilePreview({ title, html }: { title: string; html: string }) {
       <figcaption className="ann" style={{ padding: '6px 10px', borderBottom: '1px solid var(--line)' }}>
         Preview · try it, nothing here is kept
       </figcaption>
-      <iframe ref={frame} srcDoc={withBridge(html, themeTokens())} sandbox="allow-scripts" title={`Preview: ${title}`} style={{ display: 'block', width: '100%', height: 420, border: 0 }} />
+      <iframe ref={frame} srcDoc={withBridge(html, themeTokens(), kitHead(tileFontCss()))} sandbox="allow-scripts" title={`Preview: ${title}`} style={{ display: 'block', width: '100%', height: 420, border: 0 }} />
     </figure>
   )
 }

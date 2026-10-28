@@ -74,6 +74,9 @@ function themeStyle(tokens: Record<string, string>): string {
   const decls = Object.entries(tokens)
     .filter(([k, v]) => /^[a-z-]+$/.test(k) && /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(v))
     .map(([k, v]) => `--pulse-${k}:${v}`)
+  // The board's colour scheme too: a frame whose scheme differs from the page
+  // around it is painted opaque white, which shows as a white box on dark themes.
+  if (/^(light|dark)$/.test(tokens['color-scheme'] ?? '')) decls.push(`color-scheme:${tokens['color-scheme']}`)
   return decls.length ? `<style>:root{${decls.join(';')}}</style>` : ''
 }
 
@@ -83,11 +86,12 @@ function themeStyle(tokens: Record<string, string>): string {
  * a font). This policy allows only the tile's own inline code and styles and
  * data: images, so nothing leaves the frame. Exported for the checks.
  */
-export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:"
+export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:"
 
 /**
- * Prepend the network lock, the theme and the bridge shim so window.Vitality
- * exists inside the sealed tile.
+ * Prepend the network lock, the theme, `head` (the tile kit and fonts, see
+ * tileKit.ts kitHead) and the bridge shim so window.Vitality exists inside the
+ * sealed tile. This file stays import-free so node checks can load it.
  *
  * The CSP meta has to come before ANY of the tile's own markup: a policy only
  * covers what the parser meets after it, so a tile that put a <script> before
@@ -96,24 +100,8 @@ export const TILE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-s
  * here into the head it opens implicitly, and the tile's own <html>/<head> tags
  * merge into it.
  */
-export function withBridge(html: string, tokens: Record<string, string> = {}): string {
+export function withBridge(html: string, tokens: Record<string, string> = {}, head = ''): string {
   const doctype = html.match(/^\s*<!doctype[^>]*>/i)?.[0] ?? ''
   const lock = `<meta http-equiv="Content-Security-Policy" content="${TILE_CSP}">`
-  return doctype + lock + themeStyle(tokens) + FRAME + SHIM + html.slice(doctype.length)
+  return doctype + lock + themeStyle(tokens) + head + SHIM + html.slice(doctype.length)
 }
-
-/**
- * The board frames every open tile the same way (its name and what it tracks
- * sit in the board's own header, the tile in one card), so each tile's own
- * page chrome is clutter there: the template's "starter" pill, the glow and
- * star-field layers, the repeated title and tagline, the full-page background
- * and the per-tile widths. `!important` because these must beat the tile's
- * own stylesheet whatever order it comes in.
- */
-const FRAME = `<style>
-.starterTag,.shell>h1,.shell>h1+.sub{display:none!important}
-body::before,body::after{display:none!important}
-html,body{background:transparent!important;height:auto!important;min-height:0!important}
-body{padding:28px 24px 40px!important}
-.shell{max-width:640px!important;margin:0 auto!important}
-</style>`

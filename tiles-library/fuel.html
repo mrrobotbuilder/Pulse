@@ -1,105 +1,131 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fuel</title>
 <!--
-  FUEL — almost nothing, on purpose. One number (water today), one button.
-  The week draws itself underneath. Everything else this tile could become
-  (macros, meals, caffeine) gets built WITH the mentor, on top of this.
-  Store: { water: { 'YYYY-MM-DD': count } } — /sweep and save_data can file
-  straight into it.
+  Fuel: water, glass by glass. Built on the tile kit (lib/tiles/tileKit.ts,
+  injected by the board). Sealed: no network; saves through window.Vitality.
+  Saved shape (lib/tiles/tileStats.ts reads `water` and `goal`):
+    { water: { 'YYYY-MM-DD': glasses }, goal: 8, glassMl: 250,
+      times: { 'YYYY-MM-DD': ['HH:MM', ...] } }
 -->
 <style>
-  :root{
-    --bg:var(--pulse-bg, #050506);--fg:var(--pulse-text, #ededf0);--brand:var(--pulse-accent, #6EE7B7);--brand-soft:color-mix(in srgb, var(--pulse-accent, #6EE7B7) 8%, transparent);
-    --muted:var(--pulse-muted, #84848c);--muted-strong:var(--pulse-muted, #a8a8b0);--border:var(--pulse-line, #1d1d22);
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-    --serif:Georgia,'Times New Roman',serif;
-    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
-    --ease:cubic-bezier(.16,1,.3,1);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font);display:flex;justify-content:center;padding:40px 20px;-webkit-font-smoothing:antialiased;position:relative}
-  body::before{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;background:
-    radial-gradient(58% 44% at 50% -6%, color-mix(in srgb, var(--pulse-accent, #6EE7B7) 13%, transparent), transparent 62%),
-    radial-gradient(1.5px 1.5px at 14% 16%, color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent), transparent 100%),
-    radial-gradient(1px 1px at 76% 10%, color-mix(in srgb, var(--pulse-text, #fff) 40%, transparent), transparent 100%),
-    radial-gradient(1.5px 1.5px at 52% 6%, color-mix(in srgb, var(--pulse-text, #fff) 32%, transparent), transparent 100%),
-    radial-gradient(1px 1px at 30% 28%, color-mix(in srgb, var(--pulse-text, #fff) 28%, transparent), transparent 100%)}
-  body::after{content:'';position:fixed;left:0;right:0;bottom:0;height:32vh;z-index:-1;pointer-events:none;background:
-    linear-gradient(to top, color-mix(in srgb, var(--pulse-surface, #08130e) 85%, transparent), transparent 80%),
-    linear-gradient(115deg, transparent 42%, color-mix(in srgb, var(--pulse-surface, #0d1a17) 75%, transparent) 43%, color-mix(in srgb, var(--pulse-surface, #0d1a17) 75%, transparent) 58%, transparent 59%),
-    linear-gradient(245deg, transparent 38%, color-mix(in srgb, var(--pulse-surface, #0a1210) 90%, transparent) 39%, color-mix(in srgb, var(--pulse-surface, #0a1210) 90%, transparent) 62%, transparent 63%);
-    -webkit-mask-image:linear-gradient(to top,#000 55%,transparent);mask-image:linear-gradient(to top,#000 55%,transparent)}
-  .shell{width:100%;max-width:560px;text-align:center}
-  h1{font-size:24px;font-weight:600;letter-spacing:-.01em;text-align:left}
-  .sub{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:6px 0 0;text-align:left}
-
-  .well{margin-top:44px}
-  .kick{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--brand)}
-  .count{font-family:var(--serif);font-style:italic;font-size:clamp(72px,18vw,110px);line-height:1;color:var(--pulse-text, #fff);margin-top:10px;
-    text-shadow:0 0 44px color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent)}
-  .of{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:8px}
-  .btnRow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:30px}
-  .minus{width:46px;height:46px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:20px;cursor:pointer;transition:all .15s}
-  .minus:hover{color:var(--pulse-text, #fff);border-color:var(--muted)}
-  .glass{padding:16px 40px;border-radius:999px;border:none;background:var(--brand);color:var(--pulse-accent-ink, #04140d);
-    font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 10px 34px -12px var(--brand);transition:transform .15s var(--ease)}
-  .glass:hover{transform:translateY(-1px)}
-  .glass:active{transform:scale(.97)}
-
-  .week{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin-top:52px;height:64px}
-  .day{display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
-  .bar{width:16px;border-radius:5px 5px 3px 3px;background:linear-gradient(180deg,var(--brand),color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent));min-height:3px;transition:height .5s var(--ease)}
-  .bar.zero{background:var(--border)}
-  .dLab{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
-  .dLab.today{color:var(--brand)}
-  .foot{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:34px}
-  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--pulse-muted, #84848c);text-align:center}
-  .starterTag,.starterTag *{line-height:1.6}
+  .pace{display:flex;align-items:center;gap:10px;margin-top:4px}
+  .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .quick .k-btn{flex-direction:column;gap:2px;min-height:74px;padding:8px}
+  .quick .k-btn small{font:500 12px var(--k-body);opacity:.85}
+  .month{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .month i{aspect-ratio:1;border-radius:50%;background:color-mix(in srgb,var(--k-tint) calc(var(--p) * 100%),color-mix(in srgb,var(--k-text) 7%,transparent));display:block}
+  .month i.full{box-shadow:0 0 0 2px var(--k-surface),0 0 0 3.5px var(--k-tint)}
+  .month i.future{background:transparent;border:1px dashed var(--k-hair)}
+  .month b{font:500 10.5px var(--k-mono);color:var(--k-muted);text-align:center}
+  .times{display:flex;flex-wrap:wrap;gap:6px}
 </style>
 </head>
-<body>
-<div class="shell">
-<div class="starterTag">✦ starter — the value is what you build · the videos show how</div>
-  <h1>Fuel</h1>
-  <p class="sub">water today · that's it — build the rest with your mentor</p>
-  <div class="well" id="app"></div>
-</div>
+<body class="k-hue-blue">
+<main class="k-page" id="app" aria-live="polite"></main>
 <script>
-const GOAL=8;
-let store={};
-function key(d){const x=d||new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
-function persist(){window.Vitality.save(store)}
-function today(){if(!store.water||typeof store.water!=='object')store.water={};return store.water}
-function render(){
-  const w=today(),n=w[key()]||0;
-  let bars='';
-  for(let i=6;i>=0;i--){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const c=w[key(d)]||0,h=Math.max(3,Math.min(64,(c/GOAL)*64));
-    const lab=i===0?'today':['SU','MO','TU','WE','TH','FR','SA'][d.getDay()];
-    bars+='<div class="day"><div class="bar'+(c?'':' zero')+'" style="height:'+h+'px" title="'+c+'"></div><span class="dLab'+(i===0?' today':'')+'">'+lab+'</span></div>';
-  }
-  document.getElementById('app').innerHTML=
-    '<div class="kick">✦ water</div>'
-    +'<div class="count">'+n+'</div>'
-    +'<div class="of">of '+GOAL+' today</div>'
-    +'<div class="btnRow"><button class="minus" data-d="-1" aria-label="Remove one">−</button><button class="glass" data-d="1">+ Log a glass</button></div>'
-    +'<div class="week">'+bars+'</div>'
-    +'<p class="foot">feeds your peak score · the mentor notices the pattern</p>';
-}
-document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-d]');if(!b)return;
-  const w=today(),k=key();
-  w[k]=Math.max(0,(w[k]||0)+parseInt(b.getAttribute('data-d'),10));
+var K=window.PulseKit;
+var store={};
+var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function goal(){return typeof store.goal==='number'&&store.goal>0?store.goal:8}
+function ml(){return typeof store.glassMl==='number'&&store.glassMl>0?store.glassMl:250}
+function water(){if(!store.water||typeof store.water!=='object'||Array.isArray(store.water))store.water={};return store.water}
+function times(){if(!store.times||typeof store.times!=='object'||Array.isArray(store.times))store.times={};return store.times}
+function on(d){return water()[K.dayKey(d)]||0}
+function ago(n){var d=new Date();d.setDate(d.getDate()-n);return d}
+function liters(g){return K.fmt(g*ml()/1000,2)+' L'}
+function persist(){return Promise.resolve(window.Vitality.save(store)).catch(function(e){K.toast('Could not save: '+(e&&e.message||e))})}
+
+function add(n){
+  var k=K.dayKey(),w=water(),t=times();
+  w[k]=Math.max(0,(w[k]||0)+n);
+  if(!Array.isArray(t[k]))t[k]=[];
+  if(n>0){var d=new Date(),s=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');for(var i=0;i<n;i++)t[k].push(s)}
+  else t[k].splice(Math.max(0,t[k].length+n),-n);
   persist();render();
+  if(n>0&&w[k]===goal())K.toast('Goal reached. '+liters(w[k])+' today.');
+}
+
+/* Where you should be by now, if the day runs 07:00 to 22:00. */
+function pace(){
+  var h=new Date().getHours()+new Date().getMinutes()/60;
+  return Math.round(goal()*Math.max(0,Math.min(1,(h-7)/15)));
+}
+
+function streak(){var s=0;for(var i=on(new Date())>=goal()?0:1;i<400;i++){if(on(ago(i))>=goal())s++;else break}return s}
+
+function render(){
+  var g=goal(),n=on(new Date()),p=pace(),T=times()[K.dayKey()]||[];
+  var week=[],labels=[];for(var i=6;i>=0;i--){week.push(on(ago(i)));labels.push(i===0?'Today':DAYS[ago(i).getDay()])}
+  var logged=week.filter(function(v){return v>0}),avg=logged.length?logged.reduce(function(a,b){return a+b},0)/logged.length:0;
+  var hit=week.filter(function(v){return v>=g}).length,best=Math.max.apply(null,week);
+  var behind=p-n,paceLine=n>=g?'Done for today. Anything more is a bonus.':behind>0?'About '+behind+' behind pace. A glass now catches you up.':'On pace for '+g+' today.';
+
+  // Last 28 days as dots, oldest first, aligned to weekdays.
+  var cells='',start=ago(27);for(var j=0;j<(start.getDay()+6)%7;j++)cells+='<i class="future" aria-hidden="true"></i>';
+  for(var d=27;d>=0;d--){var v=on(ago(d)),pc=Math.min(1,v/g);cells+='<i class="'+(v>=g?'full':'')+'" style="--p:'+pc.toFixed(2)+'" title="'+K.esc(K.dayKey(ago(d))+': '+v+' glasses')+'"></i>'}
+
+  document.getElementById('app').innerHTML=
+    '<section class="k-card k-hero">'
+      +'<div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('drop')+'Water</span><span class="k-time">'+(T.length?'last '+T[T.length-1]:'nothing yet today')+'</span></div>'
+      +'<div class="k-ringbox">'+K.ring(n/g,{size:220,label:n+' of '+g+' glasses'})
+        +'<div class="k-in"><div class="k-big">'+n+'<small>/ '+g+'</small></div><div class="k-sub">glasses · '+liters(n)+'</div></div></div>'
+      +'<div class="pace k-sub">'+K.icon(n>=g?'check':'clock','')+'<span>'+paceLine+'</span></div>'
+    +'</section>'
+    +'<div class="quick">'
+      +'<button class="k-btn" data-add="1">'+K.icon('plus')+'Glass<small>'+ml()+' ml</small></button>'
+      +'<button class="k-btn k-soft" data-add="2">'+K.icon('plus')+'Bottle<small>'+(ml()*2)+' ml</small></button>'
+      +'<button class="k-btn k-ghost" data-add="-1" '+(n?'':'disabled')+' aria-label="Take one glass away">'+K.icon('minus')+'Undo<small>one glass</small></button>'
+    +'</div>'
+    +(T.length?'<div class="k-card"><div class="k-label" style="margin-bottom:8px">Today, glass by glass</div><div class="times">'+T.map(function(t){return '<span class="k-tag">'+K.icon('drop','')+t+'</span>'}).join('')+'</div></div>':'')
+    +'<h2 class="k-title">This week<span class="k-label">goal '+g+' a day</span></h2>'
+    +'<section class="k-card">'+K.bars(week,{labels:labels,goal:g,now:6,height:150,label:'Glasses per day this week'})+'</section>'
+    +'<div class="k-grid k-3">'
+      +'<div class="k-stat"><div class="k-label">Daily average</div><div class="k-mid">'+K.fmt(avg,1)+'</div><div class="k-sub">glasses, days you logged</div></div>'
+      +'<div class="k-stat"><div class="k-label">Goal days</div><div class="k-mid">'+hit+'<small>/7</small></div><div class="k-sub">best day '+best+'</div></div>'
+      +'<div class="k-stat"><div class="k-label">Streak</div><div class="k-mid">'+streak()+'</div><div class="k-sub">days in a row at goal</div></div>'
+    +'</div>'
+    +'<h2 class="k-title">Last four weeks<span class="k-label">ringed = goal hit</span></h2>'
+    +'<section class="k-card"><div class="month">'+['M','T','W','T','F','S','S'].map(function(x){return '<b>'+x+'</b>'}).join('')+cells+'</div></section>'
+    +'<h2 class="k-title">Settings</h2>'
+    +'<div class="k-list">'
+      +'<button class="k-row" data-set="goal"><span class="k-ico">'+K.icon('target')+'</span><span class="k-main"><b>Daily goal</b><span>How many glasses count as a full day</span></span><span class="k-end">'+g+'<small>glasses</small></span>'+K.icon('chev','k-chev')+'</button>'
+      +'<button class="k-row" data-set="ml"><span class="k-ico">'+K.icon('cup')+'</span><span class="k-main"><b>Glass size</b><span>Used for litres and the bottle button</span></span><span class="k-end">'+ml()+'<small>ml</small></span>'+K.icon('chev','k-chev')+'</button>'
+    +'</div>'
+    +'<p class="k-note">Feeds your Peak score. The mentor watches how water moves with training and sleep.</p>';
+}
+
+function settings(which){
+  if(which==='goal'){
+    var v=goal();
+    K.sheet('Daily goal','<div class="k-stepper"><button class="k-round" data-g="-1" aria-label="One fewer">−</button><div class="k-val"><div class="k-big" id="gv">'+v+'</div><div class="k-sub">glasses a day</div></div><button class="k-round" data-g="1" aria-label="One more">+</button></div><p class="k-note">Most adults do well on 6 to 10 glasses. More on training days.</p><button class="k-btn k-wide" data-k-save>Save goal</button>',function(el,close){
+      el.addEventListener('click',function(e){
+        var b=e.target.closest('[data-g]');if(b){v=Math.max(1,Math.min(30,v+Number(b.getAttribute('data-g'))));el.querySelector('#gv').textContent=v}
+        if(e.target.closest('[data-k-save]')){store.goal=v;persist();close();render()}
+      });
+    });
+  }else{
+    var sizes=[200,250,330,500];
+    K.sheet('Glass size','<div class="k-chips">'+sizes.map(function(s){return '<button class="k-chip" aria-pressed="'+(s===ml())+'" data-ml="'+s+'">'+s+' ml</button>'}).join('')+'</div><p class="k-note">A bottle is two glasses.</p>',function(el,close){
+      el.addEventListener('click',function(e){var b=e.target.closest('[data-ml]');if(b){store.glassMl=Number(b.getAttribute('data-ml'));persist();close();render()}});
+    });
+  }
+}
+
+document.addEventListener('click',function(e){
+  var a=e.target.closest('[data-add]');if(a&&!a.disabled){add(Number(a.getAttribute('data-add')));return}
+  var s=e.target.closest('[data-set]');if(s)settings(s.getAttribute('data-set'));
 });
-if(!window.Vitality){window.Vitality={save:function(d){try{localStorage.setItem('v:prev:fuel',JSON.stringify(d));}catch(e){}return Promise.resolve(true);},load:function(){try{return Promise.resolve(JSON.parse(localStorage.getItem('v:prev:fuel')||'{}'));}catch(e){return Promise.resolve({});}}};}
-(async()=>{const d=await window.Vitality.load();store=(d&&typeof d==='object'&&!Array.isArray(d))?d:{};render();})();
+
+(async function(){
+  try{var d=await window.Vitality.load();store=(d&&typeof d==='object'&&!Array.isArray(d))?d:{}}
+  catch(e){store={};K.toast('Could not load your water log: '+(e&&e.message||e))}
+  render();
+})();
 </script>
 </body>
 </html>

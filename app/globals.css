@@ -140,6 +140,45 @@ h1, h2, h3 {
 .h6 { background: repeating-linear-gradient(90deg, var(--text) 0 1.5px, transparent 1.5px 5px); }
 .h7 { background: repeating-linear-gradient(30deg, var(--text) 0 1px, transparent 1px 4px); }
 .h0 { background: transparent; }
+/* The ready-made tiles (lib/tiles/readyTiles.ts), one each. */
+.h8 { background: linear-gradient(var(--text) 1.5px, transparent 0) 0 0 / 7px 7px, linear-gradient(90deg, var(--text) 1.5px, transparent 0) 0 0 / 7px 7px; }
+.h9 { background: conic-gradient(var(--text) 25%, transparent 0 50%, var(--text) 0 75%, transparent 0) 0 0 / 8px 8px; }
+.h10 { background: radial-gradient(var(--text) 2.4px, transparent 2.8px) 0 0 / 10px 10px; }
+.h11 { background: linear-gradient(135deg, var(--text) 25%, transparent 25%) -5px 0 / 10px 10px, linear-gradient(225deg, var(--text) 25%, transparent 25%) -5px 0 / 10px 10px; }
+.h12 { background: radial-gradient(var(--text) 0.9px, transparent 1.2px) 0 0 / 3.5px 3.5px; }
+.h13 { background: repeating-radial-gradient(circle at 0 0, transparent 0 4px, var(--text) 4px 5.5px); }
+.h14 { background: repeating-linear-gradient(45deg, var(--text) 0 3.5px, transparent 3.5px 9px); }
+.h15 { background: linear-gradient(var(--text) 1.5px, transparent 0) 0 0 / 12px 6px, linear-gradient(90deg, var(--text) 1.5px, transparent 0) 0 0 / 12px 12px; }
+.h16 { background: conic-gradient(from 45deg, var(--text) 25%, transparent 0 50%, var(--text) 0 75%, transparent 0) 0 0 / 10px 10px; }
+.h17 { background: repeating-linear-gradient(90deg, var(--text) 0 3.5px, transparent 3.5px 9px); }
+.h18 { background: linear-gradient(135deg, var(--text) 35%, transparent 0) 0 0 / 9px 9px; }
+.h19 { background: radial-gradient(circle, transparent 1.8px, var(--text) 2px 3.2px, transparent 3.4px) 0 0 / 9px 9px; }
+/* The ready-made habit tiles. */
+.h40 { background: linear-gradient(var(--surface) 3px, transparent 0) 0 0 / 8px 8px, repeating-linear-gradient(45deg, var(--text) 0 1.5px, transparent 1.5px 5.6px); }
+.h41 { background: radial-gradient(circle, var(--text) 1.2px, transparent 1.5px) 0 0 / 6px 6px, linear-gradient(var(--text) 1px, transparent 0) 0 0 / 12px 12px; }
+.h42 { background: repeating-linear-gradient(0deg, var(--text) 0 1.5px, transparent 1.5px 4px, var(--text) 4px 5.5px, transparent 5.5px 12px); }
+.h43 { background: conic-gradient(from 90deg at 2px 2px, transparent 25%, var(--text) 0) 0 0 / 10px 10px; }
+/* Spares for AI-written tiles (tileInfo.ts hands them out, no two alike). */
+.h20 { background: linear-gradient(90deg, var(--surface) 4px, transparent 0) 0 0 / 10px 6px, linear-gradient(var(--text) 1.5px, transparent 0) 0 0 / 10px 6px; }
+.h21 { background: linear-gradient(var(--surface) 4px, transparent 0) 0 0 / 6px 10px, linear-gradient(90deg, var(--text) 1.5px, transparent 0) 0 0 / 6px 10px; }
+.h22 { background: repeating-linear-gradient(0deg, var(--text) 0 1px, transparent 1px 3px); }
+.h23 { background: radial-gradient(var(--text) 1.3px, transparent 1.6px) 0 0 / 8px 8px, radial-gradient(var(--text) 1.3px, transparent 1.6px) 4px 4px / 8px 8px; }
+.h24 { background: linear-gradient(var(--text) 1px, transparent 0) 0 0 / 4px 4px, linear-gradient(90deg, var(--text) 1px, transparent 0) 0 0 / 4px 4px; }
+.h25 { background: linear-gradient(var(--text) 1.5px, transparent 0) 0 0 / 12px 12px, linear-gradient(90deg, var(--text) 1.5px, transparent 0) 0 0 / 12px 12px; }
+.h26 { background: repeating-linear-gradient(-30deg, var(--text) 0 1px, transparent 1px 4px); }
+.h27 { background: repeating-linear-gradient(0deg, var(--text) 0 4px, transparent 4px 9px); }
+.h28 { background: linear-gradient(45deg, var(--text) 35%, transparent 0) 0 0 / 9px 9px; }
+.h29 { background: radial-gradient(var(--text) 1.5px, transparent 1.8px) 0 0 / 6px 12px, repeating-linear-gradient(0deg, transparent 0 9px, var(--text) 9px 10.5px, transparent 10.5px 12px); }
+.h30 { background: conic-gradient(var(--text) 25%, transparent 0 50%, var(--text) 0 75%, transparent 0) 0 0 / 16px 16px; }
+.h31 { background: repeating-linear-gradient(90deg, var(--text) 0 1px, transparent 1px 3px); }
+.h32 { background: repeating-linear-gradient(75deg, var(--text) 0 1.5px, transparent 1.5px 7px); }
+.h33 { background: repeating-linear-gradient(-75deg, var(--text) 0 1.5px, transparent 1.5px 7px); }
+.h34 { background: repeating-linear-gradient(45deg, var(--text) 0 1px, transparent 1px 12px), repeating-linear-gradient(-45deg, var(--text) 0 1px, transparent 1px 12px); }
+.h35 { background: radial-gradient(var(--text) 3.5px, transparent 4px) 0 0 / 14px 14px; }
+.h36 { background: repeating-linear-gradient(-45deg, var(--text) 0 3.5px, transparent 3.5px 9px); }
+.h37 { background: repeating-linear-gradient(0deg, var(--text) 0 1.5px, transparent 1.5px 6px), repeating-linear-gradient(45deg, var(--text) 0 1px, transparent 1px 8px); }
+.h38 { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 3px, var(--text) 3px 4.5px); }
+.h39 { background: linear-gradient(135deg, var(--text) 35%, transparent 0) 0 0 / 9px 9px, linear-gradient(-45deg, var(--text) 35%, transparent 0) 0 0 / 9px 9px; }
 
 .sw {
   display: inline-block;

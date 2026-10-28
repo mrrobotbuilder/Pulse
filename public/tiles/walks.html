@@ -1,141 +1,65 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="var(--pulse-bg, #050506)" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Walks</title>
 <!--
-  WALKS — the week's walking, logged from STEGA (stega-oriad.vercel.app).
-
-  Sealed: no network. The board fetches /api/walks and writes the log through
-  the host bridge; this tile only reads it back with window.Pulse.load().
-  Store: { walks: [ { id, date:'YYYY-MM-DD', steps, distanceM, durationMin, kcal, name } ], syncedAt }
+  Walks: read-only. STEGA (a separate app) logs each walk to /api/walks; the
+  board fetches that log and writes it into this tile's data through the host
+  bridge; this tile only reads it back with window.Pulse.load(). It saves
+  nothing (the board would overwrite it on the next sync).
+  Data: { walks: [{ name, date: 'YYYY-MM-DD', steps, distanceM, durationMin }], syncedAt }
+  Built on the tile kit (lib/tiles/tileKit.ts).
 -->
-<style>
-  :root{
-    --bg:var(--pulse-bg, #050506);--fg:var(--pulse-text, #ededf0);--brand:var(--pulse-accent, #6EE7B7);
-    --muted:var(--pulse-muted, #84848c);--muted-strong:var(--pulse-muted, #a8a8b0);--border:var(--pulse-line, #1d1d22);--border-strong:var(--pulse-line, #2a2a33);
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-    --serif:Georgia,'Times New Roman',serif;
-    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
-    --ease:cubic-bezier(.16,1,.3,1);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font);display:flex;justify-content:center;padding:40px 20px;-webkit-font-smoothing:antialiased;position:relative}
-  body::before{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;background:
-    radial-gradient(58% 44% at 50% -6%, color-mix(in srgb, var(--pulse-accent, #6EE7B7) 13%, transparent), transparent 62%),
-    radial-gradient(1.5px 1.5px at 14% 16%, color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent), transparent 100%),
-    radial-gradient(1px 1px at 76% 10%, color-mix(in srgb, var(--pulse-text, #fff) 40%, transparent), transparent 100%),
-    radial-gradient(1.5px 1.5px at 52% 6%, color-mix(in srgb, var(--pulse-text, #fff) 32%, transparent), transparent 100%)}
-  .shell{width:100%;max-width:520px}
-  h1{font-size:24px;font-weight:600;letter-spacing:-.01em}
-  .sub{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:6px 0 0}
-
-  .hero{margin-top:34px;text-align:center}
-  .kick{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--brand)}
-  .big{font-family:var(--serif);font-style:italic;font-size:clamp(58px,14vw,96px);line-height:1;color:var(--pulse-text, #fff);margin-top:8px;text-shadow:0 0 44px color-mix(in srgb, var(--pulse-accent, #6EE7B7) 22%, transparent)}
-  .bigLab{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:8px}
-
-  .row{display:flex;gap:12px;margin-top:28px}
-  .stat{flex:1;border:1px solid var(--border);border-radius:14px;padding:14px 16px;background:color-mix(in srgb, var(--pulse-text, #fff) 2%, transparent)}
-  .statLab{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-  .statVal{font-size:22px;font-weight:600;margin-top:4px}
-
-  .bars{display:flex;align-items:flex-end;gap:6px;height:64px;margin-top:28px}
-  .barCol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
-  .barTrack{flex:1;width:100%;display:flex;align-items:flex-end;background:color-mix(in srgb, var(--pulse-text, #fff) 4%, transparent);border-radius:5px;overflow:hidden}
-  .barFill{width:100%;background:var(--brand);border-radius:5px;min-height:2px;transition:height .5s var(--ease)}
-  .barDay{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-
-  h2{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:32px 0 12px}
-  .walk{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;border-top:1px solid var(--border)}
-  .walkName{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .walkMeta{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:2px}
-  .walkSteps{font-family:var(--mono);font-size:13px;color:var(--brand);white-space:nowrap}
-
-  .empty{margin-top:40px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7}
-  .empty a{color:var(--brand)}
-</style>
 </head>
-<body>
-<div class="shell">
-  <h1>Walks</h1>
-  <p class="sub">Logged from STEGA</p>
-
-  <div id="content"></div>
-</div>
-
+<body class="k-hue-orange">
+<main class="k-page" id="app"></main>
 <script>
-// Standalone fallback so the tile still renders when opened outside the board.
-if(!window.Pulse){window.Pulse={save:function(){return Promise.resolve(true)},load:function(){try{return Promise.resolve(JSON.parse(localStorage.getItem('v:prev:walks')||'{}'))}catch(e){return Promise.resolve({})}}}}
-
+var K=window.PulseKit;
+var DAY_GOAL=10000;
 var DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function n(x){return typeof x==='number'&&isFinite(x)?x:0}
+function monday(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+function plus(d,k){var x=new Date(d);x.setDate(x.getDate()+k);return x}
+function steps(s){return Math.round(s).toLocaleString('en-US')}
+function km(m){return K.fmt(m/1000,1)+' km'}
+function pace(w){var k=n(w.distanceM)/1000;if(!k||!n(w.durationMin))return '';var p=n(w.durationMin)/k,m=Math.floor(p),s=Math.round((p-m)*60);return m+':'+String(s).padStart(2,'0')+' /km'}
 
-// Local calendar date: toISOString() is UTC, which shifts every day back one east of Greenwich.
-function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-
-/** Monday-based start of the ISO week containing `d`. */
-function weekStart(d){
-  var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
-  var dow=(x.getDay()+6)%7;
-  x.setDate(x.getDate()-dow);
-  return x;
-}
-
-function fmt(n){return Number(n).toLocaleString('en-US')}
-
-function render(walks){
-  var el=document.getElementById('content');
+function render(walks,syncedAt){
   if(!walks.length){
-    el.innerHTML='<p class="empty">No walks logged yet.<br>Plan one in STEGA and tap <strong>Logga promenaden</strong>.</p>';
+    document.getElementById('app').innerHTML='<section class="k-card k-empty">'+K.icon('walk')+'<b>No walks yet</b><span>Plan one in STEGA and tap <b>Logga promenaden</b> when you are back. It shows up here on its own.</span></section>';
     return;
   }
-
-  var start=weekStart(new Date());
-  var days=[];
-  for(var i=0;i<7;i++){var d=new Date(start);d.setDate(start.getDate()+i);days.push(ymd(d))}
-
-  var byDay={};
-  days.forEach(function(k){byDay[k]=0});
-  var weekSteps=0,weekWalks=0,weekDist=0;
-  walks.forEach(function(w){
-    if(byDay[w.date]!==undefined){
-      byDay[w.date]+=w.steps; weekSteps+=w.steps; weekWalks++; weekDist+=w.distanceM;
-    }
-  });
-  var peak=Math.max.apply(null,days.map(function(k){return byDay[k]}).concat([1]));
-
-  var bars=days.map(function(k,i){
-    var pct=Math.round((byDay[k]/peak)*100);
-    return '<div class="barCol"><div class="barTrack"><div class="barFill" style="height:'+(byDay[k]?Math.max(pct,4):0)+'%"></div></div><div class="barDay">'+DAYS[i]+'</div></div>';
-  }).join('');
-
-  var recent=walks.slice(0,5).map(function(w){
-    return '<div class="walk"><div><div class="walkName">'+esc(w.name)+'</div>'+
-      '<div class="walkMeta">'+w.date+' · '+(w.distanceM/1000).toFixed(2)+' km · '+w.durationMin+' min</div></div>'+
-      '<div class="walkSteps">'+fmt(w.steps)+'</div></div>';
-  }).join('');
-
-  el.innerHTML=
-    '<div class="hero"><div class="kick">This week</div>'+
-    '<div class="big">'+fmt(weekSteps)+'</div>'+
-    '<div class="bigLab">steps walked</div></div>'+
-    '<div class="row">'+
-      '<div class="stat"><div class="statLab">Walks</div><div class="statVal">'+weekWalks+'</div></div>'+
-      '<div class="stat"><div class="statLab">Distance</div><div class="statVal">'+(weekDist/1000).toFixed(1)+' km</div></div>'+
-    '</div>'+
-    '<div class="bars">'+bars+'</div>'+
-    '<h2>Recent</h2>'+recent;
+  var mon=monday(new Date()),days=[],by={},labels=[];for(var i=0;i<7;i++){var k=K.dayKey(plus(mon,i));days.push(k);by[k]=0;labels.push(k===K.dayKey()?'Today':DAYS[i])}
+  var wk={steps:0,walks:0,dist:0,min:0};
+  walks.forEach(function(w){if(by[w.date]!==undefined){by[w.date]+=n(w.steps);wk.steps+=n(w.steps);wk.walks++;wk.dist+=n(w.distanceM);wk.min+=n(w.durationMin)}});
+  var weeks=[],wl=[];for(var j=7;j>=0;j--){var a=K.dayKey(plus(mon,-7*j)),b=K.dayKey(plus(mon,-7*j+7)),s=0;walks.forEach(function(w){if(w.date>=a&&w.date<b)s+=n(w.steps)});weeks.push(s);wl.push(j===0?'Now':a.slice(5).replace('-','/'))}
+  var longest=walks.reduce(function(m,w){return n(w.distanceM)>n(m.distanceM)?w:m},walks[0]);
+  var dates={};walks.forEach(function(w){dates[w.date]=1});var streak=0;for(var d=dates[K.dayKey()]?0:1;d<400;d++){if(dates[K.dayKey(plus(new Date(),-d))])streak++;else break}
+  var goal=DAY_GOAL*7,today=by[K.dayKey()]||0;
+  document.getElementById('app').innerHTML=
+    '<section class="k-card k-hero"><div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('walk')+'This week</span><span class="k-time">'+(syncedAt?'synced '+new Date(syncedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'from STEGA')+'</span></div>'
+      +'<div class="k-ringbox">'+K.rings([{value:wk.steps/goal},{value:today/DAY_GOAL,color:'var(--k-gold)'}],{size:210,label:steps(wk.steps)+' steps this week'})+'<div class="k-in"><div class="k-big" style="font-size:44px">'+steps(wk.steps)+'</div><div class="k-sub">of '+steps(goal)+' steps</div></div></div>'
+      +'<p class="k-sub" style="margin:0">Outer ring: the week against 10,000 a day. Inner ring: today, '+steps(today)+' steps.</p></section>'
+    +'<div class="k-grid">'
+      +'<div class="k-stat"><div class="k-label">Walks</div><div class="k-mid">'+wk.walks+'</div><div class="k-sub">this week</div></div>'
+      +'<div class="k-stat"><div class="k-label">Distance</div><div class="k-mid">'+K.fmt(wk.dist/1000,1)+'<small>km</small></div><div class="k-sub">this week</div></div>'
+      +'<div class="k-stat"><div class="k-label">Time on foot</div><div class="k-mid">'+Math.round(wk.min)+'<small>min</small></div><div class="k-sub">this week</div></div>'
+      +'<div class="k-stat"><div class="k-label">Streak</div><div class="k-mid">'+streak+'</div><div class="k-sub">days in a row</div></div>'
+    +'</div>'
+    +'<h2 class="k-title">Steps by day<span class="k-label">dashed = 10,000</span></h2><section class="k-card">'+K.bars(days.map(function(k){return by[k]}),{labels:labels,goal:DAY_GOAL,now:days.indexOf(K.dayKey()),height:150,fmt:steps,label:'Steps per day this week'})+'</section>'
+    +'<h2 class="k-title">Eight weeks</h2><section class="k-card">'+K.bars(weeks,{labels:wl,now:7,height:130,fmt:steps,label:'Steps per week'})+'</section>'
+    +'<h2 class="k-title">Recent walks</h2>'
+    +'<div class="k-list">'+walks.slice(0,10).map(function(w){return '<div class="k-row"><span class="k-ico">'+K.icon(w===longest?'trophy':'walk')+'</span><span class="k-main"><b>'+K.esc(w.name||'Walk')+'</b><span>'+K.esc(new Date(w.date+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}))+' · '+km(n(w.distanceM))+' · '+Math.round(n(w.durationMin))+' min'+(pace(w)?' · '+pace(w):'')+'</span></span><span class="k-end">'+steps(n(w.steps))+'<small>steps</small></span></div>'}).join('')+'</div>'
+    +'<p class="k-note">Longest walk: '+K.esc(longest.name||'a walk')+', '+km(n(longest.distanceM))+'. Walks are logged in STEGA and land here by themselves.</p>';
 }
 
-function esc(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML}
-
 (async function(){
-  var d=await window.Pulse.load();
-  var walks=(d&&Array.isArray(d.walks))?d.walks:[];
-  render(walks);
+  var d=null;
+  try{d=await window.Pulse.load()}catch(e){K.toast('Could not load your walks: '+(e&&e.message||e))}
+  var walks=(d&&Array.isArray(d.walks))?d.walks.filter(function(w){return w&&typeof w.date==='string'}):[];
+  render(walks,d&&d.syncedAt);
 })();
 </script>
 </body>

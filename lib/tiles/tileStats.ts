@@ -55,13 +55,14 @@ function compact(n: number): string {
 }
 
 /** Same money format as the Finance tile. */
-function money(n: number): string {
+function moneyIn(n: number, cur = '$'): string {
   const sign = n < 0 ? '−' : ''
   const a = Math.abs(n)
-  return sign + '$' + (a >= 1e6 ? (a / 1e6).toFixed(2) + 'M' : Math.round(a).toLocaleString('en-US'))
+  const v = a >= 1e6 ? (a / 1e6).toFixed(2) + 'M' : Math.round(a).toLocaleString('en-US')
+  return cur === 'kr' ? sign + v + ' kr' : sign + cur + v
 }
 
-/* Train: { log: { exercise: [{ w, r, at }] } }. Best set of the most recent day. */
+/* Train: { log: { exercise: [{ w, r, at, t? }] } }. Best lift set of the most recent day. */
 function train(d: unknown, now: Date): TileStat | null {
   const log = isObj(d) ? d.log : shape('train')
   if (log == null) return null
@@ -71,7 +72,8 @@ function train(d: unknown, now: Date): TileStat | null {
   for (const [name, sets] of Object.entries(log)) {
     if (!Array.isArray(sets)) shape('train')
     for (const s of sets) {
-      if (!isObj(s) || !num(s.w) || !num(s.r) || !num(s.at)) continue
+      // cardio sets (t: 'c') are km × minutes, not a lift
+      if (!isObj(s) || !num(s.w) || !num(s.r) || !num(s.at) || s.t === 'c') continue
       const day = dayKey(new Date(s.at))
       // the tile's own ordering: heavier wins, then more reps
       if (day > lastDay || (day === lastDay && best && (s.w > best.w || (s.w === best.w && s.r > best.r)))) {
@@ -84,14 +86,15 @@ function train(d: unknown, now: Date): TileStat | null {
   return { value: `${best.w}×${best.r}`, unit: 'best set', sub: `${best.name} · ${dayLabel(lastDay, now)}` }
 }
 
-/* Fuel: { water: { 'YYYY-MM-DD': glasses } }, goal 8 (fuel.html GOAL). */
+/* Fuel: { water: { 'YYYY-MM-DD': glasses }, goal? }, goal 8 unless set in fuel.html. */
 function fuel(d: unknown, now: Date): TileStat | null {
   const water = isObj(d) ? d.water : shape('fuel')
   if (water == null) return null
   if (!isObj(water)) shape('fuel')
   const n = water[dayKey(now)]
   const today = num(n) ? n : 0
-  return { value: String(today), unit: today === 1 ? 'glass' : 'glasses', sub: 'of 8 today' }
+  const goal = num((d as Obj).goal) && ((d as Obj).goal as number) > 0 ? ((d as Obj).goal as number) : 8
+  return { value: String(today), unit: today === 1 ? 'glass' : 'glasses', sub: `of ${goal} today` }
 }
 
 /* Vitals: { 'YYYY-MM-DD': { sleepHours, feel, whoopRecovery? } }. Same recovery
@@ -190,10 +193,12 @@ function brand(d: unknown, now: Date): TileStat | null {
   return { value: compact(total), unit: allYoutube ? 'subs' : 'followers', sub }
 }
 
-/* Finance: { accounts: [{ balance }], holdings: [{ shares, price }], subs: [{ amount }], history: [{ t, value }] }.
+/* Finance: { accounts: [{ balance }], holdings: [{ shares, price }], subs: [{ amount }], history: [{ t, value }], currency? }.
    Net worth exactly as finance.html netWorth(). */
 function finance(d: unknown): TileStat | null {
   const store = isObj(d) ? d : shape('finance')
+  const cur = ['$', '€', '£', 'kr'].includes(store.currency as string) ? (store.currency as string) : '$'
+  const money = (n: number) => moneyIn(n, cur)
   const list = (k: string): Obj[] => {
     const v = store[k]
     if (v == null) return []
@@ -242,6 +247,18 @@ function custom(d: unknown, now: Date): TileStat | null {
   const list = d.entries.filter((e): e is Obj => isObj(e) && num(e.value))
   const last = list[list.length - 1]
   if (!last) return null
+  // A yes/no habit (ready tile kind 'check'): one entry per day, 1 kept, 0 missed. The face is the streak.
+  if (d.kind === 'check') {
+    const kept = new Set(list.filter((e) => (e.value as number) > 0 && typeof e.at === 'string').map((e) => dayKey(new Date(e.at as string))))
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    if (!kept.has(dayKey(day))) day.setDate(day.getDate() - 1)
+    let streak = 0
+    while (kept.has(dayKey(day)) && streak < 5000) {
+      streak++
+      day.setDate(day.getDate() - 1)
+    }
+    return { value: String(streak), unit: streak === 1 ? 'day' : 'days', sub: kept.has(dayKey(now)) ? 'in a row · kept today' : 'in a row · not marked today' }
+  }
   const when = typeof last.at === 'string' && !Number.isNaN(Date.parse(last.at)) ? dayLabel(dayKey(new Date(last.at)), now) : ''
   const unit = typeof d.unit === 'string' ? d.unit.slice(0, 16) : ''
   return { value: compact(Math.round((last.value as number) * 10) / 10), unit, sub: `${list.length} logged${when ? ' · last ' + when : ''}` }

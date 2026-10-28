@@ -5,7 +5,8 @@ import DashboardHeaderGem from '@/app/app/DashboardHeaderGem'
 import WeightStrip from '@/app/app/WeightStrip'
 import styles from '@/app/app/dashboard.module.css'
 import { CORE_TILES } from '@/lib/tiles/coreTiles'
-import { tileInfo } from '@/lib/tiles/tileInfo'
+import { tileInfo, setCustomTileIds } from '@/lib/tiles/tileInfo'
+import { listCustomTiles } from '@/lib/tiles/customTiles'
 import { prepareLocalNamespace } from '@/lib/migrateLocal'
 import {
   allGoals,
@@ -31,7 +32,6 @@ import {
  * sweeps — analytics, manual logs, wearables. The app never guesses.
  */
 
-const label = (tile: string) => CORE_TILES[tile as keyof typeof CORE_TILES]?.label ?? tile
 
 export default function MentorPage({
   userId,
@@ -84,6 +84,11 @@ export default function MentorPage({
   }, [active])
 
   if (!mounted) return null
+
+  // AI-written tiles: their names, and the same hatches the board gives them.
+  const customs = listCustomTiles(userId)
+  setCustomTileIds(customs.map((t) => t.id))
+  const label = (tile: string) => CORE_TILES[tile as keyof typeof CORE_TILES]?.label ?? customs.find((t) => t.id === tile)?.name ?? tile
 
   const act = list.find((g) => g.id === active) ?? list[0]
   const entries = Object.entries(act?.weights ?? {}).sort((a, b) => b[1] - a[1])

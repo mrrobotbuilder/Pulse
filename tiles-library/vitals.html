@@ -1,168 +1,175 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="var(--pulse-bg, #050506)" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vitals</title>
 <!--
-  VITALS — bone-simple. One recovery number, from two inputs you bring: how you
-  slept and how you feel. A WHOOP button is here for later (Episode 2 wires the
-  real connection). The 7-day line scales your inputs over time.
-
-  Sealed: no network. Saves through window.Vitality.
-  Store: { 'YYYY-MM-DD': { sleepHours, feel, whoopRecovery? } }
-  Recovery: whoopRecovery wins when a device fills it; else 0.6·feel + 0.4·sleep.
-  The SAME formula lives in peak.html (recoveryFromVitals) + docs/THE-MATH.md §5
-  + /sweep — change one, change all, so Peak never disagrees.
+  Vitals: sleep and recovery, one night at a time. Built on the tile kit
+  (lib/tiles/tileKit.ts). Sealed: no network; saves through window.Vitality.
+  Saved shape (read by lib/tiles/tileStats.ts and peak.html):
+    { 'YYYY-MM-DD': { sleepHours, feel, bed?, wake?, rhr?, hrv?, note?, whoopRecovery? },
+      need: 8 }
+  The recovery formula is shared with peak.html recoveryFromVitals and
+  tileStats.ts recovery(): change one, change all.
 -->
 <style>
-  :root{
-    --bg:var(--pulse-bg, #050506);--fg:var(--pulse-text, #ededf0);--brand:var(--pulse-accent, #6EE7B7);
-    --muted:var(--pulse-muted, #84848c);--muted-strong:var(--pulse-muted, #a8a8b0);--border:var(--pulse-line, #1d1d22);--border-strong:var(--pulse-line, #2a2a33);
-    --good:var(--pulse-accent, #6EE7B7);--watch:var(--pulse-gold, #E8C878);--low:color-mix(in srgb, #ff8b8b 65%, var(--pulse-text, #ededf0));
-    --whoop:var(--pulse-signal, #00E5A0);
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-    --serif:Georgia,'Times New Roman',serif;
-    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
-    --ease:cubic-bezier(.16,1,.3,1);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font);display:flex;justify-content:center;padding:40px 20px;-webkit-font-smoothing:antialiased;position:relative}
-  body::before{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;background:
-    radial-gradient(58% 44% at 50% -6%, color-mix(in srgb, var(--pulse-accent, #6EE7B7) 13%, transparent), transparent 62%),
-    radial-gradient(1.5px 1.5px at 14% 16%, color-mix(in srgb, var(--pulse-text, #fff) 50%, transparent), transparent 100%),
-    radial-gradient(1px 1px at 76% 10%, color-mix(in srgb, var(--pulse-text, #fff) 40%, transparent), transparent 100%),
-    radial-gradient(1.5px 1.5px at 52% 6%, color-mix(in srgb, var(--pulse-text, #fff) 32%, transparent), transparent 100%),
-    radial-gradient(1px 1px at 30% 28%, color-mix(in srgb, var(--pulse-text, #fff) 28%, transparent), transparent 100%)}
-  body::after{content:'';position:fixed;left:0;right:0;bottom:0;height:32vh;z-index:-1;pointer-events:none;background:
-    linear-gradient(to top, color-mix(in srgb, var(--pulse-surface, #08130e) 85%, transparent), transparent 80%),
-    linear-gradient(115deg, transparent 42%, color-mix(in srgb, var(--pulse-surface, #0d1a17) 75%, transparent) 43%, color-mix(in srgb, var(--pulse-surface, #0d1a17) 75%, transparent) 58%, transparent 59%),
-    linear-gradient(245deg, transparent 38%, color-mix(in srgb, var(--pulse-surface, #0a1210) 90%, transparent) 39%, color-mix(in srgb, var(--pulse-surface, #0a1210) 90%, transparent) 62%, transparent 63%);
-    -webkit-mask-image:linear-gradient(to top,#000 55%,transparent);mask-image:linear-gradient(to top,#000 55%,transparent)}
-  .shell{width:100%;max-width:520px}
-  h1{font-size:24px;font-weight:600;letter-spacing:-.01em}
-  .sub{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:6px 0 0}
-
-  /* recovery hero */
-  .hero{margin-top:34px;text-align:center}
-  .kick{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--brand)}
-  .rec{font-family:var(--serif);font-style:italic;font-size:clamp(66px,16vw,104px);line-height:1;color:var(--pulse-text, #fff);margin-top:8px;text-shadow:0 0 44px color-mix(in srgb, var(--pulse-accent, #6EE7B7) 22%, transparent)}
-  .rec.good{color:var(--good)} .rec.watch{color:var(--watch)} .rec.low{color:var(--low)}
-  .recLab{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:8px}
-
-  /* whoop connect */
-  .whoop{margin-top:24px;display:flex;justify-content:center}
-  .whoopBtn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;border-radius:999px;border:1px solid rgba(0,229,160,.4);
-    background:linear-gradient(180deg,rgba(0,229,160,.10),rgba(0,229,160,.03));color:var(--whoop);font-weight:700;font-size:13.5px;cursor:pointer;transition:transform .15s var(--ease),box-shadow .15s;font-family:inherit}
-  .whoopBtn:hover{transform:translateY(-1px);box-shadow:0 8px 26px -10px rgba(0,229,160,.5)}
-  .whoopBtn .dot{width:8px;height:8px;border-radius:99px;background:var(--whoop);box-shadow:0 0 10px var(--whoop)}
-  .whoopNote{margin:12px auto 0;max-width:42ch;text-align:center;color:var(--muted);font-size:12px;line-height:1.55}
-  .whoopNote b{color:var(--whoop)}
-
-  /* manual check-in */
-  .card{margin-top:26px;border:1px solid var(--border);border-radius:16px;background:color-mix(in srgb, var(--pulse-surface, #0e0e11) 50%, transparent);padding:20px 18px}
-  .q{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-strong);margin-bottom:12px}
-  .q2{margin-top:22px}
-  .sleepRow{display:flex;align-items:center;justify-content:center;gap:18px}
-  .step{width:44px;height:44px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);font-size:22px;cursor:pointer;transition:all .15s;font-family:inherit}
-  .step:hover{color:var(--pulse-text, #fff);border-color:var(--muted)}
-  .sleepVal{font-family:var(--serif);font-style:italic;font-size:34px;color:var(--pulse-text, #fff);min-width:120px;text-align:center}
-  .feelRow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
-  .feel{padding:12px 4px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-  .feel:hover{color:var(--pulse-text, #fff);border-color:var(--muted)}
-  .feel.on{color:var(--pulse-accent-ink, #04140d);background:var(--brand);border-color:var(--brand)}
-  .saveBtn{margin-top:20px;width:100%;padding:14px;border-radius:12px;border:none;background:var(--brand);color:var(--pulse-accent-ink, #04140d);font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 28px -10px var(--brand);transition:transform .15s}
-  .saveBtn:hover{transform:translateY(-1px)}
-  .saveBtn:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
-
-  /* 7-day trend */
-  .trend{margin-top:26px}
-  .trendHd{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-  .tEmpty{padding:20px 0;text-align:center;color:var(--muted);font-size:12px}
-  .foot{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:24px;text-align:center}
-  .starterTag{width:max-content;max-width:92%;margin:0 auto 20px;padding:6px 14px;border:1px solid color-mix(in srgb, var(--pulse-accent, #6EE7B7) 25%, transparent);border-radius:999px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--pulse-muted, #84848c);text-align:center}
-  .starterTag,.starterTag *{line-height:1.6}
+  .zone{font:700 13px var(--k-body);padding:4px 10px;border-radius:99px}
+  .metric{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--k-hair)}
+  .metric:last-child{border-bottom:0}
+  .metric .k-ico{width:28px;height:28px;border-radius:8px}
+  .metric .k-ico svg{width:16px;height:16px}
+  .metric b{font:700 15px var(--k-body)}
+  .metric .meter{height:6px;border-radius:9px;background:color-mix(in srgb,var(--k-text) 9%,transparent);margin-top:6px;overflow:hidden}
+  .metric .meter i{display:block;height:100%;border-radius:9px;background:var(--k-tint)}
+  .metric .pct{font:700 18px var(--k-display);font-variant-numeric:tabular-nums}
+  .times{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .feel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .feel button{min-height:62px;border-radius:12px;border:1px solid var(--k-line);background:var(--k-surface);display:grid;place-items:center;gap:2px;padding:6px 2px;font:600 12.5px var(--k-body);color:var(--k-text)}
+  .feel button i{display:block;width:22px;height:22px;border-radius:50%;background:var(--c)}
+  .feel button[aria-pressed=true]{border-color:var(--k-text);box-shadow:inset 0 0 0 1.5px var(--k-text)}
+  details summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center;gap:6px;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary svg{width:16px;height:16px;transition:transform .2s}
+  details[open] summary svg{transform:rotate(90deg)}
+  .coach{display:flex;gap:12px;align-items:flex-start}
+  .coach p{margin:0;line-height:1.5}
 </style>
 </head>
-<body>
-<div class="shell">
-<div class="starterTag">✦ starter — the value is what you build · the videos show how</div>
-  <h1>Vitals</h1>
-  <div id="app"></div>
-</div>
+<body class="k-hue-indigo">
+<main class="k-page" id="app" aria-live="polite"></main>
 <script>
-const FEEL=[['Wrecked',25],['Rough',45],['OK',65],['Good',82],['Great',95]];
-let store={};
-let draft={sleepHours:7.5,feel:null};
-function persist(){window.Vitality.save(store)}
-function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+var K=window.PulseKit;
+var store={};
+var FEEL=[['Wrecked',25,'#C2271D'],['Rough',45,'#D9590F'],['OK',65,'#B88A00'],['Good',82,'#3D9A5B'],['Great',95,'#0B7A4B']];
+var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var draft=null,view='week';
 
-/* THE shared recovery formula — identical to peak.html recoveryFromVitals,
-   docs/THE-MATH.md §5 and /sweep. whoopRecovery (a device) wins; else the two
-   manual inputs. Change here → change all. */
+/* THE shared recovery formula (peak.html recoveryFromVitals, tileStats.ts). */
 function estRecovery(h){
   if(!h) return null;
   if(typeof h.whoopRecovery==='number') return Math.max(1,Math.min(99,Math.round(h.whoopRecovery)));
-  const c=x=>Math.max(0,Math.min(1,x)),parts=[],w=[];
-  if(typeof h.feel==='number'){ parts.push(Math.max(0,Math.min(100,h.feel))); w.push(0.6); }
-  if(typeof h.sleepHours==='number'){ parts.push(c(h.sleepHours/8)*100); w.push(0.4); }
+  var c=function(x){return Math.max(0,Math.min(1,x))},parts=[],w=[];
+  if(typeof h.feel==='number'){parts.push(Math.max(0,Math.min(100,h.feel)));w.push(0.6)}
+  if(typeof h.sleepHours==='number'){parts.push(c(h.sleepHours/8)*100);w.push(0.4)}
   if(!parts.length) return null;
-  const sw=w.reduce((a,b)=>a+b,0); let s=0; for(let i=0;i<parts.length;i++)s+=parts[i]*w[i];
+  var sw=w.reduce(function(a,b){return a+b},0),s=0;for(var i=0;i<parts.length;i++)s+=parts[i]*w[i];
   return Math.max(1,Math.min(99,Math.round(s/sw)));
 }
-function tone(r){ if(r==null)return ''; if(r>=67)return 'good'; if(r>=34)return 'watch'; return 'low'; }
-function fmtSleep(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return hh+'h'+(mm?' '+mm+'m':'');}
-function todays(){return store[todayKey()]||null;}
-function entries(){return Object.keys(store).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k)).sort().map(k=>({k,r:estRecovery(store[k])})).filter(e=>e.r!=null);}
+function zone(r){if(r==null)return {name:'No score',color:'var(--k-muted)'};if(r>=67)return {name:'Green · ready',color:'var(--k-signal)'};if(r>=34)return {name:'Yellow · steady',color:'var(--k-gold)'};return {name:'Red · go easy',color:'var(--k-accent)'}}
+function need(){return typeof store.need==='number'&&store.need>=4?store.need:8}
+function ago(n){var d=new Date();d.setDate(d.getDate()-n);return d}
+function nightOf(n){var v=store[K.dayKey(ago(n))];return v&&typeof v==='object'?v:null}
+function hm(h){if(h==null||!isFinite(h))return '—';var hh=Math.floor(h),mm=Math.round((h-hh)*60);if(mm===60){hh++;mm=0}return hh+'h'+(mm?' '+mm+'m':'')}
+function toMin(t){if(!/^\d{2}:\d{2}$/.test(t||''))return null;var p=t.split(':');return Number(p[0])*60+Number(p[1])}
+function span(bed,wake){var b=toMin(bed),w=toMin(wake);if(b==null||w==null)return null;var d=w-b;if(d<=0)d+=1440;return d/60}
+function clock(m){m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function persist(){return Promise.resolve(window.Vitality.save(store)).catch(function(e){K.toast('Could not save: '+(e&&e.message||e))})}
+function nights(){return Object.keys(store).filter(function(k){return /^\d{4}-\d{2}-\d{2}$/.test(k)&&store[k]&&typeof store[k]==='object'}).sort()}
 
-function trend(){
-  const e=entries().slice(-7);
-  if(e.length<2)return ''; /* minimal: nothing until there's a line to draw */
-  const W=480,H=56,P=6;
-  const xs=(i)=>P+(i/(e.length-1))*(W-2*P), ys=(r)=>P+(1-r/100)*(H-2*P);
-  const pts=e.map((d,i)=>[xs(i),ys(d.r)]);
-  let path='M '+pts[0][0]+' '+pts[0][1];
-  for(let i=0;i<pts.length-1;i++){const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
-    path+=' C '+(p1[0]+(p2[0]-p0[0])/6)+' '+(p1[1]+(p2[1]-p0[1])/6)+', '+(p2[0]-(p3[0]-p1[0])/6)+' '+(p2[1]-(p3[1]-p1[1])/6)+', '+p2[0]+' '+p2[1];}
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block;opacity:.6" preserveAspectRatio="none">'
-    +'<path d="'+path+'" fill="none" style="stroke:var(--pulse-accent, #6EE7B7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+/* Bedtime consistency: 100% when you go to bed at the same minute every night, 0% at a 2-hour spread. */
+function consistency(){
+  var beds=[];for(var i=0;i<7;i++){var n=nightOf(i);if(n&&toMin(n.bed)!=null){var m=toMin(n.bed);if(m<720)m+=1440;beds.push(m)}}
+  if(beds.length<3)return null;
+  var avg=beds.reduce(function(a,b){return a+b},0)/beds.length,sd=Math.sqrt(beds.reduce(function(a,b){return a+(b-avg)*(b-avg)},0)/beds.length);
+  return {pct:Math.max(0,Math.round(100-sd/120*100)),avgBed:clock(avg)};
+}
+
+function coachLine(t,rec){
+  if(!t)return 'Log last night: when you went to bed, when you woke and how you feel. Your recovery score fills in from that.';
+  var parts=[],h=t.sleepHours,nd=need();
+  if(rec>=67)parts.push('You are in the green today, a good day to push training or deep work.');
+  else if(rec>=34)parts.push('A steady day. Train, but keep the hardest sets for a greener morning.');
+  else parts.push('Your body is asking for an easy day: light movement, water, an early night.');
+  if(typeof h==='number'){if(h<nd-0.75)parts.push('You slept '+hm(nd-h)+' less than you need, so aim to be in bed by '+(t.wake?clock(toMin(t.wake)-nd*60):'a little earlier')+' tonight.');else if(h>=nd)parts.push('You covered your full sleep need.')}
+  var c=consistency();if(c&&c.pct<60)parts.push('Your bedtimes jump around; a steadier bedtime (around '+c.avgBed+') lifts recovery more than extra hours.');
+  return parts.join(' ');
 }
 
 function render(){
-  const t=todays(),rec=estRecovery(t),tn=tone(rec);
-  const line=trend();
+  var tk=K.dayKey(),t=store[tk]||null,rec=estRecovery(t),z=zone(rec),nd=need();
+  if(!draft){draft={bed:t&&t.bed||'23:00',wake:t&&t.wake||'07:00',sleepHours:t&&typeof t.sleepHours==='number'?t.sleepHours:null,feel:t&&typeof t.feel==='number'?t.feel:null,rhr:t&&t.rhr||'',hrv:t&&t.hrv||'',note:t&&t.note||''};if(draft.sleepHours==null)draft.sleepHours=span(draft.bed,draft.wake)}
+  var hrs=t&&typeof t.sleepHours==='number'?t.sleepHours:null,cons=consistency();
+  var hoursPct=hrs!=null?Math.min(100,Math.round(hrs/nd*100)):null,feelPct=t&&typeof t.feel==='number'?t.feel:null;
+
+  var n=view==='week'?7:30,vals=[],recs=[],labels=[];
+  for(var i=n-1;i>=0;i--){var x=nightOf(i);vals.push(x&&typeof x.sleepHours==='number'?x.sleepHours:0);recs.push(estRecovery(x));labels.push(n===7?(i===0?'Today':DAYS[ago(i).getDay()]):(i%7===0?(ago(i).getMonth()+1)+'/'+ago(i).getDate():''))}
+  var logged=vals.filter(function(v){return v>0}),avg=logged.length?logged.reduce(function(a,b){return a+b},0)/logged.length:null;
+  var rl=recs.filter(function(v){return v!=null}),ravg=rl.length?Math.round(rl.reduce(function(a,b){return a+b},0)/rl.length):null;
+  var debt=0;for(var j=0;j<7;j++){var y=nightOf(j);if(y&&typeof y.sleepHours==='number')debt+=Math.max(0,nd-y.sleepHours)}
+
+  var hist=nights().slice(-7).reverse();
+
   document.getElementById('app').innerHTML=
-    '<div class="hero"><div class="rec '+tn+'">'+(rec!=null?rec+'%':'—')+'</div></div>'
-    +'<div class="whoop"><button class="whoopBtn" data-whoop><span class="dot"></span>Connect WHOOP</button></div>'
-    +'<div class="card">'
-      +'<div class="sleepRow"><button class="step" data-sleep="-0.5">−</button><span class="sleepVal">'+fmtSleep(draft.sleepHours)+'</span><button class="step" data-sleep="0.5">+</button></div>'
-      +'<div class="feelRow" style="margin-top:20px">'+FEEL.map((f)=>'<button class="feel'+(draft.feel===f[1]?' on':'')+'" data-feel="'+f[1]+'">'+f[0]+'</button>').join('')+'</div>'
-      +'<button class="saveBtn" data-save '+(draft.feel==null?'disabled':'')+' aria-label="Save">✓</button>'
+    '<section class="k-card k-hero">'
+      +'<div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('heart')+'Recovery</span><span class="k-time">'+(t?'last night':'not logged yet')+'</span></div>'
+      +'<div class="k-ringbox">'+K.ring((rec||0)/100,{size:216,color:z.color,label:'Recovery '+(rec==null?'not scored':rec+' percent')})
+        +'<div class="k-in"><div class="k-big">'+(rec==null?'—':rec+'<small>%</small>')+'</div><div class="k-sub">recovery</div></div></div>'
+      +'<span class="zone" style="background:color-mix(in srgb,'+z.color+' 14%,transparent);color:'+z.color+'">'+z.name+'</span>'
+    +'</section>'
+    +'<section class="k-card"><div class="coach"><span class="k-ico">'+K.icon('bolt')+'</span><p>'+K.esc(coachLine(t,rec))+'</p></div></section>'
+    +(t?'<section class="k-card">'
+      +'<div class="metric"><span class="k-ico">'+K.icon('clock')+'</span><div><b>Hours vs. needed</b><div class="k-sub">'+hm(hrs)+' of '+hm(nd)+'</div><div class="meter"><i style="width:'+(hoursPct||0)+'%"></i></div></div><span class="pct">'+(hoursPct==null?'—':hoursPct+'%')+'</span></div>'
+      +'<div class="metric"><span class="k-ico">'+K.icon('calendar')+'</span><div><b>Bedtime consistency</b><div class="k-sub">'+(cons?'avg bedtime '+cons.avgBed:'needs 3 nights with a bedtime')+'</div><div class="meter"><i style="width:'+(cons?cons.pct:0)+'%"></i></div></div><span class="pct">'+(cons?cons.pct+'%':'—')+'</span></div>'
+      +'<div class="metric"><span class="k-ico">'+K.icon('smile')+'</span><div><b>How you feel</b><div class="k-sub">'+(feelPct==null?'not set':FEEL.filter(function(f){return f[1]===feelPct}).map(function(f){return f[0]}).join('')||feelPct+'/100')+'</div><div class="meter"><i style="width:'+(feelPct||0)+'%"></i></div></div><span class="pct">'+(feelPct==null?'—':feelPct+'%')+'</span></div>'
+      +((t.rhr||t.hrv)?'<div class="metric"><span class="k-ico">'+K.icon('pulse')+'</span><div><b>Heart</b><div class="k-sub">'+(t.rhr?'resting '+t.rhr+' bpm':'')+(t.rhr&&t.hrv?' · ':'')+(t.hrv?'HRV '+t.hrv+' ms':'')+'</div></div><span></span></div>':'')
+    +'</section>':'')
+
+    +'<h2 class="k-title">'+(t?'Edit last night':'Log last night')+'</h2>'
+    +'<section class="k-card k-plain" style="display:grid;gap:14px">'
+      +'<div class="times"><label class="k-field"><span>Went to bed</span><input class="k-input" type="time" id="bed" value="'+K.esc(draft.bed)+'"></label><label class="k-field"><span>Woke up</span><input class="k-input" type="time" id="wake" value="'+K.esc(draft.wake)+'"></label></div>'
+      +'<div class="k-stepper"><button class="k-round" data-adj="-0.25" aria-label="15 minutes less">−</button><div class="k-val"><div class="k-mid" id="hrs">'+hm(draft.sleepHours)+'</div><div class="k-sub">asleep · fix it with − / +</div></div><button class="k-round" data-adj="0.25" aria-label="15 minutes more">+</button></div>'
+      +'<div class="k-field"><span>How do you feel?</span><div class="feel">'+FEEL.map(function(f){return '<button type="button" data-feel="'+f[1]+'" aria-pressed="'+(draft.feel===f[1])+'" style="--c:'+f[2]+'"><i></i>'+f[0]+'</button>'}).join('')+'</div></div>'
+      +'<details'+(draft.rhr||draft.hrv||draft.note?' open':'')+'><summary>'+K.icon('chev')+'More: heart rate, HRV, a note</summary><div style="display:grid;gap:10px;margin-top:6px"><div class="times"><label class="k-field"><span>Resting HR (bpm)</span><input class="k-input" id="rhr" inputmode="numeric" value="'+K.esc(draft.rhr)+'" placeholder="e.g. 54"></label><label class="k-field"><span>HRV (ms)</span><input class="k-input" id="hrv" inputmode="numeric" value="'+K.esc(draft.hrv)+'" placeholder="e.g. 68"></label></div><label class="k-field"><span>Note</span><input class="k-input" id="note" value="'+K.esc(draft.note)+'" placeholder="late coffee, woke at 3, new pillow…"></label></div></details>'
+      +'<button class="k-btn k-wide" data-save '+(draft.feel==null?'disabled':'')+'>'+K.icon('check')+(draft.feel==null?'Pick how you feel to save':'Save last night')+'</button>'
+    +'</section>'
+
+    +'<h2 class="k-title">Trends<span></span></h2>'
+    +'<div class="k-seg" role="tablist" aria-label="Range"><button role="tab" data-view="week" aria-selected="'+(view==='week')+'">7 days</button><button role="tab" data-view="month" aria-selected="'+(view==='month')+'">30 days</button></div>'
+    +'<section class="k-card"><div class="k-label" style="margin-bottom:10px">Hours of sleep · dashed line = your need</div>'+K.bars(vals,{labels:labels,goal:nd,now:n-1,height:150,fmt:hm,label:'Hours of sleep per night'})+'</section>'
+    +'<section class="k-card"><div class="k-label" style="margin-bottom:10px">Recovery %</div>'+K.line(recs,{height:130,min:0,max:100,labels:[labels[0]||(n+' days ago'),'Today'],label:'Recovery trend',empty:'Log two nights to draw your recovery line.'})+'</section>'
+    +'<div class="k-grid">'
+      +'<div class="k-stat"><div class="k-label">Avg sleep</div><div class="k-mid">'+hm(avg)+'</div><div class="k-sub">'+logged.length+' nights logged</div></div>'
+      +'<div class="k-stat"><div class="k-label">Avg recovery</div><div class="k-mid">'+(ravg==null?'—':ravg+'<small>%</small>')+'</div><div class="k-sub">'+zone(ravg).name+'</div></div>'
+      +'<div class="k-stat"><div class="k-label">Sleep debt</div><div class="k-mid">'+hm(debt)+'</div><div class="k-sub">short of need, last 7 nights</div></div>'
+      +'<div class="k-stat"><div class="k-label">Avg bedtime</div><div class="k-mid">'+(cons?cons.avgBed:'—')+'</div><div class="k-sub">'+(cons?cons.pct+'% consistent':'3 nights to measure')+'</div></div>'
     +'</div>'
-    +(line?'<div class="trend">'+line+'</div>':'');
+
+    +'<h2 class="k-title">Recent nights</h2>'
+    +(hist.length?'<div class="k-list">'+hist.map(function(k){var h=store[k],r=estRecovery(h),zz=zone(r),d=new Date(k+'T12:00');return '<div class="k-row"><span class="k-ico" style="color:'+zz.color+';background:color-mix(in srgb,'+zz.color+' 14%,transparent)">'+K.icon('moon')+'</span><span class="k-main"><b>'+(k===tk?'Last night':DAYS[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate())+'</b><span>'+hm(h.sleepHours)+(h.bed?' · '+h.bed+'–'+(h.wake||'?'):'')+(h.note?' · '+K.esc(h.note):'')+'</span></span><span class="k-end">'+(r==null?'—':r+'%')+'<small>recovery</small></span><button class="k-x" data-del="'+k+'" aria-label="Delete '+k+'">'+K.icon('trash')+'</button></div>'}).join('')+'</div>'
+      :'<div class="k-card k-empty">'+K.icon('moon')+'<b>No nights yet</b><span>Your first logged night starts the trend.</span></div>')
+    +'<div class="k-list"><button class="k-row" data-need><span class="k-ico">'+K.icon('target')+'</span><span class="k-main"><b>Sleep need</b><span>What a full night is for you</span></span><span class="k-end">'+hm(nd)+'</span>'+K.icon('chev','k-chev')+'</button></div>'
+    +'<p class="k-note">Recovery = 60% how you feel + 40% hours against 8. Feeds your Peak curve.</p>';
 }
 
-document.addEventListener('click',e=>{
-  const s=e.target.closest('[data-sleep]');
-  if(s){draft.sleepHours=Math.max(0,Math.min(14,draft.sleepHours+parseFloat(s.getAttribute('data-sleep'))));render();return}
-  const f=e.target.closest('[data-feel]');
-  if(f){draft.feel=Number(f.getAttribute('data-feel'));render();return}
+function readDraft(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:''};
+  draft.bed=g('bed')||draft.bed;draft.wake=g('wake')||draft.wake;draft.rhr=g('rhr');draft.hrv=g('hrv');draft.note=g('note');
+}
+
+document.addEventListener('change',function(e){
+  if(e.target.id==='bed'||e.target.id==='wake'){readDraft();var s=span(draft.bed,draft.wake);if(s!=null){draft.sleepHours=s;document.getElementById('hrs').textContent=hm(s)}}
+});
+document.addEventListener('click',function(e){
+  var b;
+  if((b=e.target.closest('[data-adj]'))){readDraft();draft.sleepHours=Math.max(0,Math.min(16,(draft.sleepHours||0)+Number(b.getAttribute('data-adj'))));document.getElementById('hrs').textContent=hm(draft.sleepHours);return}
+  if((b=e.target.closest('[data-feel]'))){readDraft();draft.feel=Number(b.getAttribute('data-feel'));render();return}
+  if((b=e.target.closest('[data-view]'))){readDraft();view=b.getAttribute('data-view');render();return}
   if(e.target.closest('[data-save]')){
-    if(draft.feel==null)return;
-    const k=todayKey(),prev=store[k]||{};
-    store[k]=Object.assign({},prev,{sleepHours:draft.sleepHours,feel:draft.feel});
-    persist();render();
+    readDraft();if(draft.feel==null)return;
+    var k=K.dayKey(),prev=store[k]||{},num=function(v){var n=parseFloat(String(v).replace(',','.'));return isFinite(n)&&n>0?Math.round(n):undefined};
+    var next=Object.assign({},prev,{sleepHours:Math.round(draft.sleepHours*100)/100,feel:draft.feel,bed:draft.bed,wake:draft.wake});
+    ['rhr','hrv'].forEach(function(f){var v=num(draft[f]);if(v)next[f]=v;else delete next[f]});
+    if(draft.note.trim())next.note=draft.note.trim().slice(0,140);else delete next.note;
+    store[k]=next;persist();K.toast('Saved. Recovery '+estRecovery(next)+'%.');render();return;
   }
+  if((b=e.target.closest('[data-del]'))){var key=b.getAttribute('data-del');K.sheet('Delete this night?','<p style="margin:0">'+K.esc(key)+' will be removed from your sleep log.</p><div class="k-row-btns"><button class="k-btn k-ghost" data-k-close>Keep it</button><button class="k-btn" data-yes>Delete</button></div>',function(el,close){el.querySelector('[data-yes]').onclick=function(){delete store[key];if(key===K.dayKey())draft=null;persist();close();render()}});return}
+  if(e.target.closest('[data-need]')){var v=need();K.sheet('Sleep need','<div class="k-stepper"><button class="k-round" data-n="-0.25" aria-label="15 minutes less">−</button><div class="k-val"><div class="k-big" id="nv" style="font-size:48px">'+hm(v)+'</div><div class="k-sub">a night</div></div><button class="k-round" data-n="0.25" aria-label="15 minutes more">+</button></div><p class="k-note">Most adults need 7 to 9 hours. More after hard training.</p><button class="k-btn k-wide" data-k-ok>Save</button>',function(el,close){el.addEventListener('click',function(ev){var x=ev.target.closest('[data-n]');if(x){v=Math.max(5,Math.min(11,v+Number(x.getAttribute('data-n'))));el.querySelector('#nv').textContent=hm(v)}if(ev.target.closest('[data-k-ok]')){store.need=v;persist();close();render()}})})}
 });
 
-if(!window.Vitality){window.Vitality={save:function(d){try{localStorage.setItem('v:prev:vitals',JSON.stringify(d));}catch(e){}return Promise.resolve(true);},load:function(){try{return Promise.resolve(JSON.parse(localStorage.getItem('v:prev:vitals')||'{}'));}catch(e){return Promise.resolve({});}},read:function(){return Promise.resolve(null);}};}
-(async()=>{
-  const d=await window.Vitality.load();
-  store=(d&&typeof d==='object'&&!Array.isArray(d))?d:{};
-  const t=todays();
-  if(t){ if(typeof t.sleepHours==='number')draft.sleepHours=t.sleepHours; if(typeof t.feel==='number')draft.feel=t.feel; }
+(async function(){
+  try{var d=await window.Vitality.load();store=(d&&typeof d==='object'&&!Array.isArray(d))?d:{}}
+  catch(e){store={};K.toast('Could not load your sleep log: '+(e&&e.message||e))}
   render();
 })();
 </script>

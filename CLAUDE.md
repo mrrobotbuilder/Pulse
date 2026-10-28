@@ -203,6 +203,19 @@ repo `C:\Users\User\Projects\stega`) — not on this board.
   `realtiles <dir>` (real model, ~20 cents), then
   `GEN=<dir> CUSTOM=1 node scripts/check-tiles.mjs <url>` to use them in a browser.
 
+## The tile kit (2026-10-28)
+
+Every open tile gets the board's design kit injected next to the bridge
+(`lib/tiles/tileKit.ts` via `kitHead()`, fonts as data: URLs from
+`lib/tiles/tileFonts.ts` and `public/tile-fonts/`). Build tiles on its `k-*`
+classes and `window.PulseKit` helpers (list in `public/tiles/README.md`); the
+built-in tiles and `lib/tiles/readyTiles.ts` are the examples. Ready-made tiles
+are upgraded to the current template on load (`upgradeReadyTiles`); AI-written
+tiles get a "Redesign" button that rebuilds them and keeps their data. Every
+tile owns a different hatch (`lib/tiles/tileInfo.ts`, `.h1`–`.h43`). Goals are
+edited on the board (`app/app/GoalsEditor.tsx`). After changing a built-in
+tile, copy it to `tiles-library/` too.
+
 Note: `npm run build` reports a pre-existing prerender error on `/icon` and
 `/apple-icon` (next/og "Invalid URL"). It predates this integration and does not
 block Vercel deploys.

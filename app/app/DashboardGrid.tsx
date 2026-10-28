@@ -4,16 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import styles from './dashboard.module.css'
 import { CORE_TILES, VEE_TILE, DEFAULT_HOME_ORDER } from '@/lib/tiles/coreTiles'
-import { tileInfo } from '@/lib/tiles/tileInfo'
+import { tileInfo, setCustomTileIds } from '@/lib/tiles/tileInfo'
 import WeightStrip from './WeightStrip'
+import GoalsEditor from './GoalsEditor'
 import { activeGoal as readActiveGoal, allGoals, setActiveGoalId, tileWeights, noticedFeed, type Goal, type Notice } from '@/lib/tiles/weights'
-import { readScoped, writeScoped } from '@/lib/localScope'
+import { readScoped, writeScoped, removeScoped } from '@/lib/localScope'
 import { useTileHost, loadTileData } from '@/lib/tiles/useTileHost'
 import { summarize, type TileStat } from '@/lib/tiles/tileStats'
 import { withBridge } from '@/lib/tiles/tileBridge'
+import { kitHead } from '@/lib/tiles/tileKit'
+import { loadTileFonts, tileFontCss } from '@/lib/tiles/tileFonts'
 import { themeTokens } from '@/lib/theme'
 import { syncEnabled, syncLoadTiles } from '@/lib/sync'
-import { foldRemoteCustomTiles, listCustomTiles, saveCustomTile } from '@/lib/tiles/customTiles'
+import { foldRemoteCustomTiles, listCustomTiles, saveCustomTile, upgradeReadyTiles, isReadyTile, replaceCustomTileHtml } from '@/lib/tiles/customTiles'
 import { READY_TILES, readyTileHtml, type ReadyTile } from '@/lib/tiles/readyTiles'
 import { showOnBoard } from '@/lib/aiBoard'
 import { mirrorBoardChange } from '@/lib/onboarding'
@@ -65,18 +68,81 @@ function Bold({ text }: { text: string }) {
   )
 }
 
+/**
+ * A copy of a tile's saved data small enough to send with a redesign: long
+ * arrays keep only their newest items, so the model still sees the shape.
+ */
+function dataSample(data: unknown, max = 3000): string | undefined {
+  if (data == null || (Array.isArray(data) && !data.length)) return undefined
+  for (const keep of [Infinity, 40, 15, 5, 1]) {
+    const cut = (v: unknown): unknown =>
+      Array.isArray(v) ? v.slice(-Math.min(v.length, keep)).map(cut) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cut(x)])) : v
+    const json = JSON.stringify(cut(data))
+    if (json.length <= max) return json
+  }
+  return undefined
+}
+
 /* ── open a filled slot's sealed HTML in a sandboxed iframe ── */
 function OpenTileOverlay({
   slot,
+  userId,
+  canRedesign,
+  onRedesigned,
   register,
   unregister,
   onClose,
 }: {
-  slot: { id: string; name: string; html: string; measures: string }
+  slot: { id: string; name: string; html: string; measures: string; hatch: string; weight: number; goal?: string }
+  userId: string
+  /** AI-written tiles can be rebuilt in the current look; their data stays. */
+  canRedesign: boolean
+  onRedesigned: (html: string) => void
   register: (w: Window | null, id: string) => void
   unregister: (w: Window | null) => void
   onClose: () => void
 }) {
+  const backupKey = `tile-backup:${slot.id}`
+  const [redesign, setRedesign] = useState<'idle' | 'confirm' | 'busy'>('idle')
+  const [redesignNote, setRedesignNote] = useState<string | null>(null)
+  const [hasBackup, setHasBackup] = useState(() => !!readScoped(userId, backupKey))
+  const runRedesign = async () => {
+    setRedesign('busy')
+    setRedesignNote(null)
+    try {
+      const data = dataSample(await loadTileData(userId, slot.id))
+      const res = await fetch('/api/tiles/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ spec: { name: slot.name.slice(0, 60), tracks: slot.measures.slice(0, 120), why: 'A redesign of a tile the person already uses, in the new Pulse look.', ...(data ? { data } : {}) } }),
+        signal: AbortSignal.timeout(150_000),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || typeof json?.html !== 'string') throw new Error(typeof json?.reason === 'string' ? json.reason : `the tile writer answered ${res.status}`)
+      writeScoped(userId, backupKey, slot.html)
+      const cloud = await replaceCustomTileHtml(userId, slot.id, json.html)
+      setHasBackup(true)
+      onRedesigned(json.html)
+      setRedesignNote(cloud ? 'Redesigned. Your data is untouched.' : 'Redesigned on this device, but it did not reach your other devices yet.')
+    } catch (e) {
+      setRedesignNote(`Could not redesign it: ${e instanceof Error ? e.message : String(e)}. The old design is still here.`)
+    } finally {
+      setRedesign('idle')
+    }
+  }
+  const undoRedesign = async () => {
+    const old = readScoped(userId, backupKey)
+    if (!old) return
+    try {
+      const cloud = await replaceCustomTileHtml(userId, slot.id, old)
+      removeScoped(userId, backupKey)
+      setHasBackup(false)
+      onRedesigned(old)
+      setRedesignNote(cloud ? 'The old design is back.' : 'The old design is back on this device; other devices still show the new one.')
+    } catch (e) {
+      setRedesignNote(`Could not undo: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
   const winRef = useRef<Window | null>(null)
   // The tile gets the board's theme as CSS variables; a theme switch while it
   // is open re-renders it in the new colours.
@@ -86,40 +152,116 @@ function OpenTileOverlay({
     window.addEventListener('pulse:theme', on)
     return () => window.removeEventListener('pulse:theme', on)
   }, [])
+  // Esc pressed inside the tile (the kit passes it up) closes it like Esc on the board.
+  useEffect(() => {
+    const on = (e: MessageEvent) => {
+      if (e.source && e.source === winRef.current && e.data?.source === 'vitality-tile' && e.data.type === 'escape') onClose()
+    }
+    window.addEventListener('message', on)
+    return () => window.removeEventListener('message', on)
+  }, [onClose])
+  // The board's fonts, as data: URLs. The board starts loading them on mount, so
+  // they are almost always ready; if not, wait a moment rather than render the
+  // tile twice (a second srcDoc would reload it and lose what was typed).
+  const [fonts, setFonts] = useState<string | null>(() => tileFontCss() || null)
+  useEffect(() => {
+    if (fonts !== null) return
+    let alive = true
+    const done = (css: string) => alive && setFonts((f) => f ?? css)
+    void loadTileFonts().then(done)
+    const t = window.setTimeout(() => done(''), 1500)
+    return () => {
+      alive = false
+      window.clearTimeout(t)
+    }
+  }, [fonts])
   return (
     <div className={styles.openFull} role="dialog" aria-modal="true" aria-label={slot.name}>
       <div className={styles.openTop}>
-        <div className={styles.openHead}>
-          <button type="button" className="btn ghost" onClick={onClose}>
-            <span aria-hidden="true">←</span> Board
+        <div className={styles.openBar}>
+          <button type="button" className={styles.openBack} onClick={onClose}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+            Board
           </button>
+          <div className={styles.openTools}>
+            {slot.weight > 0 && (
+              <span className={styles.openWeight}>
+                w {slot.weight}
+                {slot.goal ? <small> in {slot.goal}</small> : null}
+              </span>
+            )}
+            {canRedesign && hasBackup && redesign === 'idle' && (
+              <button type="button" className={styles.openBack} onClick={undoRedesign}>
+                Undo redesign
+              </button>
+            )}
+            {canRedesign && (
+              <button type="button" className={styles.openBack} disabled={redesign === 'busy'} onClick={() => setRedesign('confirm')}>
+                {redesign === 'busy' ? 'Redesigning… (about a minute)' : '✦ Redesign'}
+              </button>
+            )}
+          </div>
+        </div>
+        {redesignNote && (
+          <p className={styles.openNote} role="status">
+            {redesignNote}
+          </p>
+        )}
+        <div className={styles.openHead}>
+          <i className={`sw ${slot.hatch} ${styles.openSw}`} aria-hidden="true" />
           <div className={styles.openTitle}>
             <h2>{slot.name}</h2>
             <p>{slot.measures}</p>
           </div>
         </div>
       </div>
+      {redesign === 'confirm' && (
+        <div className="veil" role="dialog" aria-modal="true" aria-label="Redesign this tile" onMouseDown={(e) => e.target === e.currentTarget && setRedesign('idle')}>
+          <div className="sheet">
+            <div className="sheet-head">
+              <span className="ann">Redesign {slot.name}</span>
+              <CloseButton onClose={() => setRedesign('idle')} />
+            </div>
+            <div className="sheet-body">
+              <p>The AI rebuilds this tile in the new look, with rings, charts and a history list. Everything you logged stays: only the design changes, and you can undo it.</p>
+              <p className="muted">It takes about a minute and uses one AI build.</p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+                <button type="button" className="btn ghost" onClick={() => setRedesign('idle')}>
+                  Keep this design
+                </button>
+                <button type="button" className="btn" onClick={runRedesign}>
+                  Redesign it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className={styles.openStage}>
         <div className={styles.openCard}>
-        <iframe
-          ref={(el) => {
-            if (el) {
-              winRef.current = el.contentWindow
-              register(el.contentWindow, slot.id)
-            } else if (winRef.current) {
-              unregister(winRef.current)
-              winRef.current = null
-            }
-          }}
-          onLoad={(e) => {
-            winRef.current = e.currentTarget.contentWindow
-            register(e.currentTarget.contentWindow, slot.id)
-          }}
-          className={styles.openFrame}
-          srcDoc={withBridge(slot.html, tokens)}
-          sandbox="allow-scripts"
-          title={slot.name}
-        />
+          {fonts !== null && (
+            <iframe
+              ref={(el) => {
+                if (el) {
+                  winRef.current = el.contentWindow
+                  register(el.contentWindow, slot.id)
+                } else if (winRef.current) {
+                  unregister(winRef.current)
+                  winRef.current = null
+                }
+              }}
+              onLoad={(e) => {
+                winRef.current = e.currentTarget.contentWindow
+                register(e.currentTarget.contentWindow, slot.id)
+              }}
+              className={styles.openFrame}
+              srcDoc={withBridge(slot.html, tokens, kitHead(fonts))}
+              sandbox="allow-scripts"
+              title={slot.name}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -237,6 +379,7 @@ function NewTileOverlay({
               <ul className={styles.pickList}>
                 {hidden.map((id) => (
                   <li key={id}>
+                    <i className={`sw ${tileInfo(id).hatch}`} aria-hidden="true" />
                     <div>
                       <b>{labelFor(id)}</b>
                       <span>{tileInfo(id).measures}</span>
@@ -257,6 +400,7 @@ function NewTileOverlay({
                   const there = onBoard.has(t.id)
                   return (
                     <li key={t.id}>
+                      <i className={`sw ${tileInfo(t.id).hatch}`} aria-hidden="true" />
                       <div>
                         <b>{t.name}</b>
                         <span>{t.tracks}</span>
@@ -317,6 +461,8 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   const [openId, setOpenId] = useState<string | null>(null) // filled slot opened live
   const [connectId, setConnectId] = useState<string | null>(null) // empty slot connector
   const [newOpen, setNewOpen] = useState(false) // "+ New tile" creator
+  const [goalsOpen, setGoalsOpen] = useState(false) // the goals sheet
+  const [goalNote, setGoalNote] = useState<string | null>(null) // goals saved here but not mirrored
   const [showWelcome, setShowWelcome] = useState(false) // transient "see the vision" home (non-destructive)
   const [loaded, setLoaded] = useState(false) // tile discovery finished — gates the blank "see the vision" state
   const [scratched, setScratched] = useState(false) // deliberate "start from scratch" → clean canvas, no onboarding text
@@ -329,6 +475,8 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   const [custom, setCustom] = useState<CustomMeta>({}) // AI-written tiles (custom-*): name and what each tracks
   const dragId = useRef<string | null>(null)
 
+  // Hand the AI-written tiles their own hatches before anything draws one.
+  setCustomTileIds(Object.keys(custom))
   const labelFor = (id: string) => custom[id]?.name ?? coreLabel(id)
   const info = (id: string) => (custom[id] ? { ...tileInfo(id), measures: custom[id].tracks || 'Built by the AI for you.' } : tileInfo(id))
 
@@ -344,6 +492,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
   useEffect(() => {
     setMounted(true)
+    void loadTileFonts() // ready before the first tile opens
     try {
       setScratched(readScoped(userId, 'scratched') === '1')
       const o = JSON.parse(readScoped(userId, 'eq:order') || 'null')
@@ -420,6 +569,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
         // AI-written tiles accepted on another device
         foldRemoteCustomTiles(userId, remote)
       }
+      upgradeReadyTiles(userId) // ready-made tiles get the current design
       const c = readCustom(userId)
 
       if (alive) {
@@ -483,17 +633,18 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
 
   // Esc closes any overlay.
   useEffect(() => {
-    if (!openId && !connectId && !newOpen) return
+    if (!openId && !connectId && !newOpen && !goalsOpen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setOpenId(null)
         setConnectId(null)
         setNewOpen(false)
+        setGoalsOpen(false)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [openId, connectId, newOpen])
+  }, [openId, connectId, newOpen, goalsOpen])
 
   if (!mounted) return null
 
@@ -584,7 +735,15 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
                 {g.id !== 'overall' && g.progress != null && <span>{g.progress}%</span>}
               </button>
             ))}
+            <button type="button" className={`${styles.goal} ${styles.goalEdit}`} onClick={() => setGoalsOpen(true)}>
+              ✎ Edit goals
+            </button>
           </div>
+          {goalNote && (
+            <p className={styles.pickError} role="status" style={{ marginTop: 10 }}>
+              {goalNote}
+            </p>
+          )}
 
           <div className={styles.yrow}>
             <div>
@@ -703,7 +862,10 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
       {openId && filled[openId] && (
         <OpenTileOverlay
           key={openId}
-          slot={{ id: openId, name: labelFor(openId), html: filled[openId], measures: info(openId).measures }}
+          slot={{ id: openId, name: labelFor(openId), html: filled[openId], measures: info(openId).measures, hatch: info(openId).hatch, weight: weights[openId] ?? 0, goal: goal?.title }}
+          userId={userId}
+          canRedesign={!!custom[openId] && !isReadyTile(openId, filled[openId])}
+          onRedesigned={(html) => setFilled((prev) => ({ ...prev, [openId]: html }))}
           register={register}
           unregister={unregister}
           onClose={() => setOpenId(null)}
@@ -719,6 +881,20 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
           onBoard={new Set(rowIds)}
           labelFor={labelFor}
           onClose={() => setNewOpen(false)}
+        />
+      )}
+
+      {goalsOpen && (
+        <GoalsEditor
+          userId={userId}
+          tileIds={rowIds}
+          labelFor={labelFor}
+          onClose={() => setGoalsOpen(false)}
+          onSaved={(_active, mirrorFailed) => {
+            setGoalsOpen(false)
+            setGoal(readActiveGoal(userId))
+            setGoalNote(mirrorFailed ? 'Your goals are saved on this device, but they did not reach your other devices. Save them again later.' : null)
+          }}
         />
       )}
 
