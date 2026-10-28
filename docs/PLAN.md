@@ -434,6 +434,30 @@ Steps, in order:
 Stop when: the result line is written, and either the 07:30 push arrived on its
 own the next morning (Grok PASS) or Stage 8b is marked next.
 
+**Status 2026-10-28 (steps 1-3 done, step 4 not started):**
+
+- Step 1 PASS. Cause: the owner was signed out on every device (last sign-in
+  Sept 9), so nothing mirrored, and data logged signed out never reached the
+  cloud even after a sign-in (a tile mirrored only on its next save). Fix
+  `3b9f0f8`: on a signed-in load the board inserts this device's data for every
+  tile the cloud lacks (insert-only, never overwrites; proven against the real
+  table). After the owner signed in, `read_data fuel` returned the logged glass.
+- Step 2 PASS. `today` tool `4c04608`; called on the live connector it printed
+  the date and `Fuel: 1 glass (of 8 today)`. The `pulse` MCP in an already
+  running Claude Code session lists tools from session start, so a new session
+  sees `today`.
+- Step 3 PASS. `docs/coach-prompt.md`, approved by the owner.
+- Step 4 changes: Fuel tracks **water glasses**, not kcal, so 4d is "Log 2
+  glasses of water in Fuel" (or, with the new ready-made Calories tile on the
+  board, "Log a 500 kcal lunch in Calories"). The owner uses a **Grok bot named
+  Health Coach**: linking the website to it gives it nothing (the board is
+  private); the bot needs the connector URL plus `MCP_TOKEN` as a connector or
+  tool. Start 4b by asking the owner what the bot's settings offer
+  (connectors/tools, scheduled messages); do not guess Grok's buttons.
+- Done in the same session, outside the plan: click-to-edit greeting, a
+  "+ New tile" picker (put hidden tiles back, 12 ready-made tiles in
+  `lib/tiles/readyTiles.ts`), one frame for every open tile (`c3e1c42`).
+
 #### Stage 8b — Telegram coach (only if the 8a probe failed)
 
 **Before coding, load the `claude-api` skill** for the Sonnet 5.5 id, tool-use
