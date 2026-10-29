@@ -458,6 +458,21 @@ own the next morning (Grok PASS) or Stage 8b is marked next.
   "+ New tile" picker (put hidden tiles back, 12 ready-made tiles in
   `lib/tiles/readyTiles.ts`), one frame for every open tile (`c3e1c42`).
 
+**Status 2026-10-29 (step 4, owner ran it on their own):**
+
+- 4b/4c PASS. The owner's coach ("Health Coach") added the Pulse connector and
+  quoted the real board: 1 glass of 8, 1 coffee, 0 steps, 196 followers.
+- Four routines set up in the coach: 08:00 morning plan, 12:30 water and
+  movement nudge, 21:00 evening wrap, Sunday 18:00 weekly review.
+- 4d NOT PROVEN. After the owner said the test was done, `read_data fuel` still
+  held only `{"water":{"2026-10-28":1}}` and `today` showed 0 glasses: the
+  coach's log never reached the cloud. Next session: ask the coach to log
+  2 glasses again, then read `fuel` and the coach's own reply to see whether it
+  called `save_data` at all, wrote another slot, or only said it did.
+- 4e not yet confirmed: whether the 08:00 routine arrived with a real board
+  number (it would say 196 followers or 0 glasses, not "no data").
+- No result line yet; 8b stays undecided until 4d and 4e are settled.
+
 #### Stage 8b — Telegram coach (only if the 8a probe failed)
 
 **Before coding, load the `claude-api` skill** for the Sonnet 5.5 id, tool-use
@@ -506,6 +521,107 @@ Verify, each actually run:
 
 Stop when: the morning message arrived on its own and every verify line passed
 live.
+
+### Stage 9 — Brand tracks the accounts by itself
+
+_Planned 2026-10-29._ Today the Brand tile pulls a live count only while it is
+open (TikTok keyless through tikwm, YouTube through `/api/youtube/subs` with
+`YOUTUBE_API_KEY`), and X is a separate hand-logged tile (`custom-x-followers`,
+196 followers). The owner wants to add an account once and have the board track
+it on its own: where the count is now, how it moved today, this week and this
+month, and how fast it is growing.
+
+**Owner's answers (2026-10-29):** YouTube, X, TikTok and Instagram; public
+numbers by handle (no private analytics, no weekly Google re-sign-in); check
+every hour; merge the X tile into Brand.
+
+**Facts that shaped it (checked 2026-10-29, re-check at the source when building):**
+
+- X has had no free API tier since 6 Feb 2026, only pay-per-use. Third-party
+  price lists put a user lookup at about 1 cent (unverified); hourly is then
+  about 7 dollars a month for one account. Read the real price on docs.x.com and
+  in the developer console before turning hourly on; if it is well above 1 cent,
+  ask the owner before choosing the interval.
+- Vercel Hobby crons run at most once a day, so the hourly tick comes from
+  Supabase (pg_cron + pg_net, free, already our database).
+- YouTube's public subscriber count is rounded to 3 significant figures; views
+  and video count are exact. Say so on the tile rather than showing false
+  precision.
+- Instagram has no public count by handle without a Meta app. Its own account's
+  `followers_count` needs a professional (Creator or Business) account, a Meta
+  developer app with the owner as tester, and one Instagram sign-in whose
+  long-lived token is refreshed by the server. So Instagram is its own stage (9b).
+
+#### Stage 9a — Hourly counts for YouTube, TikTok and X, and the growth view
+
+1. **Keys.** Confirm `YOUTUBE_API_KEY` exists in Vercel production (names only,
+   never values). Write `scripts/set-x-token.ps1` (`Read-Host -AsSecureString`,
+   writes `X_BEARER_TOKEN` to `.env.local` and Vercel production, prints only
+   the length) and walk the owner through it. Generate `BRAND_CRON_SECRET` in
+   the same script.
+2. **Store.** New `supabase/brand.sql`: a server-only `brand_snapshots` table
+   (user_id, platform, handle, t, followers, views null, posts null), RLS on with
+   no policies and grants revoked like `whoop_tokens`, unique on
+   (user_id, platform, handle, hour of t) so a double run cannot add a second
+   row. The owner pastes it into the Supabase SQL editor (copy it to the
+   clipboard for them).
+3. **Collector.** `app/api/brand/collect/route.ts`, POST only, bearer
+   `BRAND_CRON_SECRET` compared in constant time (reuse the walks route's
+   compare). It reads the owner's Brand accounts from `tile_data` (slot `brand`,
+   `OWNER_USER_ID`), fetches each through one module `lib/server/socialCounts.ts`
+   (YouTube `channels?part=statistics&forHandle`, the same tikwm call
+   `useTileHost` makes, X `users/by/username/:u?user.fields=public_metrics`;
+   check the X endpoint and fields in docs.x.com first), and inserts one row per
+   account. A platform that fails records nothing and reports its error, never a
+   0. Move the tikwm and YouTube lookups the tile already uses into that module
+   rather than copying them.
+4. **Hourly tick.** pg_cron job calling `net.http_post` on the collector every
+   hour, the secret read from Supabase Vault, not written into the job text.
+   Check first whether production is behind Vercel protection
+   (`ssoProtection`); if it is, the URL needs a bypass secret (made by script,
+   see the global notes).
+5. **Into the board.** `GET /api/brand` returns the owner's snapshots: hourly
+   for the last 14 days, one per day before that (last of each day), 365 days
+   at most. `Dashboard.tsx` fetches it on mount and merges it into the `brand`
+   slot exactly like `/api/walks`: by (platform, handle, t), keeping every point
+   the tile logged by hand. The shape stays
+   `{ accounts: [{ platform, handle, history: [{ t, count }] }] }`; `views` and
+   `posts` are extra keys on a point, which `summarize()` ignores.
+6. **The tile.** `public/tiles/brand.html` (and its `tiles-library/` copy): per
+   account the count now, today (+n since midnight), this week, this month, the
+   pace (average per day over 7 days, and "at this pace, N in 30 days"), today's
+   hourly curve and a 30-day line; a total across accounts; "checked hh:mm".
+   Adding an account is platform + handle. "Log count" stays only as the
+   fallback for an account whose last check failed.
+7. **Merge the X tile.** Add X `darioguariglia` to Brand with its history
+   seeded from `custom-x-followers` (`{at, value}` becomes `{t, count}`). Show
+   the owner the merged history, ask, and only on a yes delete
+   `custom-x-followers` (backup in `docs/tile-backups/`).
+
+Verify: a `node --test` check for the merge (never drops a hand-logged point,
+same t dedupes) and the 14-day/daily thinning; collector fault injection, each
+proven against the real table: wrong secret is 401 and writes nothing, a bad X
+token fails only X while YouTube and TikTok are saved, no YouTube key, tikwm
+down, two runs in one hour give one row; live: after two hourly ticks the Brand
+tile shows two points and "today +n" on the phone, and `today` on the connector
+prints the Brand line; the next day, the X console shows the real cost of 24
+lookups.
+Fence: no change to any other tile's data shape; no fake zeros; no secret
+printed or committed.
+Stop when: every verify line passed and the hourly curve drew on its own.
+
+#### Stage 9b — Instagram
+
+Meta developer app ("Instagram API with Instagram Login"), the owner as tester,
+scope `instagram_business_basic`; a Connect button on the Brand tile that runs
+the sign-in like the WHOOP flow (`app/api/whoop/start` and `callback`, signed
+state, token in a server-only table); the collector refreshes the long-lived
+token before it expires and reads `followers_count` into the same snapshots.
+Re-check every name above in Meta's docs when building; they change often.
+Needs a Creator or Business Instagram account.
+Verify: the Instagram account shows on Brand with a real count; a forced token
+expiry shows "sign in again" on the tile instead of a silent gap.
+Stop when: the Instagram line moved on its own across two hourly ticks.
 
 ## Risks and open items
 

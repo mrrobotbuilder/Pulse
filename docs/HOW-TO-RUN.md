@@ -159,3 +159,46 @@ Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 8b (Telegram coach). Th
 Done when: the bot answered "what did I log today" with a real number on your
 phone, a logged lunch showed on the board, and the next morning's message
 arrived on its own.
+
+## Before Session 9a (your hands, about 10 minutes)
+
+1. YouTube key (skip if you already added one): console.cloud.google.com →
+   create a project → APIs & Services → Library → enable **YouTube Data API v3**
+   → Credentials → **Create credentials → API key**. Leave the page open; the
+   session asks for the key through a hidden prompt.
+2. X developer account: sign in at **console.x.com** with your X account →
+   create an app → add a payment card and a small credit (5 dollars is plenty
+   to start) → open the app's keys and generate a **Bearer token**. Leave it
+   open; the session asks for it through a hidden prompt, never in the chat.
+3. Be able to open your Supabase project's **SQL editor** (supabase.com →
+   your project → SQL editor). If the project shows "paused", press Restore.
+
+## Session 9a — Brand tracks YouTube, TikTok and X by itself
+
+Paste:
+
+```
+Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 9a (Hourly counts for YouTube, TikTok and X, and the growth view) step by step. Check the X API price and endpoint at docs.x.com first and ask me before turning on hourly if a lookup costs well above 1 cent. Write scripts/set-x-token.ps1 and walk me through it, copy supabase/brand.sql to my clipboard for the SQL editor, build the collector, the hourly Supabase tick, the /api/brand merge and the new Brand tile, then ask me before deleting the old X followers tile. Run every verify step including each fault injection, commit, push, and check it live on my phone.
+```
+
+Done when: the Brand tile on your phone shows today's curve drawn by two hourly
+checks you did not trigger, and the X followers tile is merged in.
+Start a fresh session for 9b.
+
+## Before Session 9b (your hands, about 10 minutes)
+
+1. In the Instagram app: Settings → Account type and tools → switch to a
+   **Creator** account (free, reversible).
+2. Sign in at **developers.facebook.com** with the Facebook account linked to
+   that Instagram, and accept the developer terms.
+
+## Session 9b — Instagram on Brand
+
+Paste:
+
+```
+Read docs/PLAN.md and docs/HOW-TO-RUN.md, then run Stage 9b (Instagram). Check every Meta name and permission in Meta's current docs before building. Walk me through creating the Meta app and adding me as a tester one click at a time, waiting after each. Build the Connect button and sign-in like the WHOOP flow, store the token server-only, refresh it before expiry, and add Instagram to the hourly collector. Run every verify step including the forced token expiry, commit, push, and check it live on my phone.
+```
+
+Done when: your Instagram count moved on the Brand tile across two hourly
+checks on its own.
