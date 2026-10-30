@@ -7,11 +7,13 @@
 <!--
   Brand: your audience and your output. Built on the tile kit
   (lib/tiles/tileKit.ts). Sealed: no network; saves through window.Vitality.
-  Live counts come through the host bridge: window.Vitality.tiktok(handle) is
-  keyless, window.Vitality.youtube(handle) uses the owner's own YouTube key.
-  Instagram, X and LinkedIn are logged by hand.
+  A sealed tile cannot fetch, so TikTok, YouTube and X are checked every hour on
+  the server (app/api/brand/collect) and merged into this tile's data. Points it
+  wrote carry auto:1; the latest check sits on the account as check. Instagram
+  and LinkedIn are logged by hand.
   Saved shape (lib/tiles/tileStats.ts reads accounts[].history):
-    { accounts: [{ id, platform, handle, history: [{ t, count }] }],
+    { accounts: [{ id, platform, handle, addedAt?, check?: { t, ok, error? },
+                   history: [{ t, count, views?, posts?, auto? }] }],
       posts: [{ id, at, platform, title?, views? }], goal?: { count }, postGoal?: number }
 -->
 <style>
@@ -37,33 +39,42 @@ var LOGOS={
   linkedin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>'
 };
 var PLATFORMS={
-  tiktok:{label:'TikTok',color:'color-mix(in srgb,#00B8B0 75%,var(--k-text))',unit:'followers',live:'keyless'},
+  tiktok:{label:'TikTok',color:'color-mix(in srgb,#00B8B0 75%,var(--k-text))',unit:'followers',auto:1},
   instagram:{label:'Instagram',color:'color-mix(in srgb,#E1306C 80%,var(--k-text))',unit:'followers'},
-  youtube:{label:'YouTube',color:'color-mix(in srgb,#E00022 85%,var(--k-text))',unit:'subscribers',live:'key'},
-  x:{label:'X',color:'var(--k-text)',unit:'followers'},
+  youtube:{label:'YouTube',color:'color-mix(in srgb,#E00022 85%,var(--k-text))',unit:'subscribers',auto:1,viewsLabel:'Channel views'},
+  x:{label:'X',color:'var(--k-text)',unit:'followers',auto:1,viewsLabel:'Views, last 10 posts'},
   linkedin:{label:'LinkedIn',color:'color-mix(in srgb,#0A66C2 85%,var(--k-text))',unit:'followers'}
 };
-var state={accounts:[],posts:[]},fetching={},keyNote={};
+var state={accounts:[],posts:[]};
 var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function persist(){return Promise.resolve(window.Vitality.save(state)).catch(function(e){K.toast('Could not save: '+(e&&e.message||e))})}
 function compact(n){if(n==null)return '—';if(n>=1e6)return (n/1e6).toFixed(n>=1e7?0:1)+'M';if(n>=1e4)return Math.round(n/1e3)+'K';return n.toLocaleString('en-US')}
-function hist(a){return (a.history||[]).filter(function(p){return typeof p.count==='number'&&typeof p.t==='number'})}
+function hist(a){return (a.history||[]).filter(function(p){return typeof p.count==='number'&&typeof p.t==='number'}).sort(function(x,y){return x.t-y.t})}
 function last(a){var h=hist(a);return h.length?h[h.length-1].count:null}
 function at(a,t){var h=hist(a),v=null;h.forEach(function(p){if(p.t<=t)v=p.count});return v}
-function weekDelta(a){var l=last(a),b=at(a,Date.now()-7*864e5);return l!=null&&b!=null?l-b:null}
+function midnight(){var d=new Date();d.setHours(0,0,0,0);return d.getTime()}
+/* The move since time t. Before the first point, it counts from the first point. Null until there are two points to compare. */
+function since(a,t){var h=hist(a);if(h.length<2)return null;var b=at(a,t);return last(a)-(b==null?h[0].count:b)}
+function weekDelta(a){return since(a,Date.now()-7*864e5)}
+/* Average a day over the last 7 days, or null until a day of counts exists. */
+function pace(a){var h=hist(a);if(h.length<2)return null;var days=Math.min(7,(Date.now()-h[0].t)/864e5);if(days<1)return null;return weekDelta(a)/days}
+/* Views gained today. Only a step with the same post count compares like with like; a new post moves the last-10 window. */
+function viewsToday(a){var h=hist(a).filter(function(p){return typeof p.views==='number'}),m=midnight(),s=0,any=false;for(var i=1;i<h.length;i++){if(h[i].t<m||h[i].posts!==h[i-1].posts)continue;s+=Math.max(0,h[i].views-h[i-1].views);any=true}return any?s:null}
+function latestViews(a){var h=hist(a).filter(function(p){return typeof p.views==='number'});return h.length?h[h.length-1].views:null}
+function signed(n){return n==null?'—':(n>=0?'+':'−')+compact(Math.abs(n))}
+function clock(t){return new Date(t).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}
+function shortDate(t){return new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+/* What the hourly check last did: 'ok', 'failed', 'late' (no check for over 2 hours), 'waiting' (none yet), or null for a hand-logged platform. */
+function checkState(a){if(!plat(a.platform).auto)return null;var c=a.check;if(!c){return Date.now()-(a.addedAt||0)>2.5*36e5?'late':'waiting'}if(Date.now()-c.t>2.5*36e5)return 'late';return c.ok?'ok':'failed'}
+function checkLine(a,st){var c=a.check,e=c&&c.error;if(st==='ok')return 'Checked '+clock(c.t);if(st==='waiting')return 'First check on the next full hour.';if(st==='late')return c?'No check since '+shortDate(c.t)+', '+clock(c.t)+'. Hourly checks may have stopped.':'Not checked yet. Hourly checks may have stopped.';return 'Last check failed at '+clock(c.t)+': '+(e==='no_key'?'the key for this platform is missing.':/^x_40[123]$/.test(e||'')?'X refused it. Check the token and the credit.':e==='x_429'?'X says too many requests.':e==='not_found'||e==='x_404'?'no such account.':'the platform did not answer.')+' Nothing was recorded.'}
+/* One point per day for the last 30 days, so the line has even steps. */
+function monthLine(a){var byDay={};hist(a).forEach(function(p){byDay[K.dayKey(new Date(p.t))]=p.count});var out=[];for(var i=29;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var v=byDay[K.dayKey(d)];out.push(v==null?null:v)}return out}
+function stat(label,val){return '<div><div class="k-label">'+label+'</div><div class="k-mid" style="font-size:24px">'+val+'</div></div>'}
 function total(){return state.accounts.reduce(function(s,a){return s+(last(a)||0)},0)}
+function cleanHandle(v){return String(v).trim().replace(/^https?:\/\/[^/]+\//,'').replace(/^@+/,'').split(/[/?#]/)[0].slice(0,60)}
 function uid(p){return p+Math.random().toString(36).slice(2,8)}
 function plat(p){return PLATFORMS[p]||{label:p,color:'var(--k-tint)',unit:'followers'}}
-
-function liveFn(a){var V=window.Vitality||{};if(a.platform==='tiktok'&&V.tiktok)return function(){return V.tiktok(a.handle)};if(a.platform==='youtube'&&V.youtube)return function(){return V.youtube(a.handle)};return null}
-async function refreshLive(a){
-  var fn=liveFn(a);if(!fn||fetching[a.id])return;
-  fetching[a.id]=1;render();
-  try{var c=await fn();if(typeof c==='number'&&c>=0){var h=(a.history=a.history||[]),p=h[h.length-1],now=Date.now();if(!(p&&p.count===c&&now-p.t<6*3600e3)){h.push({t:now,count:c});persist()}}}
-  catch(e){if(a.platform==='youtube'&&String(e&&e.message||'')==='no_key')keyNote[a.id]=1}
-  finally{delete fetching[a.id];render()}
-}
 
 /* Weeks to the goal at the pace of the last 30 days (or since the first count). */
 function eta(){
@@ -77,21 +88,28 @@ function eta(){
 
 function render(){
   var t=total(),wd=state.accounts.map(weekDelta).filter(function(x){return x!=null}),wsum=wd.reduce(function(s,x){return s+x},0);
+  var checked=state.accounts.map(function(a){return a.check&&a.check.ok?a.check.t:0}).reduce(function(m,x){return Math.max(m,x)},0);
   var g=state.goal&&state.goal.count,posts=Array.isArray(state.posts)?state.posts:(state.posts=[]);
   var week=[],labels=[];for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=K.dayKey(d);week.push(posts.filter(function(p){return K.dayKey(new Date(p.at))===k}).length);labels.push(i===0?'Today':DAYS[d.getDay()])}
   var wposts=week.reduce(function(s,x){return s+x},0),pg=state.postGoal||0;
-  var html='<section class="k-card k-hero"><div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('globe')+'Audience</span><span class="k-time">'+state.accounts.length+' account'+(state.accounts.length===1?'':'s')+'</span></div>'
+  var html='<section class="k-card k-hero"><div class="k-head" style="width:100%"><span class="k-cat">'+K.icon('globe')+'Audience</span><span class="k-time">'+(checked?'checked '+clock(checked):state.accounts.length+' account'+(state.accounts.length===1?'':'s'))+'</span></div>'
     +(g?'<div class="k-ringbox">'+K.ring(t/g,{size:200,label:compact(t)+' of '+compact(g)})+'<div class="k-in"><div class="k-big" style="font-size:48px">'+compact(t)+'</div><div class="k-sub">of '+compact(g)+' goal</div></div></div>':'<div class="k-big">'+(state.accounts.length?compact(t):'—')+'</div><p class="k-note" style="margin:0">followers and subscribers, all platforms</p>')
-    +'<p class="k-sub" style="margin:0">'+(!state.accounts.length?'Connect an account to start counting.':wd.length?(wsum>0?'+'+compact(wsum)+' new this week. Keep posting.':wsum<0?compact(-wsum)+' fewer than a week ago.':'Flat this week. A post usually moves it.'):wposts?wposts+' post'+(wposts===1?'':'s')+' this week. Growth shows after a week of counts.':'No posts yet this week. Growth shows after a week of counts.')+'</p>'
+    +'<p class="k-sub" style="margin:0">'+(!state.accounts.length?'Connect an account to start counting.':wd.length?(wsum>0?'+'+compact(wsum)+' new this week. Keep posting.':wsum<0?compact(-wsum)+' fewer than a week ago.':'Flat this week. A post usually moves it.'):'Growth shows after two checks.')+'</p>'
     +(g?'<p class="k-sub" style="margin:4px 0 0">'+K.esc(eta())+'</p>':'')
     +'<div class="k-row-btns" style="width:100%;margin-top:6px"><button class="k-btn k-ghost k-sm" data-goal>'+K.icon('target')+(g?'Change goal':'Set an audience goal')+'</button></div></section>';
 
   state.accounts.forEach(function(a){
-    var P=plat(a.platform),h=hist(a),d=weekDelta(a),l=last(a);
+    var P=plat(a.platform),h=hist(a),l=last(a),st=checkState(a),m=midnight(),p7=pace(a),v=latestViews(a),vt=viewsToday(a);
+    var todayPts=h.filter(function(q){return q.t>=m}),base=at(a,m-1);if(base!=null&&todayPts.length)todayPts=[{t:m,count:base}].concat(todayPts);
     html+='<section class="k-card acct" style="--pc:'+P.color+'"><div class="k-head"><span class="k-cat"><span class="lg">'+(LOGOS[a.platform]||'')+'</span>'+P.label+'</span><span class="k-time">'+K.esc(a.handle)+'</span></div>'
-      +'<div class="count"><div class="k-mid" style="font-size:38px">'+(fetching[a.id]?'…':compact(l))+'</div><span class="k-sub">'+P.unit+'</span>'+(d!=null?'<span class="k-tag" style="--k-tint:'+(d>=0?'var(--k-signal)':'var(--k-accent)')+'">'+(d>=0?'+':'−')+compact(Math.abs(d))+' this week</span>':'')+'</div>'
-      +'<div style="margin-top:10px">'+K.line(h.map(function(p){return p.count}),{height:110,color:P.color,label:P.label+' growth',labels:h.length>1?[new Date(h[0].t).toLocaleDateString(undefined,{month:'short',day:'numeric'}),'Now']:null,empty:P.live==='keyless'?'Pulling your live count. The line draws as your following moves.':P.live==='key'&&keyNote[a.id]?'Add your own free YouTube key to auto-pull, or log the count by hand.':'Log your count every few days and the growth line draws itself.'})+'</div>'
-      +'<div class="k-row-btns" style="margin-top:10px"><button class="k-btn k-soft k-sm" data-log="'+a.id+'">'+K.icon('edit')+'Log count</button>'+(liveFn(a)?'<button class="k-btn k-ghost k-sm" data-refresh="'+a.id+'">'+K.icon('up')+'Refresh</button>':'')+'<button class="k-btn k-ghost k-sm" data-manage="'+a.id+'" aria-label="Manage '+K.esc(P.label)+'">'+K.icon('list')+'Manage</button></div></section>';
+      +'<div class="count"><div class="k-mid" style="font-size:38px">'+compact(l)+'</div><span class="k-sub">'+P.unit+(a.platform==='youtube'?' (YouTube rounds this)':'')+'</span></div>'
+      +'<div class="k-grid k-3" style="margin-top:12px">'+stat('Today',signed(since(a,m)))+stat('This week',signed(weekDelta(a)))+stat('This month',signed(since(a,Date.now()-30*864e5)))+'</div>'
+      +(h.length?'<p class="k-sub" style="margin:10px 0 0">'+(p7==null?'Pace shows after a day of counts.':'Pace '+signed(Math.round(p7*10)/10)+' a day. At this pace, '+compact(Math.round(l+p7*30))+' in 30 days.')+'</p>':'')
+      +(v!=null?'<p class="k-sub" style="margin:4px 0 0">'+P.viewsLabel+': '+compact(v)+(vt!=null?' (about '+signed(vt)+' today)':'')+'</p>':'')
+      +'<div class="k-label" style="margin-top:14px">Today</div><div style="margin-top:6px">'+K.line(todayPts.map(function(q){return q.count}),{height:90,color:P.color,label:P.label+' today',labels:todayPts.length>1?['Midnight',clock(todayPts[todayPts.length-1].t)]:null,empty:P.auto?'The curve draws after two hourly checks today.':'Log two counts today to see a curve.'})+'</div>'
+      +'<div class="k-label" style="margin-top:14px">Last 30 days</div><div style="margin-top:6px">'+K.line(monthLine(a),{height:90,color:P.color,label:P.label+' last 30 days',labels:['30 days ago','Today'],empty:'The line draws as the days add up.'})+'</div>'
+      +(st?'<p class="k-note" style="margin-top:10px'+(st==='ok'||st==='waiting'?'':';color:var(--k-accent)')+'">'+K.esc(checkLine(a,st))+'</p>':'')
+      +'<div class="k-row-btns" style="margin-top:10px">'+(st==='ok'||st==='waiting'?'':'<button class="k-btn k-soft k-sm" data-log="'+a.id+'">'+K.icon('edit')+'Log count</button>')+'<button class="k-btn k-ghost k-sm" data-manage="'+a.id+'" aria-label="Manage '+K.esc(P.label)+'">'+K.icon('list')+'Manage</button></div></section>';
   });
   html+='<button class="k-btn k-ghost k-wide" data-connect>'+K.icon('plus')+(state.accounts.length?'Connect another account':'Connect your first account')+'</button>';
 
@@ -100,7 +118,7 @@ function render(){
     +K.bars(week,{labels:labels,now:6,height:110,goal:pg?pg/7:0,label:'Posts per day this week'})+'</section>'
     +(posts.length?'<div class="k-list">'+posts.slice(-8).reverse().map(function(p){var P=plat(p.platform);return '<div class="k-row"><span class="k-ico lg" style="color:'+P.color+'">'+(LOGOS[p.platform]||K.icon('send'))+'</span><span class="k-main"><b>'+K.esc(p.title||'Post on '+P.label)+'</b><span>'+P.label+' · '+new Date(p.at).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+(p.views?' · '+compact(p.views)+' views':'')+'</span></span><button class="k-x" data-delpost="'+p.id+'" aria-label="Delete post">'+K.icon('trash')+'</button></div>'}).join('')+'</div>':'')
     +'<div class="k-list"><button class="k-row" data-postgoal><span class="k-ico">'+K.icon('calendar')+'</span><span class="k-main"><b>Posts a week</b><span>Your publishing target</span></span><span class="k-end">'+(pg||'not set')+'</span>'+K.icon('chev','k-chev')+'</button></div>'
-    +'<p class="k-note">TikTok pulls live with no setup. YouTube pulls live with your own free key. Instagram, X and LinkedIn: log the count by hand.</p>';
+    +'<p class="k-note">TikTok, YouTube and X are checked every hour on their own. Instagram and LinkedIn: log the count by hand.</p>';
   document.getElementById('app').innerHTML=html;
 }
 
@@ -114,10 +132,9 @@ function pickPlatform(cb,title,taken){
 document.addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b||b.closest('.k-sheet'))return;var a=function(n){return b.getAttribute(n)};
   var acct=function(id){return state.accounts.filter(function(x){return x.id===id})[0]};
-  if(b.hasAttribute('data-connect')){pickPlatform(function(p,rest,close){var P=PLATFORMS[p];rest.innerHTML='<label class="k-field"><span>Your '+P.label+' handle</span><input class="k-input" id="hn" placeholder="@you" maxlength="60"></label><label class="k-field"><span>Current '+P.unit+' (optional'+(P.live?', it pulls live':'')+')</span><input class="k-input" id="hc" inputmode="numeric" placeholder="e.g. 1250"></label><button class="k-btn k-wide" id="go">Connect '+P.label+'</button>';var hn=rest.querySelector('#hn');hn.focus();rest.querySelector('#go').onclick=function(){var h=hn.value.trim();if(!h){hn.focus();return}var c=parseInt(String(rest.querySelector('#hc').value).replace(/[^0-9]/g,''),10);var ac={id:uid('a'),platform:p,handle:h.slice(0,60),history:isFinite(c)?[{t:Date.now(),count:c}]:[]};state.accounts.push(ac);persist();close();render();refreshLive(ac)}},'Connect an account',state.accounts.map(function(x){return x.platform}));return}
+  if(b.hasAttribute('data-connect')){pickPlatform(function(p,rest,close){var P=PLATFORMS[p];rest.innerHTML='<label class="k-field"><span>Your '+P.label+' handle</span><input class="k-input" id="hn" placeholder="@you" maxlength="120"></label>'+(P.auto?'<p class="k-note">Checked every hour from now on. The first count lands on the next full hour.</p>':'<label class="k-field"><span>Current '+P.unit+' (optional)</span><input class="k-input" id="hc" inputmode="numeric" placeholder="e.g. 1250"></label>')+'<button class="k-btn k-wide" id="go">Connect '+P.label+'</button>';var hn=rest.querySelector('#hn');hn.focus();rest.querySelector('#go').onclick=function(){var h=cleanHandle(hn.value);if(!h){hn.focus();return}var hc=rest.querySelector('#hc'),c=hc?parseInt(String(hc.value).replace(/[^0-9]/g,''),10):NaN;state.accounts.push({id:uid('a'),platform:p,handle:h,addedAt:Date.now(),history:isFinite(c)?[{t:Date.now(),count:c}]:[]});persist();close();render()}},'Connect an account',state.accounts.map(function(x){return x.platform}));return}
   if(a('data-log')){var ac=acct(a('data-log'));K.sheet('Log '+plat(ac.platform).label+' count','<input class="k-input" id="lc" inputmode="numeric" value="'+(last(ac)==null?'':last(ac))+'" style="font:700 32px var(--k-display);text-align:center;min-height:64px"><p class="k-note">Today’s '+plat(ac.platform).unit+' for '+K.esc(ac.handle)+'.</p><button class="k-btn k-wide" data-ok>Save</button>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var n=parseInt(String(el.querySelector('#lc').value).replace(/[^0-9]/g,''),10);if(!isFinite(n)){el.querySelector('#lc').focus();return}(ac.history=ac.history||[]).push({t:Date.now(),count:n});persist();close();render()}});return}
-  if(a('data-refresh')){refreshLive(acct(a('data-refresh')));return}
-  if(a('data-manage')){var m=acct(a('data-manage'));K.sheet(plat(m.platform).label,'<label class="k-field"><span>Handle</span><input class="k-input" id="mh" value="'+K.esc(m.handle)+'" maxlength="60"></label><p class="k-sub" style="margin:0">'+hist(m).length+' counts logged since '+(hist(m).length?new Date(hist(m)[0].t).toLocaleDateString():'—')+'.</p><div class="k-row-btns"><button class="k-btn k-danger" data-rm>Disconnect</button><button class="k-btn" data-ok>Save</button></div>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var h=el.querySelector('#mh').value.trim();if(h)m.handle=h.slice(0,60);persist();close();render()};el.querySelector('[data-rm]').onclick=function(){K.sheet('Disconnect '+plat(m.platform).label+'?','<p style="margin:0">Its count history is deleted too.</p><div class="k-row-btns"><button class="k-btn k-ghost" data-k-close>Keep it</button><button class="k-btn" data-yes>Disconnect</button></div>',function(el2,close2){el2.querySelector('[data-yes]').onclick=function(){state.accounts=state.accounts.filter(function(x){return x!==m});persist();close2();close();render()}})}});return}
+  if(a('data-manage')){var m=acct(a('data-manage'));K.sheet(plat(m.platform).label,'<label class="k-field"><span>Handle</span><input class="k-input" id="mh" value="'+K.esc(m.handle)+'" maxlength="120"></label><p class="k-sub" style="margin:0">'+hist(m).length+' counts logged since '+(hist(m).length?new Date(hist(m)[0].t).toLocaleDateString():'—')+'.</p><div class="k-row-btns"><button class="k-btn k-danger" data-rm>Disconnect</button><button class="k-btn" data-ok>Save</button></div>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var h=cleanHandle(el.querySelector('#mh').value);if(h&&h!==m.handle){m.handle=h;delete m.check;m.addedAt=Date.now()}persist();close();render()};el.querySelector('[data-rm]').onclick=function(){K.sheet('Disconnect '+plat(m.platform).label+'?','<p style="margin:0">It stops being checked and leaves this tile. Add it again later and the hourly history comes back.</p><div class="k-row-btns"><button class="k-btn k-ghost" data-k-close>Keep it</button><button class="k-btn" data-yes>Disconnect</button></div>',function(el2,close2){el2.querySelector('[data-yes]').onclick=function(){state.accounts=state.accounts.filter(function(x){return x!==m});persist();close2();close();render()}})}});return}
   if(b.hasAttribute('data-post')){pickPlatform(function(p,rest,close){rest.innerHTML='<label class="k-field"><span>What was it? (optional)</span><input class="k-input" id="pt" maxlength="80" placeholder="e.g. Day in my life vlog"></label><label class="k-field"><span>Views so far (optional)</span><input class="k-input" id="pv" inputmode="numeric" placeholder="e.g. 3400"></label><button class="k-btn k-wide" id="go">'+K.icon('check')+'Log the post</button>';rest.querySelector('#go').onclick=function(){var v=parseInt(String(rest.querySelector('#pv').value).replace(/[^0-9]/g,''),10);state.posts.push({id:uid('p'),at:Date.now(),platform:p,title:rest.querySelector('#pt').value.trim().slice(0,80)||undefined,views:isFinite(v)?v:undefined});persist();close();K.toast('Logged. '+state.posts.filter(function(x){return Date.now()-x.at<7*864e5}).length+' posts this week.');render()}},'Where did you post?');return}
   if(a('data-delpost')){state.posts=state.posts.filter(function(p){return p.id!==a('data-delpost')});persist();render();return}
   if(b.hasAttribute('data-goal')){K.sheet('Audience goal','<input class="k-input" id="gv" inputmode="numeric" value="'+(state.goal&&state.goal.count||'')+'" placeholder="e.g. 100000" style="font:700 32px var(--k-display);text-align:center;min-height:64px"><p class="k-note">Followers and subscribers across every platform, added up.</p><button class="k-btn k-wide" data-ok>Save goal</button>',function(el,close){el.querySelector('[data-ok]').onclick=function(){var n=parseInt(String(el.querySelector('#gv').value).replace(/[^0-9]/g,''),10);state.goal=n>0?{count:n}:undefined;persist();close();render()}});return}
@@ -135,7 +152,6 @@ document.addEventListener('click',function(e){
     }
   }catch(e){K.toast('Could not load your accounts: '+(e&&e.message||e))}
   render();
-  for(var i=0;i<state.accounts.length;i++){await refreshLive(state.accounts[i]);await new Promise(function(r){setTimeout(r,1200)})}
 })();
 </script>
 </body>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { tileStore } from './tileStore'
 import { isCustomTileId } from './tileCheck'
 import { syncEnabled, syncSave, syncLoad } from '@/lib/sync'
+import { tiktokCounts } from '@/lib/socialCounts'
 
 // Cloud mirrors still in flight, per tile. A read right after a save (the board
 // re-reading that tile's face number) waits for the mirror, so the
@@ -98,16 +99,10 @@ export function useTileHost(
           return
         }
         try {
-          const r = await fetch('https://www.tikwm.com/api/user/info?unique_id=' + encodeURIComponent(handle))
-          const j = await r.json()
-          const count = j?.data?.stats?.followerCount
-          if (typeof count === 'number' && count >= 0) {
-            src.postMessage({ source: 'vitality-host', type: 'tiktok:result', id: msg.id, count }, '*')
-          } else {
-            src.postMessage({ source: 'vitality-host', type: 'tiktok:error', id: msg.id, reason: String(j?.msg || 'no_data') }, '*')
-          }
-        } catch {
-          src.postMessage({ source: 'vitality-host', type: 'tiktok:error', id: msg.id, reason: 'fetch_failed' }, '*')
+          const { followers } = await tiktokCounts(handle)
+          src.postMessage({ source: 'vitality-host', type: 'tiktok:result', id: msg.id, count: followers }, '*')
+        } catch (e) {
+          src.postMessage({ source: 'vitality-host', type: 'tiktok:error', id: msg.id, reason: e instanceof Error ? e.message : 'fetch_failed' }, '*')
         }
         return
       }

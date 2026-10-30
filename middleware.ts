@@ -67,6 +67,7 @@ export const config = {
    *
    *   /api/mcp        — bearer MCP_TOKEN or a signed OAuth JWT
    *   /api/walks      — bearer WALKS_TOKEN from STEGA
+   *   /api/brand/collect — bearer BRAND_CRON_SECRET from Supabase's hourly job
    *   /api/whoop/sync — the scheduled sync (parked with Stage A, excluded now
    *                     so it is not forgotten when Stage A resumes)
    *
@@ -74,6 +75,6 @@ export const config = {
    * overhead.
    */
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|api/mcp|api/walks|api/whoop/sync|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|api/mcp|api/walks|api/brand/collect|api/whoop/sync|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$).*)',
   ],
 }
