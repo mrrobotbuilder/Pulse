@@ -1,5 +1,3 @@
-import { youtubeCounts } from '@/lib/socialCounts'
-
 /**
  * YouTube subscriber lookup — server-side so the API KEY never reaches the
  * browser. TikTok is keyless (tikwm); YouTube is not, so this route reads
@@ -16,8 +14,19 @@ export async function GET(req: Request): Promise<Response> {
   if (!handle) return Response.json({ error: 'no_handle' })
 
   try {
-    return Response.json({ count: (await youtubeCounts(handle, key)).followers })
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'fetch_failed' })
+    const api =
+      'https://www.googleapis.com/youtube/v3/channels?part=statistics&forHandle=' +
+      encodeURIComponent(handle) +
+      '&key=' +
+      encodeURIComponent(key)
+    const r = await fetch(api)
+    const j = await r.json()
+    const stats = j?.items?.[0]?.statistics
+    if (stats?.hiddenSubscriberCount) return Response.json({ error: 'hidden' })
+    const n = stats?.subscriberCount != null ? Number(stats.subscriberCount) : null
+    if (n != null && Number.isFinite(n)) return Response.json({ count: n })
+    return Response.json({ error: 'not_found' })
+  } catch {
+    return Response.json({ error: 'fetch_failed' })
   }
 }

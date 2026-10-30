@@ -21,7 +21,7 @@ export const TILE_INFO: Record<string, TileInfo> = {
   walks: { hatch: 'h7', measures: 'Distance, steps and where you went.', fedBy: 'Your phone, on the move', live: true },
   vitals: { hatch: 'h4', measures: 'Sleep and recovery.', fedBy: 'You, by hand' },
   peak: { hatch: 'h6', measures: 'Your energy hour by hour, and when you peak.', fedBy: 'Your Vitals, caffeine and how you feel' },
-  brand: { hatch: 'h3', measures: 'Your audience: views, subscribers, followers.', fedBy: 'Checked hourly: X, TikTok, YouTube', live: true },
+  brand: { hatch: 'h3', measures: 'Your audience: views, subscribers, followers.', fedBy: 'TikTok, no key · YouTube, your key', live: true },
   finance: { hatch: 'h5', measures: 'What comes in, what leaves.', fedBy: 'You · live prices with your key' },
   vee: { hatch: 'h0', measures: 'Reads every tile, notices patterns, retunes the weights.', fedBy: 'Claude, on your computer' },
 }
