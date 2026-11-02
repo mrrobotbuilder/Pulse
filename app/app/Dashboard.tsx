@@ -12,7 +12,7 @@ import { DEMO_USER_ID, readScoped } from '@/lib/localScope'
 import { prepareLocalNamespace } from '@/lib/migrateLocal'
 import { tileStore } from '@/lib/tiles/tileStore'
 import { syncBackfill, syncClearTile, syncWipe } from '@/lib/sync'
-import { syncWatch } from '@/lib/watchSync'
+import { resyncWatchIfStale, syncWatch } from '@/lib/watchSync'
 import { site } from '@/content/site'
 import { THEMES, readTheme, applyTheme, saveTheme, type ThemeId } from '@/lib/theme'
 import Onboarding from './Onboarding'
@@ -391,9 +391,18 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
   // Fitbit (through the Google Health API) feeds Vitals and Walks. Sealed tiles
   // have no network, so the board fetches and hands the data over through the
   // tile-data lane. Not connected / not configured are quiet; a real failure is
-  // logged with its reason and the tiles keep their last copy.
+  // logged with its reason and the tiles keep their last copy. Every try, good or
+  // bad, is also written to the Sync panel (lib/watchSync.ts). It runs on load and
+  // again when you come back to this tab (at most every couple of minutes).
   useEffect(() => {
-    syncWatch(userId).catch((err) => console.error('Fitbit sync failed:', err instanceof Error ? err.message : err))
+    const log = (p: Promise<unknown> | null) =>
+      p?.catch((err) => console.error('Fitbit sync failed:', err instanceof Error ? err.message : err))
+    log(syncWatch(userId))
+    const onShow = () => {
+      if (document.visibilityState === 'visible') log(resyncWatchIfStale(userId))
+    }
+    document.addEventListener('visibilitychange', onShow)
+    return () => document.removeEventListener('visibilitychange', onShow)
   }, [userId])
 
   // First visit (and not the detonated/black scratch mode): personalize before

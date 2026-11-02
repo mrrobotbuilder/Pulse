@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import styles from './dashboard.module.css'
 import { supabase, supabaseConfigured } from '@/lib/supabaseClient'
 import { isSignedIn, currentUser, onAuthChange, signIn, signUp, signOut } from '@/lib/auth'
-import { currentWatchState, onWatchState, type WatchState } from '@/lib/watchSync'
+import { currentWatchState, onWatchState, onWatchStatus, readWatchStatus, type WatchState } from '@/lib/watchSync'
+import { describeWatchStatus, EMPTY_WATCH_STATUS, type WatchStatus } from '@/lib/watchStatus'
 
 /** What the last Fitbit sync learned, kept live so the pill and the panel agree. */
 function useWatchState(): WatchState {
@@ -13,6 +14,16 @@ function useWatchState(): WatchState {
     setS(currentWatchState()) // the sync may have finished before this mounted
     return onWatchState(setS)
   }, [])
+  return s
+}
+
+/** When the Fitbit sync last worked, was last tried, and why it failed. Read in an effect: it lives in this browser only. */
+function useWatchStatus(userId: string | null): WatchStatus {
+  const [s, setS] = useState<WatchStatus>(EMPTY_WATCH_STATUS)
+  useEffect(() => {
+    if (userId) setS(readWatchStatus(userId)) // a sync may have finished before this mounted
+    return onWatchStatus(setS)
+  }, [userId])
   return s
 }
 
@@ -79,6 +90,7 @@ export default function AuthPanel() {
  */
 function WatchConnect() {
   const expired = useWatchState() === 'expired'
+  const lastSync = describeWatchStatus(useWatchStatus(currentUser()?.id ?? null), new Date())
   const [status, setStatus] = useState<'loading' | 'off' | 'on' | 'unavailable'>('loading')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -136,6 +148,10 @@ function WatchConnect() {
             ? 'Fitbit is connected. Sleep, steps and heart rate come in by themselves each time you open the board.'
             : 'Connect your Fitbit (through Google) so sleep, steps and heart rate fill in without logging.'}
         </p>
+      )}
+      <p className="muted" data-sync-times style={{ margin: '0 0 10px', fontSize: 13 }}>{lastSync.times}</p>
+      {lastSync.failure && !expired && (
+        <p data-sync-failure style={{ color: 'var(--accent)', fontWeight: 700, margin: '0 0 10px' }}>{lastSync.failure}</p>
       )}
       {error && (
         <p role="alert" style={{ color: 'var(--accent)', fontWeight: 700, margin: '0 0 10px' }}>{error}</p>

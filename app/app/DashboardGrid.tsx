@@ -103,6 +103,18 @@ function OpenTileOverlay({
   onClose: () => void
 }) {
   const backupKey = `tile-backup:${slot.id}`
+  // A tile loads its data once, so a sync that lands while it is open would not
+  // show. Walks is read-only (Fitbit owns all of it), so it is safe to reload its
+  // frame then. Vitals is not reloaded: the owner may be typing in it.
+  const [dataKey, setDataKey] = useState(0)
+  useEffect(() => {
+    if (slot.id !== 'walks') return
+    const on = (e: Event) => {
+      if ((e as CustomEvent).detail === 'walks') setDataKey((k) => k + 1)
+    }
+    window.addEventListener('pulse:tiledata', on)
+    return () => window.removeEventListener('pulse:tiledata', on)
+  }, [slot.id])
   const [redesign, setRedesign] = useState<'idle' | 'confirm' | 'busy'>('idle')
   const [redesignNote, setRedesignNote] = useState<string | null>(null)
   const [hasBackup, setHasBackup] = useState(() => !!readScoped(userId, backupKey))
@@ -243,6 +255,7 @@ function OpenTileOverlay({
         <div className={styles.openCard}>
           {fonts !== null && (
             <iframe
+              key={dataKey}
               ref={(el) => {
                 if (el) {
                   winRef.current = el.contentWindow
