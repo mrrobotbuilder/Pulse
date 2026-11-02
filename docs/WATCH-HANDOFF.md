@@ -31,6 +31,25 @@ OPEN: "Google Health API" was NOT in Enabled APIs on 2026-11-02 (needs enabling 
 - Local board (localhost:3005) shows the DEMO goals: goals/name live only in localStorage per origin, never in the cloud.
   Do not edit tiles there: a save upserts that tile's cloud row.
 
+## Field names (checked against Google's reference AND a real data point, key paths only)
+int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a separate `...UtcOffset` like "-18000s".
+- sleep: `sleep.interval.{startTime,endTime,startUtcOffset,endUtcOffset}`, `sleep.metadata.mainSleep` (bool), `sleep.type` (STAGES),
+  `sleep.summary.{minutesAsleep,minutesAwake,minutesToFallAsleep,minutesInSleepPeriod}` (minutes, strings),
+  `sleep.summary.stagesSummary[].{type,minutes,count}`, `sleep.stages[].{type,startTime,endTime}`; stage types seen: AWAKE LIGHT DEEP REM ASLEEP.
+- steps (per minute): `steps.interval.{startTime,endTime,civilStartTime.date.{year,month,day}}`, `steps.count` (string).
+- heart-rate (samples): `heartRate.sampleTime.{physicalTime,utcOffset,civilTime...}`, `heartRate.beatsPerMinute` (string).
+- exercise: `exercise.{exerciseType (e.g. WALKING), displayName, activeDuration ("900s"), interval.{startTime,endTime,startUtcOffset}}`,
+  `exercise.metricsSummary.{distanceMillimeters (number), steps (string), caloriesKcal (number), averagePaceSecondsPerMeter,
+  averageHeartRateBeatsPerMinute (string), activeZoneMinutes (string)}`. Page size is 25 max.
+- daily-resting-heart-rate: `dailyRestingHeartRate.{date.{year,month,day}, beatsPerMinute (string)}`; filter `daily_resting_heart_rate.date >= "YYYY-MM-DD"` works.
+- NOT yet read: the `dailyRollUp` method (per-day step totals; summing per-minute points for 8 weeks is too heavy). Read its reference first.
+
+## Tile data shapes (existing)
+- Walks tile: `{ walks: [{ name, date:'YYYY-MM-DD', steps, distanceM, durationMin }], syncedAt }`. Read-only tile; `Dashboard.tsx` (~line 392) fetches `/api/walks` (STEGA)
+  and WHOLE-REPLACES the 'walks' lane with `tileStore.saveData`. Its steps-by-day bars only count steps inside logged walks.
+- Vitals tile: `{ 'YYYY-MM-DD': { sleepHours, feel, bed?:'HH:MM', wake?:'HH:MM', rhr?, hrv?, note?, whoopRecovery? }, need: 8 }`,
+  keyed by the WAKE date (today's key holds last night). `feel` and `note` are the owner's own input: a sync must never wipe them.
+
 ## Not done yet
 4. Feed the tiles (sleep, steps, heart rate, workouts) through the tile-data lane, like Walks (`Dashboard.tsx` fetch -> `tileStore.saveData`).
 5. Brand picker (Whoop, Fitbit, others) in `WatchConnect`; WHOOP routes exist but have no button and the same state-binding gap.
