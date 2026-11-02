@@ -72,9 +72,10 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
 - The owner has not worn the watch since 2026-10-27, which explains the missing sleep/walks after that date (the API is right). Daily steps still arrive every day, probably from the phone.
 - Live sync verified: after the owner reconnected on the live site (token row updated 13:45:53 UTC) the live board wrote `vitals` and `walks` to the cloud at 13:45:58
   (6 nights, Fitbit fields on 5; `feel` on the typed night intact; 21 walks, 56 days of `dailySteps`).
-- STEGA cleanup 2026-11-02: `WALKS_TOKEN` removed from Vercel production. Copy of the old blob log (1 walk) saved in the session scratchpad. The `stega-walks` blob store
-  (store_aKONVBvXBlTuRYtg) must be deleted by the owner in an interactive terminal (`vercel blob delete-store <id>`: the CLI refuses non-interactive runs);
-  after that remove `BLOB_READ_WRITE_TOKEN` (all environments) with `vercel env rm BLOB_READ_WRITE_TOKEN --yes`. `@vercel/blob` is still in package.json, unused.
+- STEGA cleanup DONE 2026-11-02: `WALKS_TOKEN` removed from Vercel production; the one old blob file was deleted (copy kept in the session scratchpad); the owner deleted the
+  `stega-walks` store in an interactive terminal (the CLI refuses non-interactive deletes); `BLOB_READ_WRITE_TOKEN` is gone from production, preview and development
+  (Vercel dropped it with the store) and from `.env.local` (backup in the scratchpad). Nothing in app/, lib/, components/, scripts/ or middleware.ts references any of it.
+  Left on purpose: the unused `@vercel/blob` dependency in package.json, and old mentions in progress.md and SETUP.md (history).
 - Known gap: the Sync panel says "Fitbit is connected" if a token ROW exists, even when the grant is dead. In Google Testing mode the refresh token lasts about 7 days
   (the owner reconnected 2026-11-02, so expect failure around 2026-11-09); the sync route then answers 502 "connection expired" but the board only logs it to the console.
 - 2026-11-02 evening: expired connection is now shown. `/api/googlehealth/sync` answers 502 `{expired:true}` on invalid_grant; `lib/watchSync.ts` keeps a `WatchState`
