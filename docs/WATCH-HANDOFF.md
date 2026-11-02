@@ -85,8 +85,9 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
   lifetime (Testing mode, 604799 = 7 days); `none` after publishing the Google app would prove the weekly reconnect is gone.
 - OWNER DECISIONS: other brands are PAUSED. The watch to buy later is an Apple Watch (no web API: it will need an iPhone-side bridge, to be designed then). Use Fitbit for now.
 - The board only pulls when it is opened or reloaded (no background push). That is enough for "open Pulse and see last night".
-- Known pre-existing bug, not from this work: for any SIGNED-IN user the board logs a React hydration error ("Text content does not match server-rendered HTML", then
-  "entire root will switch to client rendering"); the dev overlay shows "1 error". Same with a user who has no Fitbit. Signed out: no error. Cause not yet found.
+- FIXED 2026-11-02: the signed-in hydration error ("Text content did not match. Server: "Sync" Client: "<email>"", the dev overlay's "1 error"). Cause: `AuthPanel` seeded
+  its state from `isSignedIn()` / `currentUser()` during render; the saved session is already loaded in the browser by hydration time, the server never has it. Now it starts
+  signed-out and reads the session in an effect. Proved with a throwaway Supabase user signed in through the real form: old code logged the error, new code logs none; user deleted afterwards (no rows left).
 - NEVER run `vercel env pull .env.local`: it overwrites the file and would wipe the local Google keys. Pull to a scratch file instead.
 
 ## Not done yet

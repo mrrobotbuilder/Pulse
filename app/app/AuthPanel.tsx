@@ -29,12 +29,17 @@ function useWatchState(): WatchState {
 export default function AuthPanel() {
   const configured = supabaseConfigured()
   const [open, setOpen] = useState(false)
-  const [signedIn, setSignedIn] = useState(isSignedIn())
-  const [email, setEmail] = useState(currentUser()?.email ?? null)
+  // Start signed out, like the server render. The saved session is only known
+  // in the browser (and may already be loaded before React hydrates), so reading
+  // it here would make the first client paint differ from the server HTML.
+  const [signedIn, setSignedIn] = useState(false)
+  const [email, setEmail] = useState<string | null>(null)
   const watch = useWatchState()
 
   useEffect(() => {
     if (!configured) return
+    setSignedIn(isSignedIn()) // the session may have loaded before this mounted
+    setEmail(currentUser()?.email ?? null)
     return onAuthChange((user) => {
       setSignedIn(!!user)
       setEmail(user?.email ?? null)
