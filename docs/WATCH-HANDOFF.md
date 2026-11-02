@@ -70,6 +70,13 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
   The Fitbit connection is stored per Pulse account, so the live board shows "connected" without a new Google sign-in.
   NOT yet exercised on the live site: a full Google sign-in (code exchange with the production client secret). Do that once via "Reconnect Fitbit".
 - The owner has not worn the watch since 2026-10-27, which explains the missing sleep/walks after that date (the API is right). Daily steps still arrive every day, probably from the phone.
+- Live sync verified: after the owner reconnected on the live site (token row updated 13:45:53 UTC) the live board wrote `vitals` and `walks` to the cloud at 13:45:58
+  (6 nights, Fitbit fields on 5; `feel` on the typed night intact; 21 walks, 56 days of `dailySteps`).
+- STEGA cleanup 2026-11-02: `WALKS_TOKEN` removed from Vercel production. Copy of the old blob log (1 walk) saved in the session scratchpad. The `stega-walks` blob store
+  (store_aKONVBvXBlTuRYtg) must be deleted by the owner in an interactive terminal (`vercel blob delete-store <id>`: the CLI refuses non-interactive runs);
+  after that remove `BLOB_READ_WRITE_TOKEN` (all environments) with `vercel env rm BLOB_READ_WRITE_TOKEN --yes`. `@vercel/blob` is still in package.json, unused.
+- Known gap: the Sync panel says "Fitbit is connected" if a token ROW exists, even when the grant is dead. In Google Testing mode the refresh token lasts about 7 days
+  (the owner reconnected 2026-11-02, so expect failure around 2026-11-09); the sync route then answers 502 "connection expired" but the board only logs it to the console.
 - NEVER run `vercel env pull .env.local`: it overwrites the file and would wipe the local Google keys. Pull to a scratch file instead.
 
 ## Not done yet
