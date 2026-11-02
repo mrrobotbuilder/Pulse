@@ -83,6 +83,8 @@ export interface GoogleTokens {
   refresh_token?: string
   expires_in: number
   scope?: string
+  /** Present in Google's codelab response (604799 = 7 days) while the app is in Testing mode. */
+  refresh_token_expires_in?: number
 }
 
 async function postToken(body: Record<string, string>): Promise<GoogleTokens> {

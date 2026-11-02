@@ -69,6 +69,9 @@ export async function GET(req: NextRequest) {
       throw new Error('Google returned no refresh token. Remove Pulse at myaccount.google.com/permissions and connect again.')
     }
     await storeTokens(bound.userId, tokens, cfg.config)
+    // A number here means Google gave the grant a lifetime (Testing mode: 604799 = 7 days);
+    // "none" after publishing the app means the weekly reconnect is gone. Read it in the runtime logs.
+    console.info(`googlehealth connected: refresh_token_expires_in=${tokens.refresh_token_expires_in ?? 'none'}`)
   } catch (err) {
     return finish(NextResponse.json({ error: (err as Error).message }, { status: 502 }))
   }

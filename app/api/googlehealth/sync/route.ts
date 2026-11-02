@@ -10,7 +10,8 @@ import { accessTokenFor, fetchWatchData, googleHealthConfig } from '@/lib/google
  *   401  not signed in to Pulse
  *   409  signed in but no Fitbit connected (expected; the board stays quiet)
  *   503  Google Health is not configured on this deployment (also expected)
- *   502  Google refused (a dead grant says to connect again); the message is shown
+ *   502  Google refused; the message is shown. `expired: true` means the grant is dead
+ *        and only a new sign-in fixes it (the board then shows "expired" in the Sync panel)
  */
 export async function GET(req: NextRequest) {
   const cfg = googleHealthConfig()
@@ -26,9 +27,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ connected: true, ...(await fetchWatchData(token)) })
   } catch (err) {
     const msg = (err as Error).message
-    const dead = /invalid_grant/.test(msg)
+    // Google answers invalid_grant when the refresh token is dead: expired (7 days
+    // in Testing mode), revoked, or unused for 6 months. Only a new sign-in fixes it.
+    const expired = /invalid_grant/.test(msg)
     return NextResponse.json(
-      { error: dead ? 'Your Fitbit connection expired. Open the Sync panel and press Reconnect Fitbit.' : msg },
+      { error: expired ? 'Your Fitbit connection expired. Open the Sync panel and press Reconnect Fitbit.' : msg, expired },
       { status: 502 },
     )
   }

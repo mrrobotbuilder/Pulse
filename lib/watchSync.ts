@@ -20,7 +20,25 @@ import { mergeVitals, type Night, type Walk } from './googlehealthMap'
  * Returns what happened. "not-connected" and "not-configured" are expected states,
  * not errors. Anything else throws with the real reason.
  */
-export type WatchSyncResult = 'synced' | 'signed-out' | 'not-connected' | 'not-configured'
+export type WatchSyncResult = 'synced' | 'signed-out' | 'not-connected' | 'not-configured' | 'expired'
+
+/**
+ * What the last sync learned about the connection, for the Sync pill and panel:
+ * 'ok' (data arrived), 'expired' (Google refused the saved grant: reconnect),
+ * 'unknown' (not run yet, signed out, not connected, or failed for another reason).
+ */
+export type WatchState = 'unknown' | 'ok' | 'expired'
+let watchState: WatchState = 'unknown'
+const watchListeners = new Set<(s: WatchState) => void>()
+function setWatchState(s: WatchState) {
+  watchState = s
+  watchListeners.forEach((fn) => fn(s))
+}
+export const currentWatchState = (): WatchState => watchState
+export function onWatchState(fn: (s: WatchState) => void): () => void {
+  watchListeners.add(fn)
+  return () => watchListeners.delete(fn)
+}
 
 export async function syncWatch(userId: string): Promise<WatchSyncResult> {
   const client = supabase()
@@ -34,7 +52,13 @@ export async function syncWatch(userId: string): Promise<WatchSyncResult> {
   if (res.status === 409) return 'not-connected'
   if (res.status === 503) return 'not-configured'
   const json = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(json.error ?? `Fitbit sync failed (HTTP ${res.status}).`)
+  if (!res.ok) {
+    if (json.expired === true) {
+      setWatchState('expired')
+      return 'expired'
+    }
+    throw new Error(json.error ?? `Fitbit sync failed (HTTP ${res.status}).`)
+  }
 
   const nights = json.nights as Record<string, Night>
   const restingHr = json.restingHr as Record<string, number>
@@ -52,5 +76,6 @@ export async function syncWatch(userId: string): Promise<WatchSyncResult> {
     if (syncEnabled() && !(await syncSave(id, data, now))) throw new Error(`Saved ${id} on this device but could not back it up to your account.`)
     window.dispatchEvent(new CustomEvent('pulse:tiledata', { detail: id }))
   }
+  setWatchState('ok')
   return 'synced'
 }

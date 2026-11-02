@@ -4,6 +4,17 @@ import { useEffect, useState } from 'react'
 import styles from './dashboard.module.css'
 import { supabase, supabaseConfigured } from '@/lib/supabaseClient'
 import { isSignedIn, currentUser, onAuthChange, signIn, signUp, signOut } from '@/lib/auth'
+import { currentWatchState, onWatchState, type WatchState } from '@/lib/watchSync'
+
+/** What the last Fitbit sync learned, kept live so the pill and the panel agree. */
+function useWatchState(): WatchState {
+  const [s, setS] = useState<WatchState>(currentWatchState())
+  useEffect(() => {
+    setS(currentWatchState()) // the sync may have finished before this mounted
+    return onWatchState(setS)
+  }, [])
+  return s
+}
 
 /**
  * The cloud-backup control: a small pill next to the settings gear.
@@ -20,6 +31,7 @@ export default function AuthPanel() {
   const [open, setOpen] = useState(false)
   const [signedIn, setSignedIn] = useState(isSignedIn())
   const [email, setEmail] = useState(currentUser()?.email ?? null)
+  const watch = useWatchState()
 
   useEffect(() => {
     if (!configured) return
@@ -38,8 +50,16 @@ export default function AuthPanel() {
         className={styles.syncBtn}
         data-on={signedIn}
         onClick={() => setOpen(true)}
-        title={signedIn ? `Synced as ${email}` : 'Cloud backup'}
+        title={watch === 'expired' ? 'Your Fitbit connection expired. Open this to reconnect.' : signedIn ? `Synced as ${email}` : 'Cloud backup'}
+        aria-label={watch === 'expired' ? `${signedIn ? email : 'Sync'}. Fitbit connection expired` : undefined}
       >
+        {/* first, because the pill cuts long emails off with "…" from the right */}
+        {watch === 'expired' && (
+          <span
+            aria-hidden="true"
+            style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', marginRight: 8, verticalAlign: 'middle' }}
+          />
+        )}
         {signedIn ? email : 'Sync'}
       </button>
       {open && <AuthOverlay signedIn={signedIn} email={email} onClose={() => setOpen(false)} />}
@@ -53,6 +73,7 @@ export default function AuthPanel() {
  * access token as a Bearer header (never in a URL). More brands go here later.
  */
 function WatchConnect() {
+  const expired = useWatchState() === 'expired'
   const [status, setStatus] = useState<'loading' | 'off' | 'on' | 'unavailable'>('loading')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -99,16 +120,23 @@ function WatchConnect() {
   return (
     <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line, rgba(255,255,255,0.12))' }}>
       <span className="ann">Watch</span>
-      <p className="muted" style={{ margin: '8px 0 12px' }}>
-        {status === 'on'
-          ? 'Fitbit is connected. Sleep, steps and heart rate can flow in on their own.'
-          : 'Connect your Fitbit (through Google) so sleep, steps and heart rate fill in without logging.'}
-      </p>
+      {expired ? (
+        <p role="alert" style={{ color: 'var(--accent)', fontWeight: 700, margin: '8px 0 12px' }}>
+          Your Fitbit connection expired, so new sleep and steps are not coming in. Google only keeps a connection for 7
+          days while this app is in test mode. Press Reconnect Fitbit (about 20 seconds). Your saved data is untouched.
+        </p>
+      ) : (
+        <p className="muted" style={{ margin: '8px 0 12px' }}>
+          {status === 'on'
+            ? 'Fitbit is connected. Sleep, steps and heart rate come in by themselves each time you open the board.'
+            : 'Connect your Fitbit (through Google) so sleep, steps and heart rate fill in without logging.'}
+        </p>
+      )}
       {error && (
         <p role="alert" style={{ color: 'var(--accent)', fontWeight: 700, margin: '0 0 10px' }}>{error}</p>
       )}
       <button type="button" className="btn" disabled={busy || status === 'loading'} onClick={connect} style={{ width: '100%' }}>
-        {busy ? 'Opening Google…' : status === 'on' ? 'Reconnect Fitbit' : 'Connect watch (Fitbit)'}
+        {busy ? 'Opening Google…' : status === 'on' || expired ? 'Reconnect Fitbit' : 'Connect watch (Fitbit)'}
       </button>
     </div>
   )

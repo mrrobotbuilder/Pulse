@@ -77,6 +77,15 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
   after that remove `BLOB_READ_WRITE_TOKEN` (all environments) with `vercel env rm BLOB_READ_WRITE_TOKEN --yes`. `@vercel/blob` is still in package.json, unused.
 - Known gap: the Sync panel says "Fitbit is connected" if a token ROW exists, even when the grant is dead. In Google Testing mode the refresh token lasts about 7 days
   (the owner reconnected 2026-11-02, so expect failure around 2026-11-09); the sync route then answers 502 "connection expired" but the board only logs it to the console.
+- 2026-11-02 evening: expired connection is now shown. `/api/googlehealth/sync` answers 502 `{expired:true}` on invalid_grant; `lib/watchSync.ts` keeps a `WatchState`
+  ('unknown'|'ok'|'expired'); `AuthPanel.tsx` shows a red dot at the START of the Sync pill (the pill truncates long emails from the right) and a red
+  message + "Reconnect Fitbit" in the panel. Tested with a throwaway user holding a dead grant (API 502 expired:true; real /app page: dot visible inside the pill,
+  panel on top; all test data deleted afterwards). The callback now logs `refresh_token_expires_in=<seconds|none>` (Vercel runtime logs): a number means the grant has a
+  lifetime (Testing mode, 604799 = 7 days); `none` after publishing the Google app would prove the weekly reconnect is gone.
+- OWNER DECISIONS: other brands are PAUSED. The watch to buy later is an Apple Watch (no web API: it will need an iPhone-side bridge, to be designed then). Use Fitbit for now.
+- The board only pulls when it is opened or reloaded (no background push). That is enough for "open Pulse and see last night".
+- Known pre-existing bug, not from this work: for any SIGNED-IN user the board logs a React hydration error ("Text content does not match server-rendered HTML", then
+  "entire root will switch to client rendering"); the dev overlay shows "1 error". Same with a user who has no Fitbit. Signed out: no error. Cause not yet found.
 - NEVER run `vercel env pull .env.local`: it overwrites the file and would wipe the local Google keys. Pull to a scratch file instead.
 
 ## Not done yet
