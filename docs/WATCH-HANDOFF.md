@@ -63,7 +63,14 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
 - Backup of the cloud `tile_data` rows for vitals/walks taken before the first sync (scratchpad `tile_data_backup.json`, session-local).
 - Finding: the API returns NO sleep after 2026-10-27 (unfiltered list and `reconcile` agree), while the Google Health app showed last night's sleep.
   Ask the owner whether the watch is worn at night / synced; do not "fix" it in code.
-- Production still lacks the `GOOGLEHEALTH_*` env vars, so the live board shows nothing from Fitbit yet (the sync route answers 503 and the board stays quiet).
+- 2026-11-02 later: the four `GOOGLEHEALTH_*` vars were added to Vercel PRODUCTION (client secret and state secret as sensitive; redirect URI =
+  `https://pulse-ochre-zeta-49.vercel.app/api/googlehealth/callback`; state secret is the same value as local). Production pulls hide values, so they were
+  verified by behaviour: after a redeploy the live `start` route builds a Google URL with the exact client_id and redirect_uri, sets a Secure nonce cookie,
+  and the live `sync` route returned the real data (5 nights, 6 resting-HR days, 56 days of steps, 21 walks); `/api/walks` is 404.
+  The Fitbit connection is stored per Pulse account, so the live board shows "connected" without a new Google sign-in.
+  NOT yet exercised on the live site: a full Google sign-in (code exchange with the production client secret). Do that once via "Reconnect Fitbit".
+- The owner has not worn the watch since 2026-10-27, which explains the missing sleep/walks after that date (the API is right). Daily steps still arrive every day, probably from the phone.
+- NEVER run `vercel env pull .env.local`: it overwrites the file and would wipe the local Google keys. Pull to a scratch file instead.
 
 ## Not done yet
 4. Feed the tiles (sleep, steps, heart rate, workouts) through the tile-data lane, like Walks (`Dashboard.tsx` fetch -> `tileStore.saveData`).
