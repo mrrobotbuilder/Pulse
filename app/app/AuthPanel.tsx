@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import styles from './dashboard.module.css'
-import { supabaseConfigured } from '@/lib/supabaseClient'
+import { supabase, supabaseConfigured } from '@/lib/supabaseClient'
 import { isSignedIn, currentUser, onAuthChange, signIn, signUp, signOut } from '@/lib/auth'
 
 /**
@@ -44,6 +44,73 @@ export default function AuthPanel() {
       </button>
       {open && <AuthOverlay signedIn={signedIn} email={email} onClose={() => setOpen(false)} />}
     </>
+  )
+}
+
+/**
+ * "Connect watch" — starts the Google Health (Fitbit) sign-in. The server needs
+ * to know WHICH Pulse account is connecting, so both calls carry the Supabase
+ * access token as a Bearer header (never in a URL). More brands go here later.
+ */
+function WatchConnect() {
+  const [status, setStatus] = useState<'loading' | 'off' | 'on' | 'unavailable'>('loading')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const authHeader = async (): Promise<Record<string, string>> => {
+    const { data } = (await supabase()?.auth.getSession()) ?? { data: { session: null } }
+    if (!data.session) throw new Error('Sign in again, then retry.')
+    return { authorization: `Bearer ${data.session.access_token}` }
+  }
+
+  useEffect(() => {
+    let alive = true
+    authHeader()
+      .then((h) => fetch('/api/googlehealth/status', { headers: h, cache: 'no-store' }))
+      .then(async (res) => {
+        if (!alive) return
+        if (!res.ok) return setStatus('unavailable')
+        const json = await res.json()
+        setStatus(json.connected ? 'on' : 'off')
+      })
+      .catch(() => alive && setStatus('unavailable'))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const connect = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      const res = await fetch('/api/googlehealth/start', { method: 'POST', headers: await authHeader() })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.url) {
+        const why = json.missing ? ` Missing: ${json.missing.join(', ')}.` : ''
+        throw new Error((json.error ?? `Could not start (HTTP ${res.status}).`) + why)
+      }
+      window.location.href = json.url
+    } catch (err) {
+      setError((err as Error).message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line, rgba(255,255,255,0.12))' }}>
+      <span className="ann">Watch</span>
+      <p className="muted" style={{ margin: '8px 0 12px' }}>
+        {status === 'on'
+          ? 'Fitbit is connected. Sleep, steps and heart rate can flow in on their own.'
+          : 'Connect your Fitbit (through Google) so sleep, steps and heart rate fill in without logging.'}
+      </p>
+      {error && (
+        <p role="alert" style={{ color: 'var(--accent)', fontWeight: 700, margin: '0 0 10px' }}>{error}</p>
+      )}
+      <button type="button" className="btn" disabled={busy || status === 'loading'} onClick={connect} style={{ width: '100%' }}>
+        {busy ? 'Opening Google…' : status === 'on' ? 'Reconnect Fitbit' : 'Connect watch (Fitbit)'}
+      </button>
+    </div>
   )
 }
 
@@ -108,6 +175,7 @@ function AuthOverlay({
               Signed in as <strong style={{ color: 'var(--text)' }}>{email}</strong>. Every save on this device also
               mirrors to your account, so it&apos;s there when you open the dashboard elsewhere.
             </p>
+            <WatchConnect />
             <button type="button" className="btn ghost" disabled={busy} onClick={doSignOut} style={{ width: '100%', marginTop: 18 }}>
               Sign out
             </button>
