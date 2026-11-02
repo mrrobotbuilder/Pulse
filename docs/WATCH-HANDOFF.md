@@ -86,7 +86,12 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
 - OWNER DECISIONS: other brands are PAUSED. The watch to buy later is an Apple Watch (no web API: it will need an iPhone-side bridge, to be designed then). Use Fitbit for now.
 - The board pulls when it is opened or reloaded, and again when you switch back to the tab (at most once every 2 minutes; `resyncWatchIfStale` in `lib/watchSync.ts`).
   There is no timer: a tab left in view never syncs by itself. An open Walks tile reloads its frame when a sync lands (it is read-only); Vitals is left alone so typing is never lost.
-- Sync status (branch `sync-status`, 2026-11-02): the Sync panel shows "Last successful sync HH:MM · last try HH:MM" and, if the last try failed, the reason. Kept per account in
+- FIXED 2026-11-02: the sync died about an hour after every sign-in. Google access tokens last ~1 hour; the refresh answer has no `refresh_token`, and `storeTokens` saved it with an
+  UPSERT without one. Postgres checks `refresh_token not null` on the proposed row before it looks for the existing row, so the save failed with `null value in column "refresh_token"`
+  and every later sync failed the same way. Now `writeTokenRow` (`lib/googlehealthStore.ts`) UPDATEs the stored row on a refresh and only upserts on a sign-in. Proved against the real
+  database with a throwaway user (old logic reproduced the exact error, new logic kept the refresh token), then on the owner's real token: the row was updated and the sync succeeded.
+  The earlier probe script (`scripts/probe-googlehealth.mjs`) refreshes in memory and never writes back, so it cannot see this class of bug.
+- Sync status (merged 2026-11-02): the Sync panel shows "Last successful sync HH:MM · last try HH:MM" and, if the last try failed, the reason. Kept per account in
   this browser (`vitality:<user>:watchsync`), written by `syncWatch` on every try; the wording and the 2 minute rule are pure code in `lib/watchStatus.ts` (`node --test lib/watchStatus.test.mjs`).
   Not connected and not configured are tries without a failure. A sync is stopped after 60 seconds so one hung request cannot block the next.
   Why: on 2026-11-02 the owner refreshed for 4 hours and the Walks tile kept saying "synced 15:12"; a failed sync only wrote to the browser console, so nothing said why.
