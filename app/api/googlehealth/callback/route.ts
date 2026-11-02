@@ -1,6 +1,13 @@
+import { timingSafeEqual } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyState } from '@/lib/whoop'
-import { exchangeCode, googleHealthConfig, storeTokens } from '@/lib/googlehealth'
+import {
+  NONCE_COOKIE,
+  exchangeCode,
+  googleHealthConfig,
+  storeTokens,
+  unbindNonce,
+} from '@/lib/googlehealth'
 
 /**
  * Step two: Google sends the person back here with ?code= and our signed ?state=.
@@ -30,12 +37,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Google did not send back a code and state.' }, { status: 400 })
   }
 
-  const userId = verifyState(state, cfg.config.stateSecret)
-  if (!userId) {
+  const signed = verifyState(state, cfg.config.stateSecret)
+  const bound = signed ? unbindNonce(signed) : null
+  if (!bound) {
     return NextResponse.json(
       { error: 'That connection link is no longer valid. Start the connection again.' },
       { status: 400 },
     )
+  }
+
+  // The nonce in the signed state must equal the cookie this browser got at
+  // /start. A leaked link finished from another browser has no such cookie.
+  const cookie = Buffer.from(req.cookies.get(NONCE_COOKIE)?.value ?? '')
+  const wanted = Buffer.from(bound.nonce)
+  if (cookie.length !== wanted.length || !timingSafeEqual(cookie, wanted)) {
+    return NextResponse.json(
+      { error: 'This connection was not started in this browser. Start it again from your board.' },
+      { status: 400 },
+    )
+  }
+
+  // One use only: clear the cookie whatever happens next.
+  const finish = (res: NextResponse) => {
+    res.cookies.delete({ name: NONCE_COOKIE, path: '/api/googlehealth/callback' })
+    return res
   }
 
   try {
@@ -43,11 +68,11 @@ export async function GET(req: NextRequest) {
     if (!tokens.refresh_token) {
       throw new Error('Google returned no refresh token. Remove Pulse at myaccount.google.com/permissions and connect again.')
     }
-    await storeTokens(userId, tokens, cfg.config)
+    await storeTokens(bound.userId, tokens, cfg.config)
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 })
+    return finish(NextResponse.json({ error: (err as Error).message }, { status: 502 }))
   }
 
   board.searchParams.set('googlehealth', 'connected')
-  return NextResponse.redirect(board)
+  return finish(NextResponse.redirect(board))
 }

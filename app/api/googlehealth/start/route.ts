@@ -1,8 +1,12 @@
+import { randomBytes } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { signState, userFromBearer } from '@/lib/whoop'
 import {
   GOOGLE_AUTHORIZE_URL,
   GOOGLE_HEALTH_SCOPE_STRING,
+  NONCE_COOKIE,
+  NONCE_MAX_AGE_SECONDS,
+  bindNonce,
   googleHealthConfig,
 } from '@/lib/googlehealth'
 
@@ -36,7 +40,17 @@ export async function POST(req: NextRequest) {
   // offline = a refresh token; consent = Google issues one every time, not only the first.
   url.searchParams.set('access_type', 'offline')
   url.searchParams.set('prompt', 'consent')
-  url.searchParams.set('state', signState(userId, cfg.config.stateSecret))
+  const nonce = randomBytes(24).toString('base64url')
+  url.searchParams.set('state', signState(bindNonce(userId, nonce), cfg.config.stateSecret))
 
-  return NextResponse.json({ url: url.toString() })
+  const res = NextResponse.json({ url: url.toString() })
+  // Lax: the callback is a top-level GET from Google, which Lax cookies ride along on.
+  res.cookies.set(NONCE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: req.nextUrl.protocol === 'https:',
+    sameSite: 'lax',
+    path: '/api/googlehealth/callback',
+    maxAge: NONCE_MAX_AGE_SECONDS,
+  })
+  return res
 }

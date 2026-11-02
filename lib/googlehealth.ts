@@ -53,6 +53,27 @@ export function googleHealthConfig(): { config: GoogleHealthConfig } | { missing
   }
 }
 
+// ── browser-bound state ──────────────────────────────────────────────────────
+//
+// The signed `state` proves the link came from us, but not that the browser
+// finishing the flow is the one that started it: a leaked callback URL could be
+// completed by someone else, attaching THEIR Google data to this account. So
+// start also sets a one-time HttpOnly cookie, its nonce rides inside the signed
+// state, and the callback requires both to match. (userId is a UUID: no colon.)
+
+export const NONCE_COOKIE = 'gh_oauth_nonce'
+export const NONCE_MAX_AGE_SECONDS = 15 * 60
+
+export function bindNonce(userId: string, nonce: string): string {
+  return `${userId}:${nonce}`
+}
+
+export function unbindNonce(bound: string): { userId: string; nonce: string } | null {
+  const i = bound.indexOf(':')
+  if (i < 1 || i === bound.length - 1) return null
+  return { userId: bound.slice(0, i), nonce: bound.slice(i + 1) }
+}
+
 // ── tokens ───────────────────────────────────────────────────────────────────
 
 export interface GoogleTokens {
