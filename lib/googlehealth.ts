@@ -1,5 +1,6 @@
 import type { WhoopConfig } from '@/lib/whoop'
 import { adminClient } from '@/lib/whoop'
+import { writeTokenRow } from '@/lib/googlehealthStore'
 import { mapDailySteps, mapRestingHr, mapSleep, mapWalks, type Night, type Walk } from '@/lib/googlehealthMap'
 
 /**
@@ -138,16 +139,7 @@ export async function storeTokens(
   tokens: GoogleTokens,
   c: GoogleHealthConfig,
 ): Promise<void> {
-  const row: Record<string, unknown> = {
-    user_id: userId,
-    access_token: tokens.access_token,
-    scope: tokens.scope ?? null,
-    expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-  if (tokens.refresh_token) row.refresh_token = tokens.refresh_token
-  const { error } = await adminClient(c).from('googlehealth_tokens').upsert(row, { onConflict: 'user_id' })
-  if (error) throw new Error(`Could not store the Google Health tokens: ${error.message}`)
+  await writeTokenRow(adminClient(c), userId, tokens)
 }
 
 /**
