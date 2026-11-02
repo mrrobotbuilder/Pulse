@@ -12,6 +12,7 @@ import { DEMO_USER_ID, readScoped } from '@/lib/localScope'
 import { prepareLocalNamespace } from '@/lib/migrateLocal'
 import { tileStore } from '@/lib/tiles/tileStore'
 import { syncBackfill, syncClearTile, syncWipe } from '@/lib/sync'
+import { syncWatch } from '@/lib/watchSync'
 import { site } from '@/content/site'
 import { THEMES, readTheme, applyTheme, saveTheme, type ThemeId } from '@/lib/theme'
 import Onboarding from './Onboarding'
@@ -387,27 +388,12 @@ export default function Dashboard({ firstName, userId }: DashboardProps) {
     }
   }, [userId])
 
-  // Walks are logged from STEGA into a server-side blob, not the browser. The
-  // sealed tile has no network, so the board fetches the log and hands it over
-  // through the normal tile-data lane for the tile to read with Pulse.load().
+  // Fitbit (through the Google Health API) feeds Vitals and Walks. Sealed tiles
+  // have no network, so the board fetches and hands the data over through the
+  // tile-data lane. Not connected / not configured are quiet; a real failure is
+  // logged with its reason and the tiles keep their last copy.
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch('/api/walks')
-        if (!res.ok) return
-        const { walks } = await res.json()
-        if (cancelled || !Array.isArray(walks)) return
-        await tileStore.saveData(userId, 'walks', { walks, syncedAt: new Date().toISOString() })
-        // the board re-reads the Walks number on the tile face
-        window.dispatchEvent(new CustomEvent('pulse:tiledata', { detail: 'walks' }))
-      } catch {
-        // Offline or blob unconfigured — the tile keeps its last synced copy.
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    syncWatch(userId).catch((err) => console.error('Fitbit sync failed:', err instanceof Error ? err.message : err))
   }, [userId])
 
   // First visit (and not the detonated/black scratch mode): personalize before

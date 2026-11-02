@@ -610,7 +610,7 @@ export default function DashboardGrid({ userId }: DashboardGridProps) {
   )
   useEffect(() => {
     for (const id of SLOT_ORDER) if (id !== 'vee') void refreshStat(id)
-    // a tile's data changed outside its overlay (the Walks sync from STEGA)
+    // a tile's data changed outside its overlay (the Fitbit sync)
     const onData = (e: Event) => {
       const id = (e as CustomEvent).detail
       if (typeof id === 'string') void refreshStat(id)

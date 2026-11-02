@@ -136,11 +136,13 @@ function vitals(d: unknown, now: Date): TileStat | null {
   return { value: `${hh}h${mm ? ` ${mm}m` : ''}`, unit: 'sleep', sub: sub || 'last night' }
 }
 
-/* Walks: { walks: [{ date: 'YYYY-MM-DD', steps, distanceM }], syncedAt }. Monday-based week. */
+/* Walks: { walks: [{ date: 'YYYY-MM-DD', steps, distanceM }], dailySteps?: { 'YYYY-MM-DD': allDaySteps }, syncedAt }.
+ * Monday-based week. When the Fitbit all-day totals (dailySteps) are present they are the step count. */
 function walks(d: unknown, now: Date): TileStat | null {
   const list = isObj(d) ? d.walks : undefined
   if (!Array.isArray(list)) shape('walks')
-  if (!list.length) return null
+  const daily = isObj(d) && isObj(d.dailySteps) ? d.dailySteps : null
+  if (!list.length && !daily) return null
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
   const from = dayKey(start)
@@ -150,10 +152,11 @@ function walks(d: unknown, now: Date): TileStat | null {
   let dist = 0
   for (const w of list) {
     if (!isObj(w) || typeof w.date !== 'string' || w.date < from || w.date > to) continue
-    if (num(w.steps)) steps += w.steps
+    if (!daily && num(w.steps)) steps += w.steps
     if (num(w.distanceM)) dist += w.distanceM
     count++
   }
+  if (daily) for (const [k, v] of Object.entries(daily)) if (k >= from && k <= to && num(v)) steps += v
   return {
     value: steps.toLocaleString('en-US'),
     unit: 'steps',

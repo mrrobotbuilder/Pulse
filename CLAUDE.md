@@ -177,21 +177,28 @@ Rowan and Luke made the vision possible. You make it theirs.
 
 ---
 
-## The Walks tile (STEGA integration)
+## The watch feed (Fitbit → Vitals and Walks)
 
-Walks are planned and logged in a separate app — STEGA (https://stega-oriad.vercel.app,
-repo `C:\Users\User\Projects\stega`) — not on this board.
+STEGA is its own website and app now; Pulse no longer talks to it (the old
+`/api/walks` ingest was removed 2026-11-02). Walks and Vitals are fed by the
+owner's Fitbit through the Google Health API. Details and field names:
+`docs/WATCH-HANDOFF.md`.
 
-- `app/api/walks/route.ts` — POST appends a walk to a Vercel Blob JSON log
-  (`stega/walks.json`, private store `stega-walks`), guarded by a `WALKS_TOKEN`
-  bearer compared in constant time. GET returns the log for the board.
-- Sealed tiles have **no network**, so `public/tiles/walks.html` never fetches.
-  `Dashboard.tsx` fetches `/api/walks` on mount and writes it into the tile-data
-  lane (`tileStore.saveData(userId, 'walks', …)`); the tile reads it back through
-  the normal `window.Pulse.load()` bridge. Keep that split if you touch either side.
-- Env on this project: `WALKS_TOKEN`, `BLOB_READ_WRITE_TOKEN`. STEGA holds the
-  matching `PULSE_WALKS_TOKEN` plus a Protection Bypass secret, because this
-  deployment is behind Vercel SSO.
+- `lib/googlehealth.ts` (server) holds the Google sign-in, token refresh and
+  `fetchWatchData`; `lib/googlehealthMap.ts` maps Google data points to tile
+  shapes (pure, tested: `node --test lib/googlehealthMap.test.mjs`).
+  `app/api/googlehealth/{start,callback,status,sync}` are the routes; tokens
+  live in the server-only `googlehealth_tokens` table.
+- Sealed tiles have **no network**, so the tiles never fetch. `Dashboard.tsx`
+  calls `lib/watchSync.ts` on load, which fetches `/api/googlehealth/sync` and
+  writes the Vitals and Walks lanes (and mirrors them to the account, because
+  tiles read the cloud copy first). Keep that split if you touch either side.
+- Vitals: Fitbit overwrites `sleepHours`, `bed`, `wake`, `rhr`; `feel`, `note`
+  and anything else the owner typed is kept (`mergeVitals`). Walks: replaced
+  whole, `{ walks, dailySteps, syncedAt }`; the tile's bars use `dailySteps`.
+- Env: `GOOGLEHEALTH_CLIENT_ID`, `GOOGLEHEALTH_CLIENT_SECRET`,
+  `GOOGLEHEALTH_REDIRECT_URI`, `GOOGLEHEALTH_STATE_SECRET` (set locally with
+  `scripts/set-googlehealth-keys.ps1`; on Vercel they still need adding).
 - Adding a slot means touching all of: `lib/tiles/coreTiles.tsx` (`CoreTileId`,
   `CORE_TILES`, `DEFAULT_HOME_ORDER`), the `READABLE` list in
   `lib/tiles/useTileHost.ts`, and `SLOTS`/`DATA_SLOTS` in the MCP route.

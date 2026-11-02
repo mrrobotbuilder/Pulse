@@ -1,5 +1,6 @@
 import type { WhoopConfig } from '@/lib/whoop'
 import { adminClient } from '@/lib/whoop'
+import { mapDailySteps, mapRestingHr, mapSleep, mapWalks, type Night, type Walk } from '@/lib/googlehealthMap'
 
 /**
  * Google Health (Fitbit) — the server side of the watch connection. SERVER ONLY.
@@ -168,4 +169,80 @@ export async function accessTokenFor(userId: string, c: GoogleHealthConfig): Pro
   const fresh = await refreshTokens(data.refresh_token as string, c)
   await storeTokens(userId, fresh, c)
   return fresh.access_token
+}
+
+// ── the watch feed ───────────────────────────────────────────────────────────
+
+export interface WatchData {
+  syncedAt: string
+  nights: Record<string, Night>
+  restingHr: Record<string, number>
+  dailySteps: Record<string, number>
+  walks: Walk[]
+}
+
+const isoDay = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10)
+
+async function google(token: string, path: string, init?: RequestInit): Promise<Record<string, unknown>> {
+  const res = await fetch(`${GOOGLE_HEALTH_API}${path}`, {
+    ...init,
+    headers: { authorization: `Bearer ${token}`, accept: 'application/json', ...(init?.headers ?? {}) },
+    cache: 'no-store',
+  })
+  const text = await res.text()
+  if (!res.ok) {
+    let msg = text.slice(0, 200).replace(/\s+/g, ' ')
+    try {
+      msg = (JSON.parse(text) as { error?: { message?: string } }).error?.message ?? msg
+    } catch {
+      /* keep the raw text */
+    }
+    throw new Error(`Google Health ${path.split('?')[0]} answered ${res.status}: ${msg}`)
+  }
+  return JSON.parse(text) as Record<string, unknown>
+}
+
+/** Every page of a list call, up to maxPages. Newest data points come first. */
+async function listAll(token: string, type: string, filter: string, maxPages: number): Promise<unknown[]> {
+  const points: unknown[] = []
+  let pageToken = ''
+  for (let page = 0; page < maxPages; page++) {
+    const q = new URLSearchParams({ filter })
+    if (pageToken) q.set('pageToken', pageToken)
+    const json = await google(token, `/users/me/dataTypes/${type}/dataPoints?${q}`)
+    points.push(...((json.dataPoints as unknown[]) ?? []))
+    pageToken = (json.nextPageToken as string) ?? ''
+    if (!pageToken) break
+  }
+  return points
+}
+
+/**
+ * Everything the Vitals and Walks tiles need, in four parallel Google calls.
+ * Any failing call throws: a half-filled answer would look like "no data".
+ * Filter spellings (snake_case type names) were tested against a real account.
+ */
+export async function fetchWatchData(token: string): Promise<WatchData> {
+  const dayStart = (daysAgo: number) => {
+    const [y, m, d] = isoDay(daysAgo).split('-').map(Number)
+    return { date: { year: y, month: m, day: d }, time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 } }
+  }
+  const [sleep, rhr, rollup, exercise] = await Promise.all([
+    listAll(token, 'sleep', `sleep.interval.civil_end_time >= "${isoDay(14)}"`, 2),
+    listAll(token, 'daily-resting-heart-rate', `daily_resting_heart_rate.date >= "${isoDay(14)}"`, 1),
+    // 56 days back to two days ahead: the server runs in UTC and the account may be a day ahead.
+    google(token, '/users/me/dataTypes/steps/dataPoints:dailyRollUp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ range: { start: dayStart(55), end: dayStart(-2) }, windowSizeDays: 1, pageSize: 90 }),
+    }),
+    listAll(token, 'exercise', `exercise.interval.civil_start_time >= "${isoDay(60)}"`, 4),
+  ])
+  return {
+    syncedAt: new Date().toISOString(),
+    nights: mapSleep(sleep),
+    restingHr: mapRestingHr(rhr),
+    dailySteps: mapDailySteps((rollup.rollupDataPoints as unknown[]) ?? []),
+    walks: mapWalks(exercise),
+  }
 }

@@ -50,6 +50,21 @@ int64 values arrive as STRINGS: parse them. Times are RFC-3339 strings with a se
 - Vitals tile: `{ 'YYYY-MM-DD': { sleepHours, feel, bed?:'HH:MM', wake?:'HH:MM', rhr?, hrv?, note?, whoopRecovery? }, need: 8 }`,
   keyed by the WAKE date (today's key holds last night). `feel` and `note` are the owner's own input: a sync must never wipe them.
 
+## Feed built 2026-11-02 (decisions: Fitbit overwrites typed sleepHours, never feel/note; Fitbit REPLACES STEGA, STEGA removed from Pulse)
+- `lib/googlehealthMap.ts` (+ `.test.mjs`, 8 tests) maps data points to tile shapes; `lib/googlehealth.ts` `fetchWatchData`;
+  `GET /api/googlehealth/sync`; `lib/watchSync.ts` (board side, merges Vitals onto the cloud copy, replaces Walks, mirrors both to the account);
+  `Dashboard.tsx` calls it on load. `tileStats.ts` walks() and `public/tiles/walks.html` use `dailySteps` (all-day steps).
+- Daily totals: `POST /v4/users/me/dataTypes/steps/dataPoints:dailyRollUp`, body `{range:{start,end}, windowSizeDays:1, pageSize:90}`
+  (start/end = `{date:{year,month,day}, time:{hours:0,...}}`), response `rollupDataPoints[].{civilStartTime.date, steps.countSum (string)}`; max 90 days.
+- STEGA removed: `app/api/walks/route.ts`, the Dashboard fetch, middleware exclusion, `.env.example` block, CLAUDE.md section.
+  `@vercel/blob` is still in package.json (nothing imports it now). Vercel env `WALKS_TOKEN` / `BLOB_READ_WRITE_TOKEN` and the `stega-walks` blob store are left as they were.
+- Verified: route on a real account (5 nights, 6 resting-HR days, 56 days of steps, 21 walks; 401 without login); mapping + tileStats tests; tsc clean.
+  NOT yet verified: the board page itself writing the tiles in a browser, and the live site.
+- Backup of the cloud `tile_data` rows for vitals/walks taken before the first sync (scratchpad `tile_data_backup.json`, session-local).
+- Finding: the API returns NO sleep after 2026-10-27 (unfiltered list and `reconcile` agree), while the Google Health app showed last night's sleep.
+  Ask the owner whether the watch is worn at night / synced; do not "fix" it in code.
+- Production still lacks the `GOOGLEHEALTH_*` env vars, so the live board shows nothing from Fitbit yet (the sync route answers 503 and the board stays quiet).
+
 ## Not done yet
 4. Feed the tiles (sleep, steps, heart rate, workouts) through the tile-data lane, like Walks (`Dashboard.tsx` fetch -> `tileStore.saveData`).
 5. Brand picker (Whoop, Fitbit, others) in `WatchConnect`; WHOOP routes exist but have no button and the same state-binding gap.
